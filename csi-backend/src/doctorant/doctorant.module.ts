@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { Doctorant, DoctorantSchema } from './schemas/doctorant.schema';
 import { DoctorantService } from './doctorant.service';
 import { DoctorantController } from './doctorant.controller';
-import { Doctorant, DoctorantSchema } from './schemas/doctorant.schema';
 
 @Module({
     imports: [
@@ -10,5 +10,6 @@ import { Doctorant, DoctorantSchema } from './schemas/doctorant.schema';
     ],
     controllers: [DoctorantController],
     providers: [DoctorantService],
+    exports: [MongooseModule], // Exporter MongooseModule pour que d'autres modules puissent l'utiliser
 })
 export class DoctorantModule {}

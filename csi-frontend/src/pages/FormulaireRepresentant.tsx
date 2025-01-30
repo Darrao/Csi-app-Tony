@@ -4,64 +4,82 @@ import api from '../services/api';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 
+// Fonction pour formater la date au format "yyyy-MM-dd"
+const formatDate = (isoDate: string) => {
+    if (!isoDate) return '';
+    return new Date(isoDate).toISOString().split('T')[0];
+};
+
 const FormulaireRepresentant: React.FC = () => {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
+    const [role, setRole] = useState<string | null>(null); // 'representant1' ou 'representant2'
     const [doctorantData, setDoctorantData] = useState<any>(null);
 
     useEffect(() => {
-        const fetchDoctorantData = async () => {
+        const validateToken = async () => {
             try {
+                console.log('Validation du token en cours...'); // Ajouté
                 const response = await api.post('/email/validate-token', { token });
-                console.log('Réponse de /email/validate-token:', response.data);
         
-                if (response.data.valid) {
-                    const normalizedEmail = response.data.email.trim().toLowerCase();
-                    console.log('Email du doctorant (normalisé) envoyé au backend :', normalizedEmail);
+                console.log('Réponse du backend après validation du token :', response.data); // Ajouté
         
-                    const dataResponse = await api.get(`/doctorant/by-email/${normalizedEmail}`);
-                    console.log('Réponse de /doctorant/by-email :', dataResponse.data);
-                    setDoctorantData(dataResponse.data);
+                if (response.data.valid && response.data.doctorant?.representantData) {
+                    setRole(
+                        response.data.email === response.data.doctorant.representantData.representantEmail1
+                            ? 'representant1'
+                            : 'representant2'
+                    );
+        
+                    setDoctorantData(response.data.doctorant);
+                    console.log('Role défini pour le représentant :', response.data.email === response.data.doctorant.representantData.representantEmail1 ? 'representant1' : 'representant2'); // Ajouté
                 } else {
-                    alert('Lien invalide ou expiré.');
+                    console.log('Validation échouée ou données incomplètes :', response.data); // Ajouté
+                    alert(response.data.message || 'Lien invalide ou expiré.');
                 }
             } catch (error) {
-                console.error('Erreur lors de la validation du token :', error);
-                alert('Erreur lors de la validation du lien.');
+                console.error('Erreur lors de la validation du token :', error); // Ajouté
             }
         };
-    
+
         if (token) {
-            fetchDoctorantData();
+            validateToken();
         }
     }, [token]);
 
-    const initialValues = {
-        champPlus1: '',
-        champPlus2: '',
-    };
-
     const validationSchema = Yup.object({
-        champPlus1: Yup.string().required('Champ +1 est requis'),
-        champPlus2: Yup.string().required('Champ +2 est requis'),
+        choix1: Yup.string().required('Choix 1 est requis'),
+        choix2: Yup.string().required('Choix 2 est requis'),
     });
 
+    const initialValues = role === 'representant1'
+    ? doctorantData?.representantData?.representant1Choices || { choix1: '', choix2: '' }
+    : doctorantData?.representantData?.representant2Choices || { choix1: '', choix2: '' };
+
     const onSubmit = async (values: any) => {
-        if (!doctorantData?.email) {
-            console.error('Données actuelles de doctorantData:', doctorantData);
-            alert('Erreur : l’email du doctorant est introuvable. Veuillez vérifier les données.');
-            return;
-        }
-    
-        const data = { ...values, doctorantEmail: doctorantData.email };
-        console.log('Données envoyées au backend :', data);
-    
+        console.log('Données soumises par le rôle :', role); // Ajouté
+        console.log('Données soumises :', values); // Ajouté
+
         try {
-            const response = await api.post('/doctorant/representant', data);
-            console.log('Réponse du backend :', response.data);
+            const updateData = role === 'representant1'
+                ? { representant1Choices: values }
+                : { representant2Choices: values };
+
+            console.log('Payload envoyé au backend :', {
+                doctorantEmail: doctorantData.email,
+                role,
+                choices: values,
+            }); // Ajouté
+
+            await api.post('/doctorant/representant', {
+                doctorantEmail: doctorantData.email,
+                role,
+                choices: values,
+            });
+
             alert('Formulaire soumis avec succès !');
         } catch (error) {
-            console.error('Erreur lors de la soumission du formulaire :', error);
+            console.error('Erreur lors de la soumission des données :', error); // Ajouté
             alert('Erreur lors de la soumission.');
         }
     };
@@ -73,11 +91,12 @@ const FormulaireRepresentant: React.FC = () => {
     return (
         <div>
             <h1>Formulaire du Représentant</h1>
-            <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={onSubmit}>
+            <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={onSubmit} enableReinitialize>
                 <Form>
                     <div>
                         <label>Email du Doctorant</label>
-                        <Field type="email" name="doctorantEmail" value={doctorantData.email} disabled />
+                        <Field type="hidden" name="doctorantEmail" value={doctorantData.email} />
+                        <span>{doctorantData.email}</span>
                     </div>
                     <div>
                         <label>Nom</label>
@@ -89,7 +108,12 @@ const FormulaireRepresentant: React.FC = () => {
                     </div>
                     <div>
                         <label>Date d'inscription</label>
-                        <Field type="date" name="dateInscription" value={doctorantData.dateInscription} disabled />
+                        <Field
+                            type="date"
+                            name="dateInscription"
+                            value={formatDate(doctorantData.dateInscription)}
+                            disabled
+                        />
                     </div>
                     <div>
                         <label>Titre de la thèse</label>
@@ -108,14 +132,14 @@ const FormulaireRepresentant: React.FC = () => {
                         <Field type="text" name="financement" value={doctorantData.financement} disabled />
                     </div>
                     <div>
-                        <label>Champ +1</label>
-                        <Field type="text" name="champPlus1" />
-                        <ErrorMessage name="champPlus1" component="div" />
+                        <label>Choix 1</label>
+                        <Field type="text" name="choix1" />
+                        <ErrorMessage name="choix1" component="div" />
                     </div>
                     <div>
-                        <label>Champ +2</label>
-                        <Field type="text" name="champPlus2" />
-                        <ErrorMessage name="champPlus2" component="div" />
+                        <label>Choix 2</label>
+                        <Field type="text" name="choix2" />
+                        <ErrorMessage name="choix2" component="div" />
                     </div>
                     <button type="submit">Soumettre</button>
                 </Form>

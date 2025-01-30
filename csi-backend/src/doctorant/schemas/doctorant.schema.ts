@@ -29,8 +29,10 @@ export class Doctorant extends Document {
 
     @Prop({ type: Object, default: null })
     representantData: {
-        champPlus1: string;
-        champPlus2: string;
+        representantEmail1: string;
+        representantEmail2: string;
+        saisieChamp1?: string;
+        saisieChamp2?: string;
     };
 }
 

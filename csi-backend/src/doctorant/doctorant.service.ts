@@ -9,15 +9,21 @@ export class DoctorantService {
     constructor(@InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>) {}
 
     async create(createDoctorantDto: any): Promise<Doctorant> {
-        const { email, representant1, representant2, ...otherData } = createDoctorantDto;
-        const normalizedEmail = email.trim().toLowerCase(); // Normalisation ici
+        const { email, representantEmail1, representantEmail2, ...otherData } = createDoctorantDto;
+    
+        // Vérification des emails des représentants
+        if (!representantEmail1 || !representantEmail2) {
+            throw new Error('Les emails des représentants sont requis.');
+        }
+    
+        const normalizedEmail = email.trim().toLowerCase();
     
         const createdDoctorant = new this.doctorantModel({
             ...otherData,
             email: normalizedEmail,
             representantData: {
-                champPlus1: representant1 || null,
-                champPlus2: representant2 || null,
+                representantEmail1,
+                representantEmail2,
             },
         });
     
@@ -69,20 +75,23 @@ export class DoctorantService {
         console.log(`Mise à jour du doctorant avec ID : ${id}`);
         console.log('Données de mise à jour reçues :', updateData);
     
-        // Construisez `representantData` si `representant1` et `representant2` existent
-        if (updateData.representant1 && updateData.representant2) {
-            updateData.representantData = {
-                champPlus1: updateData.representant1,
-                champPlus2: updateData.representant2,
-            };
-            delete updateData.representant1;
-            delete updateData.representant2;
+        // Vérifiez si le doctorant existe
+        const existingDoctorant = await this.doctorantModel.findById(id).exec();
+        if (!existingDoctorant) {
+            throw new Error('Doctorant introuvable');
         }
     
+        // Fusionnez les données des représentants
+        const updatedRepresentantData = {
+            ...existingDoctorant.representantData, // Préserve les données existantes
+            ...updateData.representantData, // Ajoute ou met à jour les nouvelles données
+        };
+    
+        // Effectuez la mise à jour
         const result = await this.doctorantModel.findByIdAndUpdate(
             id,
-            { $set: updateData },
-            { new: true }
+            { $set: { representantData: updatedRepresentantData } },
+            { new: true } // Retourne le document mis à jour
         ).exec();
     
         console.log('Résultat de la mise à jour :', result);

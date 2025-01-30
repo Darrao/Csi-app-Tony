@@ -12,6 +12,8 @@ interface FormValues {
   directeurThese: string;
   financement: string;
   email: string;
+  representantEmail1: string; 
+  representantEmail2: string;
 }
 
 const FormulaireDoctorant: React.FC = () => {
@@ -24,6 +26,8 @@ const FormulaireDoctorant: React.FC = () => {
     directeurThese: '',
     financement: '',
     email: '',
+    representantEmail1: '',
+    representantEmail2: '',
   };
 
   const validationSchema = Yup.object({

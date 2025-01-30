@@ -2,52 +2,62 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Token } from './schemas/token.schema';
+import { Doctorant } from '../doctorant/schemas/doctorant.schema'; // Importer le modèle Doctorant
 
 @Injectable()
 export class TokenService {
-    constructor(@InjectModel(Token.name) private tokenModel: Model<Token>) {}
+    constructor(
+        @InjectModel(Token.name) private tokenModel: Model<Token>,
+        @InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>, // Injection du modèle Doctorant
+    ) {}
 
-    // Méthode pour enregistrer un token
-    async saveToken(token: string, email: string, type: string) {
+    async saveToken(token: string, email: string, type: string, doctorantEmail?: string) {
         const tokenData = {
             token,
             email,
             type,
-            role: type === 'doctorant' ? 'doctorant' : 'representant',
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // Par exemple, valide 24h
+            role: type,
+            doctorantEmail,
+            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // Valide 24h
             createdAt: new Date(),
         };
-    
+
         console.log('Données sauvegardées dans la base pour le token :', tokenData);
-    
         await this.tokenModel.create(tokenData);
     }
 
-    // Méthode pour récupérer les données d'un token
     async getTokenData(token: string): Promise<Token | null> {
-        // Cherche le token correspondant dans la base
         return this.tokenModel.findOne({ token }).exec();
     }
 
-    // Méthode pour valider un token
-    async validateToken(token: string): Promise<{ valid: boolean; email?: string; type?: string }> {
-        const tokenData = await this.getTokenData(token); // Cherche le token dans la base
-        console.log('Données récupérées pour le token :', tokenData);
+    async validateToken(token: string): Promise<{ 
+        valid: boolean; 
+        email?: string; 
+        type?: string; 
+        doctorant?: any; 
+        doctorantEmail?: string; 
+    }> {
+        console.log('Validation du token :', token); // Ajouté
+        const tokenData = await this.getTokenData(token);
+        console.log('Données trouvées pour le token :', tokenData); // Ajouté
     
-        if (!tokenData) {
+        if (!tokenData || tokenData.expiresAt < new Date()) {
+            console.log('Token invalide ou expiré'); // Ajouté
             return { valid: false };
         }
     
-        // Vérifiez également si le token a expiré
-        if (tokenData.expiresAt < new Date()) {
-            console.log('Token expiré');
-            return { valid: false };
-        }
+        const doctorant = tokenData.doctorantEmail
+            ? await this.doctorantModel.findOne({ email: tokenData.doctorantEmail }).exec()
+            : null;
+    
+        console.log('Doctorant associé au token :', doctorant); // Ajouté
     
         return {
             valid: true,
             email: tokenData.email,
             type: tokenData.type,
+            doctorant: doctorant || null,
+            doctorantEmail: tokenData.doctorantEmail || null,
         };
     }
 }

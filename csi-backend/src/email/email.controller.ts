@@ -31,21 +31,25 @@ export class EmailController {
     }
 
     @Post('validate-token')
-    async validateToken(@Body('token') token: string, @Body('expectedType') expectedType: string) {
-        console.log('Token reçu :', token);
+    async validateToken(@Body('token') token: string, @Body('expectedType') expectedType?: string) {
+        console.log('Token reçu pour validation :', token); // Ajouté
 
-        const { valid, email, type } = await this.tokenService.validateToken(token);
-        console.log('Validation du token :', { valid, email, type });
+        const { valid, email, type, doctorant, doctorantEmail } = await this.tokenService.validateToken(token);
+
+        console.log('Résultat de validation du token :', {
+            valid, email, type, doctorantEmail, doctorant,
+        }); // Ajouté
 
         if (!valid) {
             return { valid: false, message: 'Token invalide ou expiré.' };
         }
 
         if (expectedType && type !== expectedType) {
+            console.log(`Le type attendu est différent (${expectedType} vs ${type})`); // Ajouté
             return { valid: false, message: `Ce lien n'est pas valide pour un ${expectedType}.` };
         }
 
-        return { valid: true, email, type };
+        return { valid: true, email, type, doctorant, doctorantEmail };
     }
 
     @Post('send-single')
@@ -74,19 +78,20 @@ export class EmailController {
             const tokens = [];
             for (const representantEmail of representants) {
                 const token = generateToken(representantEmail);
-                await this.tokenService.saveToken(token, representantEmail, 'representant'); // Stocke le token en base
+                await this.tokenService.saveToken(token, representantEmail, 'representant', doctorantEmail); // Inclure l'email du doctorant
 
                 const link = `http://localhost:3001/formulaire-representant?token=${token}`;
                 const subject = 'Formulaire à remplir pour le représentant';
                 const html = `<p>Un doctorant a rempli son formulaire. Veuillez remplir les champs requis :</p>
-                              <a href="${link}">${link}</a>`;
+                            <a href="${link}">${link}</a>`;
                 await sendMail(representantEmail, subject, html);
                 tokens.push({ email: representantEmail, token });
             }
 
             return { message: 'Tokens générés et emails envoyés aux représentants.', tokens };
         } catch (error) {
-            return { message: 'Erreur lors de l\'envoi des tokens aux représentants.', error };
+            console.error('Erreur lors de l\'envoi des tokens aux représentants :', error.message);
+            throw error;
         }
     }
 }

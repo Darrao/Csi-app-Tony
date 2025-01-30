@@ -15,7 +15,7 @@ const FormulaireToken: React.FC = () => {
             try {
                 const response = await api.post('/email/validate-token', { token });
                 console.log('Réponse du backend :', response.data);
-        
+
                 if (response.data.valid) {
                     setEmail(response.data.email);
                 } else {
@@ -26,7 +26,7 @@ const FormulaireToken: React.FC = () => {
                 alert('Erreur lors de la validation du lien.');
             }
         };
-    
+
         if (token) {
             validateToken();
         }
@@ -40,8 +40,8 @@ const FormulaireToken: React.FC = () => {
         uniteRecherche: '',
         directeurThese: '',
         financement: '',
-        representant1: '',
-        representant2: '',
+        representantEmail1: '',
+        representantEmail2: '',
     };
 
     const validationSchema = Yup.object({
@@ -52,8 +52,8 @@ const FormulaireToken: React.FC = () => {
         uniteRecherche: Yup.string().required('Unité de recherche est requise'),
         directeurThese: Yup.string().required('Directeur de thèse est requis'),
         financement: Yup.string().required('Type de financement est requis'),
-        representant1: Yup.string().email('Email invalide').required('Email du représentant 1 est requis'),
-        representant2: Yup.string().email('Email invalide').required('Email du représentant 2 est requis'),
+        representantEmail1: Yup.string().email('Email invalide').required('Email du représentant 1 est requis'),
+        representantEmail2: Yup.string().email('Email invalide').required('Email du représentant 2 est requis'),
     });
 
     const onSubmit = async (values: any) => {
@@ -61,21 +61,19 @@ const FormulaireToken: React.FC = () => {
             const data = {
                 ...values,
                 email,
-                representant1: values.representant1,
-                representant2: values.representant2,
+                representantEmail1: values.representantEmail1,
+                representantEmail2: values.representantEmail2,
             };
-    
+
             console.log('Données soumises au backend :', data);
-    
-            // Soumettez uniquement les données du doctorant
+
             await api.post('/doctorant', data);
-    
-            // Envoyez des tokens aux représentants
+
             await api.post('/email/send-representant-tokens', {
                 email,
-                representants: [values.representant1, values.representant2],
+                representants: [values.representantEmail1, values.representantEmail2],
             });
-    
+
             alert('Formulaire soumis avec succès et emails envoyés aux représentants !');
         } catch (error) {
             console.error('Erreur lors de la soumission du formulaire :', error);
@@ -90,7 +88,12 @@ const FormulaireToken: React.FC = () => {
     return (
         <div>
             <h1>Formulaire</h1>
-            <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={onSubmit} enableReinitialize>
+            <Formik
+                initialValues={initialValues}
+                validationSchema={validationSchema}
+                onSubmit={onSubmit}
+                enableReinitialize
+            >
                 <Form>
                     <div>
                         <label>Email</label>
@@ -138,13 +141,13 @@ const FormulaireToken: React.FC = () => {
                     </div>
                     <div>
                         <label>Email du Représentant 1</label>
-                        <Field type="email" name="representant1" />
-                        <ErrorMessage name="representant1" component="div" />
+                        <Field type="email" name="representantEmail1" />
+                        <ErrorMessage name="representantEmail1" component="div" />
                     </div>
                     <div>
                         <label>Email du Représentant 2</label>
-                        <Field type="email" name="representant2" />
-                        <ErrorMessage name="representant2" component="div" />
+                        <Field type="email" name="representantEmail2" />
+                        <ErrorMessage name="representantEmail2" component="div" />
                     </div>
                     <button type="submit">Soumettre</button>
                 </Form>

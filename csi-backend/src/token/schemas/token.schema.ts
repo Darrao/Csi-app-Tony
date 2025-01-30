@@ -17,6 +17,9 @@ export class Token extends Document {
 
     @Prop({ required: true })
     expiresAt: Date; // Date d'expiration du token
+
+    @Prop({ default: null }) // Ajout de la propriété doctorantEmail
+    doctorantEmail?: string;
 }
 
 export const TokenSchema = SchemaFactory.createForClass(Token);

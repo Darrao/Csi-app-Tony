@@ -9,7 +9,7 @@ export class DoctorantController {
 
     @Post()
     async create(@Body() createDoctorantDto: any) {
-        console.log('Création d\'un nouveau doctorant avec les données :', createDoctorantDto);
+        console.log('Données reçues pour créer un doctorant :', createDoctorantDto);
         return this.doctorantService.create(createDoctorantDto);
     }
 
@@ -39,10 +39,16 @@ export class DoctorantController {
 
     @Get('by-email/:email')
     async getDoctorantByEmail(@Param('email') email: string) {
-        const doctorant = await this.doctorantService.findByEmail(email);
+        const normalizedEmail = email.trim().toLowerCase();
+        console.log('Recherche par email (normalisé) :', normalizedEmail);
+        const doctorant = await this.doctorantService.findByEmail(normalizedEmail);
+
         if (!doctorant) {
+            console.error('Aucun doctorant trouvé pour cet email.');
             return { message: 'Doctorant introuvable.' };
         }
+
+        console.log('Doctorant trouvé :', doctorant);
         return doctorant;
     }
 
@@ -63,34 +69,32 @@ export class DoctorantController {
 
     @Post('representant')
     async saveRepresentantData(@Body() data: any) {
-        const { doctorantEmail, champPlus1, champPlus2 } = data;
+        const { doctorantEmail, role, choices } = data;
 
-        console.log('Données reçues dans /representant :', data);
-
-        if (!doctorantEmail || !champPlus1 || !champPlus2) {
-            return { message: 'Tous les champs sont requis.', success: false };
+        if (!doctorantEmail || !choices || !role) {
+            return { message: 'Données incomplètes.', success: false };
         }
 
-        try {
-            // Vérifiez si le doctorant existe
-            const doctorant = await this.doctorantService.findByEmail(doctorantEmail);
-            console.log('Résultat de findByEmail :', doctorant);
-
-            if (!doctorant) {
-                return { message: 'Doctorant introuvable.', success: false };
-            }
-
-            // Mettre à jour les données du doctorant
-            const updatedDoctorant = await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
-                representantData: { champPlus1, champPlus2 }, // Mise à jour directe des champs
-            });
-
-            console.log('Doctorant mis à jour avec succès :', updatedDoctorant);
-
-            return { message: 'Données des représentants sauvegardées avec succès.', doctorant: updatedDoctorant };
-        } catch (error) {
-            console.error('Erreur lors de la sauvegarde des données des représentants :', error);
-            return { message: 'Erreur lors de la sauvegarde.', success: false, error: error.message };
+        const doctorant = await this.doctorantService.findByEmail(doctorantEmail);
+        if (!doctorant || !doctorant.representantData) {
+            console.error('Erreur : Doctorant ou données des représentants manquantes.', { doctorant }); // Ajouté
+            return { message: 'Doctorant introuvable ou données invalides.', success: false };
         }
+
+        const updatedData =
+            role === 'representant1'
+                ? { representant1Choices: choices }
+                : { representant2Choices: choices };
+
+        const updatedRepresentantData = {
+            ...doctorant.representantData,
+            ...updatedData,
+        };
+
+        const updatedDoctorant = await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
+            representantData: updatedRepresentantData,
+        });
+
+        return { message: 'Données sauvegardées.', doctorant: updatedDoctorant };
     }
 }
