@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Token } from './schemas/token.schema';
 import { Doctorant } from '../doctorant/schemas/doctorant.schema'; // Importer le modèle Doctorant
+import { DoctorantService } from '../doctorant/doctorant.service';
 
 @Injectable()
 export class TokenService {
     constructor(
         @InjectModel(Token.name) private tokenModel: Model<Token>,
         @InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>, // Injection du modèle Doctorant
+        @Inject(forwardRef(() => DoctorantService)) private doctorantService: DoctorantService,
     ) {}
 
     async saveToken(token: string, email: string, type: string, doctorantEmail?: string) {
@@ -18,7 +20,7 @@ export class TokenService {
             type,
             role: type,
             doctorantEmail,
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // Valide 24h
+            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
             createdAt: new Date(),
         };
 
@@ -30,19 +32,13 @@ export class TokenService {
         return this.tokenModel.findOne({ token }).exec();
     }
 
-    async validateToken(token: string): Promise<{ 
-        valid: boolean; 
-        email?: string; 
-        type?: string; 
-        doctorant?: any; 
-        doctorantEmail?: string; 
-    }> {
-        console.log('Validation du token :', token); // Ajouté
+    async validateToken(token: string) {
+        console.log('Validation du token :', token);
         const tokenData = await this.getTokenData(token);
-        console.log('Données trouvées pour le token :', tokenData); // Ajouté
+        console.log('Données trouvées pour le token :', tokenData);
     
         if (!tokenData || tokenData.expiresAt < new Date()) {
-            console.log('Token invalide ou expiré'); // Ajouté
+            console.log('Token invalide ou expiré');
             return { valid: false };
         }
     
@@ -50,7 +46,7 @@ export class TokenService {
             ? await this.doctorantModel.findOne({ email: tokenData.doctorantEmail }).exec()
             : null;
     
-        console.log('Doctorant associé au token :', doctorant); // Ajouté
+        console.log('Doctorant associé au token :', doctorant);
     
         return {
             valid: true,

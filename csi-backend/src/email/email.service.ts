@@ -31,18 +31,19 @@ export const sendMail = async (to: string, subject: string, html: string) => {
     };
 
     try {
-        console.log(`Préparation de l'envoi de l'email à ${to}`);
-        console.log('Mail options:', mailOptions);
+        console.log(`[EMAIL] Préparation de l'envoi à ${to}...`);
+        console.log('[EMAIL] Paramètres du mail :', mailOptions);
 
-        console.log('Vérification de la connexion SMTP...');
+        console.log('[EMAIL] Vérification de la connexion SMTP...');
         await transporter.verify();
-        console.log('Connexion SMTP réussie.');
+        console.log('[EMAIL] Connexion SMTP réussie.');
 
         const info = await transporter.sendMail(mailOptions);
-        console.log(`Email envoyé à ${to} :`, info.response);
+        console.log(`[EMAIL] Email envoyé avec succès à ${to}. Réponse SMTP:`, info.response);
+
         return info;
     } catch (error) {
-        console.error(`Erreur lors de l'envoi de l'email à ${to} :`, error.message);
+        console.error(`[EMAIL] Erreur lors de l'envoi de l'email à ${to}:`, error);
         throw error;
     }
 };

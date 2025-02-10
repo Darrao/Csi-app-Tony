@@ -1,15 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Doctorant, DoctorantSchema } from './schemas/doctorant.schema';
 import { DoctorantService } from './doctorant.service';
 import { DoctorantController } from './doctorant.controller';
+import { TokenModule } from '../token/token.module';
 
 @Module({
     imports: [
         MongooseModule.forFeature([{ name: Doctorant.name, schema: DoctorantSchema }]),
+        forwardRef(() => TokenModule),
     ],
     controllers: [DoctorantController],
     providers: [DoctorantService],
-    exports: [MongooseModule], // Exporter MongooseModule pour que d'autres modules puissent l'utiliser
+    exports: [DoctorantService],
 })
 export class DoctorantModule {}
