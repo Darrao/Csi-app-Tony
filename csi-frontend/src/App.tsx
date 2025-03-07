@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import FormulaireDoctorant from './pages/FormulaireDoctorant';
 import ListeDoctorants from './pages/ListeDoctorants';
 import ModifierDoctorant from './pages/ModifierDoctorant';
+import ModifierDoctorantAdmin from './pages/ModifierDoctorantAdmin';
 import Header from './components/Header';
 import EnvoiEmail from './pages/sendEmail';
 import FormulaireToken from './pages/FormulaireToken';
@@ -18,6 +19,7 @@ const App: React.FC = () => {
                 <Route path="/modifier/:id" element={<ModifierDoctorant />} />
                 <Route path="/formulaire" element={<FormulaireToken />} />
                 <Route path="/formulaire-representant" element={<FormulaireRepresentant />} />
+                <Route path="/doctorant/modifier/:id" element={<ModifierDoctorantAdmin />} />
             </Routes>
         </Router>
     );

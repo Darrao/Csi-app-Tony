@@ -19,11 +19,11 @@ export class TokenService {
             email,
             type,
             role: type,
-            doctorantEmail,
+            doctorantEmail, // Ajout du lien vers le doctorant
             expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
             createdAt: new Date(),
         };
-
+    
         console.log('Données sauvegardées dans la base pour le token :', tokenData);
         await this.tokenModel.create(tokenData);
     }
