@@ -15,6 +15,8 @@ import * as multer from 'multer';
 import { Multer, diskStorage } from 'multer';
 import * as path from 'path';
 import { format } from 'fast-csv';
+import { EmailConfigService } from '../emailConfig/email-config.service';
+
 
 
 
@@ -23,6 +25,7 @@ export class DoctorantController {
     constructor(
         private readonly doctorantService: DoctorantService,
         private readonly tokenService: TokenService,
+        private readonly emailConfigService: EmailConfigService,
         @InjectModel(Doctorant.name) private readonly doctorantModel: Model<Doctorant>
     ) {}
 
@@ -103,71 +106,49 @@ export class DoctorantController {
     // il faut specifier dans un des mails que le co directeur sera pas dans la boucle
     @Post('send-link/:id')
     async sendLink(@Param('id') id: string, @Body('email') email: string, @Body('prenom') prenom: string) {
-        const link = `http://localhost:3001/modifier/${id}`;
-        const csiProposalLink = `https://docs.google.com/forms/d/e/1FAIpQLSeuwINiVrU4fOpjRGshwh7kVe356o-xKtjITv2dpFvLlHDwHQ/viewform`;
-        const contactLink = `https://ed562.u-paris.fr/en/pages-anglais/communicate-with-us/`;
-        const template = `https://cloud.parisdescartes.fr/index.php/s/qi86RQiggokBnnb`;
-
-        const subject = 'Important: Instructions for Your Annual Report Submission';
-        
-        const html = `
-            <p>Dear <strong>${prenom}</strong>,</p>
-
-            <p>Before proceeding with your annual report, please ensure that your CSI committee has been officially validated by your BioSPC Department (otherwise, you can submit your committee here: <a href="${csiProposalLink}" style="color: blue; text-decoration: underline;">Proposal for CSI committee members</a>). You must not proceed further until this validation is confirmed.</p>
-
-
-            <p>If your committee has been validated, you can now complete your annual report. Please follow this link to submit your report: <a href="${link}" style="color: blue; text-decoration: underline;">[LINK]</a></p>
-
-            <p>Once you submit your report (<strong>at least 48 hours before your interview</strong>), it will be automatically sent to your committee members. <strong>Make sure to enter their email addresses correctly.</strong></p>
-
-            <p><strong>Remember that you are responsible for:</strong></p>
-
-            <p>✔ Scheduling a date that suits your committee members and supervisor.</p>
-            <p>✔ Informing all CSI participants of the date and venue.</p>
-            <p>✔ Booking a room for the meeting.</p>
-            <p>✔ you are strongly encouraged to use <a href="${template}" style="color: blue; text-decoration: underline;">the presentation templates</a>.</p>
-            <p>✔ We ask that you give preference to <strong>on-site interviews</strong>. Doctoral students and/or their supervisors will be responsible for setting up a videoconference link if some committee members need to attend the interview remotely.</p>
-
-            <p>We recommend that the meeting lasts <strong>at least 45 minutes</strong>, with additional time allocated for your committee to <strong>write their report immediately after the meeting.</strong></p>
-
-            <h3>📅 Important Deadlines</h3>
-            <p>Ensure that your interview is scheduled in accordance with the following deadlines, as we must receive the final report from your CSI committee by:</p>
-            <ul>
-                <li><strong>D1 and D2:</strong> October 15</li>
-                <li><strong>D3 applying for a 4th year with new funding:</strong> End of July (to ensure salary payment in October)</li>
-                <li><strong>D1, D2, D3 applying for VISA renewal:</strong> End of July (as prefecture procedures can be very lengthy)</li>
-            </ul>
-
-            <p>If you have any questions, please do not hesitate to contact us on the generic department email addresses that are listed <a href="${contactLink}" style="color: blue; text-decoration: underline;">on this link</a>.</p>
-
-            <p>Best regards,</p>
-            <p><strong>BioSPC Doctoral School Management</strong></p>
-        `;
         try {
-            await sendMail(email, subject, html);
+            // 🔍 Récupération de la configuration email depuis la BDD
+            const emailConfig = await this.emailConfigService.getEmailConfig();
+            if (!emailConfig) {
+                throw new NotFoundException('Configuration email introuvable.');
+            }
 
+            console.log(`✅ Configuration email récupérée.`);
 
+            // 🔗 Génération du lien de modification
+            const link = `http://localhost:3001/modifier/${id}`;
+
+            // 🎯 Récupération des liens dynamiques depuis la BDD
+            const presentationTemplate = emailConfig.presentationTemplate;
+            const csiProposalLink = emailConfig.csiProposalLink;
+            const contactLink = emailConfig.contactLink;
+
+            // 🎯 Récupération du template d'email depuis la configuration
+            const emailTemplate = emailConfig.firstDoctorantEmail;
+
+            // 🔄 Remplacement des variables dynamiques dans le template d'email
+            const emailContent = this.emailConfigService.replaceEmailVariables(emailTemplate, {
+                prenom,
+                link,
+                presentationTemplate,
+                csiProposalLink,
+                contactLink
+            });
+
+            // ✉️ Envoi de l'email
+            const subject = 'Important: Instructions for Your Annual Report Submission';
+            await sendMail(email, subject, emailContent);
 
             // 🔥 Mise à jour du statut dans la base
             const doctorant = await this.doctorantService.findByEmail(email);
-            console.log('minouuuuuu')
-            if (doctorant) {
-                console.log(doctorant._id)
-
-                if (doctorant && doctorant._id instanceof Object) {
-                    console.log('miaouuuu')
-
-                    await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
-                        sendToDoctorant: true,
-                        NbSendToDoctorant: (doctorant.NbSendToDoctorant || 0) + 1
-                    });
-                    console.log('fini itération')
-                } else {
-                    console.error("❌ Erreur: `doctorant._id` est invalide :", doctorant);
-                }
-            }        
-            
-            
+            if (doctorant && doctorant._id instanceof Object) {
+                await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
+                    sendToDoctorant: true,
+                    NbSendToDoctorant: (doctorant.NbSendToDoctorant || 0) + 1
+                });
+            } else {
+                console.error("❌ Erreur: `doctorant._id` est invalide :", doctorant);
+            }
 
             return { message: 'Email envoyé avec succès.' };
         } catch (error) {
@@ -222,65 +203,6 @@ export class DoctorantController {
         return { message: 'Données reçues, mais gestion des représentants désactivée.', success: true };
     }
 
-    @Post('send-representant-tokens/:id')
-    async sendRepresentantTokens(@Param('id') id: string, @Body() data: { email1: string; email2: string }) {
-        const doctorant = await this.doctorantService.findOne(id);
-        if (!doctorant) {
-            console.error('[ERROR] Doctorant introuvable pour l\'ID:', id);
-            return { message: 'Doctorant introuvable.' };
-        }
-
-        const tokens = [];
-
-        console.log(`[EMAIL] Envoi d'emails aux référents du doctorant ${doctorant.nom} ${doctorant.prenom}:`);
-
-        if (data.email1) {
-            console.log(`[EMAIL] Génération du token pour le référent 1: ${data.email1}`);
-            const token1 = await generateToken(data.email1, this.doctorantService, doctorant.email);
-            await this.tokenService.saveToken(token1, data.email1, 'representant', doctorant.email); // 🔥 Stocke aussi le doctorant
-
-            const link1 = `http://localhost:3001/formulaire-representant?token=${token1}`;
-            const subject1 = 'Formulaire à remplir pour le représentant';
-            const html1 = `<p>Un doctorant a rempli son formulaire. Veuillez remplir les champs requis :</p>
-                        <a href="${link1}">${link1}</a>`;
-
-            console.log(`[EMAIL] Envoi à ${data.email1} avec le lien : ${link1}`);
-
-            try {
-                const result1 = await sendMail(data.email1, subject1, html1);
-                console.log(`[EMAIL] ✅ Email envoyé avec succès à ${data.email1}. Réponse SMTP:`, result1.response);
-            } catch (error) {
-                console.error(`[EMAIL] Échec de l'envoi à ${data.email1}:`, error);
-            }
-
-            tokens.push({ email: data.email1, token: token1 });
-        }
-
-        if (data.email2) {
-            console.log(`[EMAIL] Génération du token pour le référent 2: ${data.email2}`);
-            const token2 = await generateToken(data.email2, this.doctorantService, doctorant.email);
-            await this.tokenService.saveToken(token2, data.email2, 'representant', doctorant.email);
-
-            const link2 = `http://localhost:3001/formulaire-representant?token=${token2}`;
-            const subject2 = 'Formulaire à remplir pour le représentant';
-            const html2 = `<p>Un doctorant a rempli son formulaire. Veuillez remplir les champs requis :</p>
-                        <a href="${link2}">${link2}</a>`;
-
-            console.log(`[EMAIL] Envoi à ${data.email2} avec le lien : ${link2}`);
-
-            try {
-                const result2 = await sendMail(data.email2, subject2, html2);
-                console.log(`[EMAIL] ✅ Email envoyé avec succès à ${data.email2}. Réponse SMTP:`, result2.response);
-            } catch (error) {
-                console.error(`[EMAIL] Échec de l'envoi à ${data.email2}:`, error);
-            }
-
-            tokens.push({ email: data.email2, token: token2 });
-        }
-
-        return { message: 'Emails envoyés aux référents.', tokens };
-    }
-
     @Get('export/csv')
     async exportDoctorants(@Res() res: Response) {
         const doctorants = await this.doctorantModel.find().lean(); // ✅ Récupère les doctorants en JSON
@@ -312,35 +234,6 @@ export class DoctorantController {
         });
 
         csvStream.end(); // ✅ Fin du stream
-    }
-
-    @Post('send-reminder')
-    async sendReminder(@Body('email') email: string) {
-        if (!email) {
-            return { message: "Email non fourni." };
-        }
-
-        const doctorant = await this.doctorantService.findByEmail(email);
-        if (!doctorant) {
-            return { message: "Doctorant introuvable." };
-        }
-
-        // 🔥 Correction : Ajout de `this.doctorantService` en deuxième argument
-        const token = await generateToken(email, this.doctorantService, doctorant.email);
-
-        const subject = "Rappel : Merci de remplir votre formulaire";
-        const link = `http://localhost:3001/formulaire?token=${token}`;
-        const html = `<p>Bonjour,</p>
-                    <p>Nous vous rappelons de remplir votre formulaire en suivant ce lien :</p>
-                    <a href="${link}">${link}</a>`;
-
-        try {
-            await sendMail(email, subject, html);
-            return { message: "Rappel envoyé avec succès." };
-        } catch (error) {
-            console.error("Erreur lors de l'envoi du rappel :", error);
-            return { message: "Erreur lors de l'envoi du rappel.", error };
-        }
     }
 
     @Get('export/pdf')
@@ -408,23 +301,52 @@ export class DoctorantController {
     @Post('upload/:id')
     @UseInterceptors(FilesInterceptor('fichiersExternes', 5, {
         storage: diskStorage({
-            destination: (req, file, cb) => {
-                const uploadPath = path.join('uploads/doctorants', req.params.id);
-    
-                // 🔥 Vérifie si le dossier existe, sinon le crée
-                if (!fs.existsSync(uploadPath)) {
-                    fs.mkdirSync(uploadPath, { recursive: true });
+            destination: async (req, file, cb) => {
+                try {
+                    const doctorant = await req.doctorantService.getDoctorant(req.params.id);
+                    if (!doctorant || !doctorant.ID_DOCTORANT) {
+                        console.error("❌ Doctorant introuvable ou ID_DOCTORANT manquant.");
+                        return cb(new BadRequestException('Doctorant introuvable ou ID_DOCTORANT manquant.'), null);
+                    }
+
+                    // 📂 Dossier principal du doctorant
+                    const basePath = path.join('uploads/doctorants', doctorant.ID_DOCTORANT);
+
+                    // 📁 Création des sous-dossiers si besoin
+                    const uploadFolder = path.join(basePath, 'fichiersUploadParDoctorant');
+                    const rapportFolder = path.join(basePath, 'rapport');
+
+                    if (!fs.existsSync(uploadFolder)) {
+                        fs.mkdirSync(uploadFolder, { recursive: true });
+                    }
+                    if (!fs.existsSync(rapportFolder)) {
+                        fs.mkdirSync(rapportFolder, { recursive: true });
+                    }
+
+                    // 📂 On stocke les fichiers dans `fichiersUploadParDoctorant`
+                    cb(null, uploadFolder);
+                } catch (error) {
+                    console.error('❌ Erreur lors de la récupération du doctorant pour l’upload :', error);
+                    return cb(new BadRequestException('Erreur lors de la récupération du doctorant.'), null);
                 }
-    
-                cb(null, uploadPath);
             },
-            filename: (req, file, cb) => {
-                const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-                cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+            filename: async (req, file, cb) => {
+                try {
+                    const doctorant = await req.doctorantService.getDoctorant(req.params.id);
+                    if (!doctorant || !doctorant.ID_DOCTORANT) {
+                        console.error("❌ Doctorant introuvable ou ID_DOCTORANT manquant.");
+                        return cb(new BadRequestException('Doctorant introuvable ou ID_DOCTORANT manquant.'), null);
+                    }
+
+                    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+                    cb(null, `${doctorant.ID_DOCTORANT}-${uniqueSuffix}${path.extname(file.originalname)}`);
+                } catch (error) {
+                    console.error('❌ Erreur lors de la récupération du doctorant pour le nom du fichier :', error);
+                    return cb(new BadRequestException('Erreur lors de la récupération du doctorant.'), null);
+                }
             }
         }),
         fileFilter: (req, file, cb) => {
-            // 🔥 Vérifie si l'extension est valide
             if (!file.originalname.match(/\.(pdf|docx|txt)$/)) {
                 return cb(new BadRequestException('Seuls les fichiers PDF, DOCX et TXT sont autorisés.'), false);
             }
@@ -435,25 +357,104 @@ export class DoctorantController {
         if (!files || files.length === 0) {
             throw new NotFoundException("Aucun fichier reçu.");
         }
-    
+
         const doctorant = await this.doctorantService.getDoctorant(id);
         if (!doctorant) {
             throw new NotFoundException("Doctorant non trouvé.");
         }
-    
-        // Transforme les fichiers reçus en objets FichierExterne
+
         const fichiersAjoutes = files.map(file => ({
             nomOriginal: file.originalname,
             cheminStockage: file.path,
         }));
-    
-        // 🌟 On garde uniquement les 2 derniers fichiers (les nouveaux écrasent les anciens)
+
+        // Conserver uniquement les 2 derniers fichiers uploadés
         const fichiersFinals = [...fichiersAjoutes].slice(-2);
-    
-        // 🔥 Met à jour les fichiers dans la base MongoDB
+
         await this.doctorantService.updateDoctorant(id, { fichiersExternes: fichiersFinals });
-    
+
         return { message: "Fichiers uploadés avec succès", fichiersExternes: fichiersFinals };
+    }
+
+    @Post('upload-rapport/:id')
+    @UseInterceptors(FileInterceptor('rapport', {
+        storage: diskStorage({
+            destination: async (req, file, cb) => {
+                try {
+                    const doctorant = await req.doctorantService.getDoctorant(req.params.id);
+                    if (!doctorant || !doctorant.ID_DOCTORANT) {
+                        console.error("❌ Doctorant introuvable ou ID_DOCTORANT manquant.");
+                        return cb(new BadRequestException('Doctorant introuvable ou ID_DOCTORANT manquant.'), null);
+                    }
+
+                    // 📂 Dossier principal du doctorant
+                    const basePath = path.join('uploads/doctorants', doctorant.ID_DOCTORANT);
+                    const rapportFolder = path.join(basePath, 'rapport');
+
+                    if (!fs.existsSync(rapportFolder)) {
+                        fs.mkdirSync(rapportFolder, { recursive: true });
+                    }
+
+                    cb(null, rapportFolder);
+                } catch (error) {
+                    console.error('❌ Erreur lors de la récupération du doctorant pour l’upload du rapport :', error);
+                    return cb(new BadRequestException('Erreur lors de la récupération du doctorant.'), null);
+                }
+            },
+            filename: async (req, file, cb) => {
+                try {
+                    const doctorant = await req.doctorantService.getDoctorant(req.params.id);
+                    if (!doctorant || !doctorant.ID_DOCTORANT) {
+                        console.error("❌ Doctorant introuvable ou ID_DOCTORANT manquant.");
+                        return cb(new BadRequestException('Doctorant introuvable ou ID_DOCTORANT manquant.'), null);
+                    }
+
+                    // 📝 On écrase l'ancien rapport avec un nouveau nom standardisé
+                    cb(null, `Rapport_${doctorant.ID_DOCTORANT}.pdf`);
+                } catch (error) {
+                    console.error('❌ Erreur lors de la récupération du doctorant pour le nom du fichier :', error);
+                    return cb(new BadRequestException('Erreur lors de la récupération du doctorant.'), null);
+                }
+            }
+        }),
+        fileFilter: (req, file, cb) => {
+            if (!file.originalname.match(/\.pdf$/)) {
+                return cb(new BadRequestException('Seuls les fichiers PDF sont autorisés pour les rapports.'), false);
+            }
+            cb(null, true);
+        },
+    }))
+    async uploadRapport(@Param('id') id: string, @UploadedFile() file: Multer.File) {
+        if (!file) {
+            throw new NotFoundException("Aucun fichier reçu.");
+        }
+
+        const doctorant = await this.doctorantService.getDoctorant(id);
+        if (!doctorant) {
+            throw new NotFoundException("Doctorant non trouvé.");
+        }
+
+        const rapportInfo = {
+            nomOriginal: file.originalname,
+            cheminStockage: file.path,
+        };
+
+        await this.doctorantService.updateDoctorant(id, { rapport: rapportInfo });
+
+        return { message: "Rapport uploadé avec succès", rapport: rapportInfo };
+    }
+
+    @Get('rapport/:id')
+    async getRapport(@Param('id') id: string) {
+        const doctorant = await this.doctorantService.getDoctorant(id);
+        if (!doctorant || !doctorant.rapport) {
+            throw new NotFoundException("Aucun rapport trouvé.");
+        }
+
+        return {
+            message: "Rapport trouvé",
+            rapport: doctorant.rapport,
+        };
     }
 
     @Get(':id')

@@ -1,0 +1,131 @@
+.admin-email-config-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.title {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.email-group {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.email-group h2 {
+    font-size: 20px;
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 5px;
+}
+
+.email-entry {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.email-entry input {
+    flex: 1;
+    padding: 10px;
+    font-size: 18px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    transition: border 0.3s ease-in-out;
+    width: 100%;
+}
+
+.email-entry input:focus {
+    border: 1px solid #007bff;
+}
+
+.email-entry button {
+    background: #dc3545;
+    border: none;
+    color: white;
+    font-size: 16px;
+    padding: 8px;
+    margin-left: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.3s ease-in-out;
+}
+
+.email-entry button:hover {
+    background: #c82333;
+}
+
+button {
+    padding: 10px 15px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.3s ease-in-out;
+}
+
+button.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+button.btn-success:hover {
+    background: #218838;
+}
+
+button.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+button.btn-primary:hover {
+    background: #0056b3;
+}
+
+.email-content-fields {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.email-content-fields h2 {
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+.email-content {
+    margin-bottom: 15px;
+}
+
+.email-content h3 {
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.email-content textarea {
+    width: 100%;
+    height: 250px;
+    font-size: 16px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: vertical;
+    outline: none;
+    transition: border 0.3s ease-in-out;
+}
+
+.email-content textarea:focus {
+    border: 1px solid #007bff;
+}

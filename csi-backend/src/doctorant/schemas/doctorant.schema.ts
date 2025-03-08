@@ -231,6 +231,9 @@ export class Doctorant extends Document {
 
     @Prop({ required: false, default: false })
     gestionnaireDirecteurValide?: boolean;
+
+    @Prop({ type: Object })
+    rapport?: { nomOriginal: string; cheminStockage: string };
 }
 
 export const DoctorantSchema = SchemaFactory.createForClass(Doctorant);

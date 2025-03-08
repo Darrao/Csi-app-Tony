@@ -125,6 +125,35 @@ export const sendMail = async (to: string, subject: string, html: string, attach
     }
 };
 
+export const sendMailDynamic = async (to: string[] = [], subject: string, html: string, attachments?: any[], cc: string[] = []) => {
+    const mailOptions = {
+        from: process.env.SMTP_USER,
+        to,
+        cc: cc.length > 0 ? cc.join(',') : undefined, // Ajoute les CC si existants
+        subject,
+        html,
+        attachments,
+    };
+
+    try {
+        console.log(`[EMAIL] Préparation de l'envoi à ${to}...`);
+        console.log('[EMAIL] Paramètres du mail :', mailOptions);
+
+        console.log('[EMAIL] Vérification de la connexion SMTP...');
+        await transporter.verify();
+        console.log('[EMAIL] Connexion SMTP réussie.');
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL] ✅ Email envoyé à ${to}. ID Message: ${info.messageId}`);
+        console.log(`[EMAIL] Réponse SMTP complète:`, info);
+
+        return info;
+    } catch (error) {
+        console.error(`[EMAIL] Erreur lors de l'envoi de l'email à ${to}:`, error);
+        throw error;
+    }
+};
+
 export const sendMailWithCC = async (to: string, subject: string, html: string, attachments?: any[], cc?: string) => {
     const mailOptions = {
         from: process.env.SMTP_USER,

@@ -11,6 +11,7 @@ import EnvoiEmail from './pages/sendEmail';
 import FormulaireToken from './pages/FormulaireToken';
 import FormulaireRepresentant from './pages/FormulaireRepresentant';
 import Login from './components/Login';
+import AdminEmailConfig from './pages/AdminEmailConfig';
 
 const App: React.FC = () => {
     const { isAdmin } = useAuth();
@@ -20,8 +21,8 @@ const App: React.FC = () => {
                 <Routes>
                     {/* Accès Public */}
                     <Route path="/login" element={<Login />} />
-                    {/* <Route path="/formulaire" element={<FormulaireToken />} />
-                    <Route path="/formulaire-representant" element={<FormulaireRepresentant />} /> */}
+                    <Route path="/formulaire" element={<FormulaireToken />} />
+                    {/* <Route path="/formulaire-representant" element={<FormulaireRepresentant />} /> */}
                     <Route path="/modifier/:id" element={<ModifierDoctorant />} />
 
                     {/* Routes Admin Sécurisées */}
@@ -29,6 +30,7 @@ const App: React.FC = () => {
                         <Route path="/" element={<EnvoiEmail />} />
                         <Route path="/doctorants" element={<ListeDoctorants />} />
                         <Route path="/doctorant/modifier/:id" element={<ModifierDoctorantAdmin />} />
+                        <Route path='/email-config' element={<AdminEmailConfig />} />
                     </Route>
                 </Routes>
             </Router>

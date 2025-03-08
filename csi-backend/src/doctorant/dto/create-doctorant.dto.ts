@@ -295,4 +295,8 @@ export class CreateDoctorantDto {
     @IsOptional()
     @IsBoolean()
     gestionnaireDirecteurValide?: boolean;
+
+    @IsOptional()
+    rapport?: { nomOriginal: string; cheminStockage: string }; // ✅ Ajout de la propriété rapport
+
 }

@@ -129,6 +129,10 @@ const FormulaireToken: React.FC = () => {
                     // listProfessionalIntegrationModules: doctorant.listProfessionalIntegrationModules || '',
                     dateValidation: doctorant.dateValidation || null,
                     representantValide: true,
+                    rapport: {
+                        nomOriginal: `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`,
+                        cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`
+                    }
                 };
             };
     

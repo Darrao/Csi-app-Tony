@@ -213,68 +213,6 @@ export class DoctorantService {
         return doctorant;
     }
 
-    // async generateFilledPDF(doctorant: Doctorant): Promise<Buffer> {
-    //     // Charger le modèle PDF existant
-    //     const pdfPath = path.join(__dirname, '../../templates/template.pdf');
-    //     const pdfBytes = fs.readFileSync(pdfPath);
-    //     const pdfDoc = await PDFDocument.load(pdfBytes);
-    
-    //     // Définir une police pour le texte
-    //     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    
-    //     // Récupérer toutes les pages du document
-    //     const pages = pdfDoc.getPages();
-    
-    //     pages.forEach((page, pageIndex) => {
-    //         console.log(`[PDF] 🛠️ Ajout des données et de la grille sur la page ${pageIndex + 1}`);
-    
-    //         // Ajouter du texte aux champs correspondants (UNIQUEMENT SUR LA PREMIÈRE PAGE)
-    //         if (pageIndex === 0) {
-    //             page.drawText(doctorant.intituleUR || "N/A", { x: 200, y: 235, size: 12, font });
-    //             page.drawText(doctorant.titreThese || "N/A", { x: 200, y: 222, size: 12, font });
-    //             page.drawText(doctorant.prenom || "N/A", { x: 200, y: 210, size: 12, font });
-    //             page.drawText(doctorant.nom || "N/A", { x: 200, y: 196, size: 12, font });
-    //             page.drawText(doctorant.nomPrenomHDR || "N/A", { x: 200, y: 184, size: 12, font });
-    //         }
-    //     });
-    
-    //     // 🔥 Attacher les fichiers PDF importés au document final
-    //     if (doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0) {
-    //         console.log(`📂 Ajout des fichiers PDF importés au document final (${doctorant.fichiersExternes.length} fichiers)`);
-    
-    //         for (const fichier of doctorant.fichiersExternes) {
-    //             const filePath = path.join(__dirname, '../../', fichier.cheminStockage);
-    
-    //             if (!fs.existsSync(filePath)) {
-    //                 console.warn(`⚠️ Fichier non trouvé: ${filePath}, il ne sera pas inclus.`);
-    //                 continue;
-    //             }
-    
-    //             if (!filePath.endsWith('.pdf')) {
-    //                 console.warn(`🚫 Fichier ignoré (non PDF) : ${filePath}`);
-    //                 continue;
-    //             }
-    
-    //             try {
-    //                 const fileBytes = fs.readFileSync(filePath);
-    //                 const embeddedPdf = await PDFDocument.load(fileBytes);
-    //                 const copiedPages = await pdfDoc.copyPages(embeddedPdf, embeddedPdf.getPageIndices());
-    
-    //                 copiedPages.forEach((copiedPage) => pdfDoc.addPage(copiedPage));
-    //                 console.log(`✅ Fichier ajouté: ${fichier.nomOriginal}`);
-    //             } catch (error) {
-    //                 console.error(`❌ Erreur lors de l'ajout du fichier ${filePath} :`, error);
-    //             }
-    //         }
-    //     } else {
-    //         console.log(`ℹ️ Aucun fichier PDF importé à ajouter.`);
-    //     }
-    
-    //     // 📄 Générer le PDF modifié avec les fichiers inclus
-    //     const modifiedPdfBytes = await pdfDoc.save();
-    //     return Buffer.from(modifiedPdfBytes);
-    // }
-
     async importDoctorantsFromCSV(csvData: string): Promise<any> {
         const rows = [];
         const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
@@ -836,8 +774,32 @@ export class DoctorantService {
         }    
 
         
-        // 📄 Génération du PDF final
+        // 📌 Génération des bytes du PDF
         const pdfBytes = await pdfDoc.save();
-        return Buffer.from(pdfBytes);
+        const pdfBuffer = Buffer.from(pdfBytes);
+
+        // 📂 Définir le chemin du rapport PDF
+        const uploadDir = path.join(__dirname, '../../uploads/doctorants', doctorant.ID_DOCTORANT, 'rapport');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // 📄 Nom et chemin du fichier
+        const fileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+        const filePath = path.join(uploadDir, fileName);
+
+        // 💾 Sauvegarde du fichier sur le serveur
+        fs.writeFileSync(filePath, pdfBuffer);
+        console.log(`✅ Rapport PDF sauvegardé à : ${filePath}`);
+
+        // 🔄 Mise à jour de la base de données avec le chemin du rapport
+        await this.doctorantModel.findByIdAndUpdate(doctorant._id, {
+            rapport: {
+                nomOriginal: fileName,
+                cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/${fileName}`,
+            }
+        }, { new: true });
+
+        return pdfBuffer;
     }
 }

@@ -52,6 +52,7 @@ const Header: React.FC = () => {
                 <div style={linkContainerStyles}>
                     <Link to="/" style={linkStyles}>Importer CSV</Link>
                     <Link to="/doctorants" style={linkStyles}>Liste des Doctorants</Link>
+                    <Link to="/email-config" style={linkStyles}>Configuration Email</Link>
                 </div>
                 <button style={logoutButtonStyles} onClick={handleLogout}>Logout</button>
             </nav>
