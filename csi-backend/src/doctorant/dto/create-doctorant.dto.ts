@@ -29,6 +29,10 @@ export class CreateDoctorantDto {
     ID_DOCTORANT: string;
 
     @IsOptional()
+    @IsNumber()
+    importDate: number;
+
+    @IsOptional()
     @IsString()
     departementDoctorant: string;
 
@@ -287,4 +291,8 @@ export class CreateDoctorantDto {
     @IsOptional()
     @IsNumber()
     NbSendToRepresentants?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    gestionnaireDirecteurValide?: boolean;
 }

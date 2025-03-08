@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
+import '../styles/ListeDoctorants.css';
 
 const ListeDoctorants: React.FC = () => {
     const [doctorants, setDoctorants] = useState([]);
@@ -9,6 +10,11 @@ const ListeDoctorants: React.FC = () => {
     const [totalToSend, setTotalToSend] = useState(0);
     const [currentSent, setCurrentSent] = useState(0);
     const [filterStatus, setFilterStatus] = useState('Tous')
+    const [filterYear, setFilterYear] = useState('Tous'); // 🆕 Filtre par année
+    const [availableYears, setAvailableYears] = useState<number[]>([]); // 🆕 Liste des années
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(1); // Défaut : 15 doctorants par page
+
 
 
     const fetchDoctorants = async () => {
@@ -19,6 +25,13 @@ const ListeDoctorants: React.FC = () => {
             console.log('[FRONTEND] Récupération de la liste des doctorants...');
             const response = await api.get('/doctorant');
             setDoctorants(response.data);
+        
+            // 🔄 Mise à jour des années disponibles
+            const years = Array.from(new Set(response.data.map((doc: any) => doc.importDate)))
+            .map(Number) // Convertir en nombres
+            .sort((a, b) => b - a); // Trier du plus récent au plus ancien
+            setAvailableYears(years);
+
         } catch (error) {
             console.error('[FRONTEND] Erreur lors de la récupération des doctorants :', error);
         }
@@ -123,12 +136,51 @@ const ListeDoctorants: React.FC = () => {
         fetchDoctorants(); // Rafraîchir la liste après envoi
     };
 
+    const handleExportFilteredCSV = () => {
+        if (filteredDoctorants.length === 0) {
+            alert("Aucun doctorant correspondant aux filtres sélectionnés.");
+            return;
+        }
+    
+        // Définition des colonnes pour l'export
+        const headers = [
+            "Nom", "Prénom", "Email", "ID_DOCTORANT", "Année d'importation",
+            "Envoyé au doctorant", "Validation par le doctorant",
+            "Envoyé aux référents", "Validation par les référents"
+        ];
+    
+        // Création des lignes du CSV
+        const csvRows = [
+            headers.join(";"), // Première ligne : les entêtes
+            ...filteredDoctorants.map((doc: any) => [
+                doc.nom, doc.prenom, doc.email, doc.ID_DOCTORANT, doc.importDate,
+                doc.sendToDoctorant ? "Oui" : "Non",
+                doc.doctorantValide ? "Oui" : "Non",
+                doc.sendToRepresentants ? "Oui" : "Non",
+                doc.representantValide ? "Oui" : "Non"
+            ].join(";"))
+        ];
+    
+        // Conversion en blob pour le téléchargement
+        const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+        const csvUrl = URL.createObjectURL(csvBlob);
+    
+        // Création d'un lien de téléchargement temporaire
+        const a = document.createElement("a");
+        a.href = csvUrl;
+        a.download = `Doctorants_Filtrés_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+    
+        // Nettoyage de l'URL Blob
+        URL.revokeObjectURL(csvUrl);
+    };
 
 
-    // 🔽 **Filtrage des doctorants selon le statut sélectionné**
+    // 🔽 **Filtrage des doctorants selon le statut, l'année et le département**
     const filteredDoctorants = doctorants.filter((doc: any) =>
         (doc.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
             doc.ID_DOCTORANT.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        (filterYear === 'Tous' || doc.importDate === Number(filterYear)) &&
         (filterStatus === 'Tous' ||
             (filterStatus === 'Non envoyé au doctorant' && !doc.sendToDoctorant) ||
             (filterStatus === 'Envoyé au doctorant' && doc.sendToDoctorant) ||
@@ -140,123 +192,212 @@ const ListeDoctorants: React.FC = () => {
             (filterStatus === 'Non validé par les référents' && !doc.representantValide))
     );
 
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= Math.ceil(filteredDoctorants.length / itemsPerPage)) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    const paginatedDoctorants = filteredDoctorants.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const handleDeleteAll = async () => {
+        if (!window.confirm('⚠️ ATTENTION : Cette action supprimera TOUS les doctorants !\n\nVoulez-vous vraiment continuer ?')) {
+            return;
+        }
+    
+        if (!window.confirm('🚨 DERNIÈRE CHANCE : Cette suppression est IRRÉVERSIBLE !\n\nÊtes-vous VRAIMENT sûr(e) de vouloir tout supprimer ?')) {
+            return;
+        }
+    
+        if (!window.confirm('🔥 ULTIME CONFIRMATION : Vous allez supprimer **TOUS** les doctorants.\n\nIl sera impossible de récupérer les données après cette action.\n\nContinuer ?')) {
+            return;
+        }
+    
+        const confirmationText = prompt('❌ TAPEZ "SUPPRIMER" POUR CONFIRMER ❌\n\nCette action est DÉFINITIVE !\n\nSi vous ne souhaitez pas supprimer, cliquez sur "Annuler".');
+        if (confirmationText !== "SUPPRIMER") {
+            alert("❎ Suppression annulée. Aucun doctorant n'a été supprimé.");
+            return;
+        }
+    
+        try {
+            await api.delete('/doctorant'); // Requête DELETE vers l'API
+            setDoctorants([]); // Vider la liste côté frontend
+            alert('✅ Tous les doctorants ont été supprimés avec succès !');
+        } catch (error) {
+            console.error('❌ Erreur lors de la suppression des doctorants :', error);
+            alert("⚠️ Échec de la suppression. Vérifiez la connexion et réessayez.");
+        }
+    };
+
 
     return (
-        <div>
-            <h1>Liste des Doctorants</h1>
+        <div className="liste-doctorants-container">
+            <h1 className="liste-doctorants-title">Liste des Doctorants</h1>
 
             {/* 🔍 Barre de recherche */}
-            <input
-                type="text"
-                placeholder="Rechercher par nom ou ID_DOCTORANT..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                    padding: '8px',
-                    width: '300px',
-                    marginBottom: '15px',
-                    borderRadius: '5px',
-                    border: '1px solid #ccc'
-                }}
-            />
+            <div className="search-container">
+                <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Rechercher par nom ou ID_DOCTORANT..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
 
-            {/* 🔽 Filtre par statut */}
-            <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                style={{ marginLeft: '10px', padding: '8px', borderRadius: '5px' }}
-            >
-                <option value="Tous">Tous</option>
-                <option value="Non envoyé au doctorant">Non envoyé au doctorant</option>
-                <option value="Envoyé au doctorant">Envoyé au doctorant</option>
-                <option value="Doctorant validé">Validation par le doctorant</option>
-                <option value="Non validé par le doctorant">Non validé par le doctorant</option>
-                <option value="Envoyé aux référents">Envoyé aux référents</option>
-                <option value="Non envoyé aux référents">Non envoyé aux référents</option>
-                <option value="Référents validés">Validation par les référents</option>
-                <option value="Non validé par les référents">Non validé par les référents</option>
-            </select>
+                {/* 🔽 Filtre par année */}
+                <select
+                    className="filter-select"
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    style={{ marginLeft: '10px', padding: '8px', borderRadius: '5px' }}
+                >
+                    <option value="Tous">Toutes les années</option>
+                    {availableYears.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                    ))}
+                </select>
+                {/* 🔽 Filtre par statut */}
+                <select
+                    className="filter-select"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    style={{ marginLeft: '10px', padding: '8px', borderRadius: '5px' }}
+                >
+                    <option value="Tous">Tous</option>
+                    <option value="Non envoyé au doctorant">Non envoyé au doctorant</option>
+                    <option value="Envoyé au doctorant">Envoyé au doctorant</option>
+                    <option value="Doctorant validé">Validation par le doctorant</option>
+                    <option value="Non validé par le doctorant">Non validé par le doctorant</option>
+                    <option value="Envoyé aux référents">Envoyé aux référents</option>
+                    <option value="Non envoyé aux référents">Non envoyé aux référents</option>
+                    <option value="Référents validés">Validation par les référents</option>
+                    <option value="Non validé par les référents">Non validé par les référents</option>
+                </select>
+            </div>
 
-            <br />
-
-            <button onClick={fetchDoctorants}>Rafraîchir</button>
-            <button onClick={() => window.location.href = "http://localhost:3000/doctorant/export/csv"}>Exporter en CSV</button>
-            <button onClick={() => window.location.href = "http://localhost:3000/doctorant/export/pdf"}>Exporter tous les PDF</button>
-            <button onClick={handleSendBulkEmails} style={{ backgroundColor: '#007bff', color: 'white', marginLeft: '10px' }}>
-                Envoyer un mail aux doctorants auxquels le mail n'a pas encore été envoyé
-            </button>
+            <div className="actions-container">
+                <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
+                <button className="btn btn-export" onClick={() => window.location.href = "http://localhost:3000/doctorant/export/csv"}>📂 Exporter en CSV</button>
+                <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
+                <button className="btn btn-export-pdf" onClick={() => window.location.href = "http://localhost:3000/doctorant/export/pdf"}>📑 Exporter tous les PDF</button>
+                <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
+            </div>
 
             {/* 🔔 Affichage de la progression */}
             {sendingProgress !== null && (
-                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffecb5', borderRadius: '5px' }}>
-                    <strong>Envoi en cours :</strong> {currentSent}/{totalToSend}
+                <div className="progress-container">
+                    <strong>📨 Envoi en cours :</strong> {currentSent}/{totalToSend}
                     <br />
-                    <progress value={sendingProgress} max={100} style={{ width: '100%' }}></progress>
+                    <progress className="progress-bar" value={sendingProgress} max={100}></progress>
                 </div>
             )}
 
 
-            <ul>
-                {filteredDoctorants.map((doc: any) => (
-                    <li key={doc._id} className='doctorant' style={{ marginBottom: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* 🔢 Paramètres d'affichage */}
+            <div className="pagination-settings">
+                <label>Afficher : </label>
+                <select
+                    className="select-items-per-page"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                    }}
+                >
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={5}>5</option>
+                </select>
+            </div>
+
+
+            {/* 📋 Liste des doctorants */}
+            <div className="table-container">
+            <ul className="doctorants-list">
+                {paginatedDoctorants.map((doc: any) => (
+                    <li key={doc._id} className="doctorant-item">
                         <div className='doctorant-info'>
-                        <div>
                             <strong>{doc.nom} {doc.prenom}</strong>
                             <br />
                             <span style={{ fontSize: '0.9em', color: '#666' }}>ID: {doc.ID_DOCTORANT}</span>
                             <br />
                             <span style={{ color: doc.statut === 'complet' ? 'green' : 'red' }}>{doc.statut}</span>
-                        </div>
-
                         {/* Nouveaux champs de suivi */}
                         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                            <div>
+                            <div className='status'>
                                 <span>Envoyé au doctorant :</span>
                                 <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.sendToDoctorant ? 'green' : 'red' }}></div>
                             </div>
-                            <div>
+                            <div className='status'>
                                 <span>Validation par le doctorant :</span>
                                 <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.doctorantValide ? 'green' : 'red' }}></div>
                             </div>
-                            <div>
+                            <div className='status'>
                                 <span>Envoyé aux référents :</span>
                                 <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.sendToRepresentants ? 'green' : 'red' }}></div>
                             </div>
-                            <div>
+                            <div className='status'>
                                 <span>Validation par les référents :</span>
                                 <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.representantValide ? 'green' : 'red' }}></div>
                             </div>
-                            <div>
-                                <span>Nb envois au doctorant :</span> <strong>{doc.NbSendToDoctorant}</strong>
+                            <div className='status'>
+                                <span>Envoyé au directeur de département :</span>
+                                <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.gestionnaireDirecteurValide ? 'green' : 'red' }}></div>
                             </div>
-                            <div>
-                                <span>Nb envois aux référents :</span> <strong>{doc.NbSendToRepresentants}</strong>
+                            <div className='status-envois'>
+                                <div className='envois up'>
+                                    <span>Nb envois au doctorant :</span> <strong>{doc.NbSendToDoctorant}</strong>
+                                </div>
+                                <div className='envois'>
+                                    <span>Nb envois aux référents :</span> <strong>{doc.NbSendToRepresentants}</strong>
+                                </div>
                             </div>
                         </div>
                         </div>
 
-                        <div className="buttons" style={{ marginTop: '10px' }}>
-                            <button onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom)}>Renvoyer mail d'invitation au doctorant</button>
+                        <div className="action-buttons" style={{ marginTop: '10px' }}>
+                            <div className="btn-group">
+                                <button className="btn btn-primary btn-doctorant" onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom)}>Renvoyer mail d'invitation au doctorant</button>
 
-                            <button onClick={() => handleResendReferentEmails(doc._id)} style={{ marginLeft: '10px', backgroundColor: '#f0ad4e', color: 'white' }}>
-                                Renvoyer mail avec rapport du doctorant aux référents
-                            </button>
+                                <button className="btn btn-primary btn-doctorant" onClick={() => handleResendReferentEmails(doc._id)}>
+                                    Renvoyer mail avec rapport du doctorant aux référents
+                                </button>
 
-                            <button onClick={() => handleExportPDF(doc._id)}>Afficher PDF en fonction de l'état d'avancement du process</button>
+                                <button className="btn btn-primary btn-doctorant" onClick={() => handleExportPDF(doc._id)}>Afficher PDF en fonction de l'état d'avancement du process</button>
 
-                            <Link to={`/doctorant/modifier/${doc._id}`} style={{ marginLeft: '10px' }}>
-                                <button>Modifier contenu du rapport du doctorant</button>
-                            </Link>
+                                <Link to={`/doctorant/modifier/${doc._id}`}>
+                                    <button className="btn btn-primary btn-doctorant">Modifier contenu du rapport du doctorant</button>
+                                </Link>
+                            </div>
 
 
 
-                            <button onClick={() => handleDelete(doc._id)} style={{ marginLeft: '10px', color: 'red' }}>
+                            <button onClick={() => handleDelete(doc._id)} className="btn btn-danger">
                                 Supprimer Doctorant
                             </button>
                         </div>
                     </li>
                 ))}
             </ul>
+            </div>
+            {/* 📌 Pagination */}
+            <div className="pagination-container">
+                <button className="pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
+                    ◀
+                </button>
+                <span className="pagination-text">{currentPage} / {Math.ceil(filteredDoctorants.length / itemsPerPage)}</span>
+                <button className="pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === Math.ceil(filteredDoctorants.length / itemsPerPage)}>
+                    ▶
+                </button>
+            </div>
+            <div>
+                <button onClick={handleDeleteAll} className="btn btn-danger btn-delete-all">
+                    Supprimer tous les doctorants
+                </button>
+            </div>
         </div>
     );
 };

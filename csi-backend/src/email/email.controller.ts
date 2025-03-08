@@ -82,6 +82,7 @@ export class EmailController {
                         const doctorantSubject = `Your CSI Annual Report - ${doctorantPrenom}`;
                         const doctorantHtml = `<p>Dear ${doctorantPrenom},</p>
                                         <p>Your annual CSI report has been successfully submitted.</p>
+                                        <p>Please note that we do not send your report to your potential co-supervisors, but you are, of course, free to do so.</p>
                                         <p>Best regards,</p>
                                         <p><strong>The BioSPC Doctoral School Management</strong></p>`;
                         const doctorantAttachments= [
@@ -199,6 +200,152 @@ export class EmailController {
         } catch (error) {
             console.error('Erreur lors de l\'envoi des tokens aux représentants :', error.message);
             throw error;
+        }
+    }
+
+
+    // Il va falloirt rajouter cc attendre les instructions de Tony
+    @Post('send-department')
+    async sendEmailByDepartment(
+        @Body('doctorantId') doctorantId: string,
+        @Body('doctorantEmail') doctorantEmail: string,
+        @Body('doctorantPrenom') doctorantPrenom: string,
+        @Body('doctorantNom') doctorantNom: string,
+        @Body('department') department: string
+    ) {
+        try {
+            // 🔍 Récupération du doctorant
+            const doctorant = await this.doctorantService.findOne(doctorantId);
+            if (!doctorant) {
+                throw new NotFoundException("Doctorant introuvable.");
+            }
+
+            console.log(`✅ Doctorant trouvé : ${doctorant.nom} ${doctorant.prenom}`);
+
+            // 🎯 Définition des destinataires en fonction du département
+            //Modifier les emails des destinataires
+            const departmentRecipients: Record<string, string> = {
+                "MECA": "elio.darras@gmail.com",
+                "PP": "darraselio@gmail.com",
+                "IM": "honeygiread@gmail.com",
+                "IMMUNO": "darrao.tv@gmail.com",
+                "GENE": "darraotv@gmail.com"
+            };
+
+            const recipientEmail = departmentRecipients[department];
+            if (!recipientEmail) {
+                throw new NotFoundException(`Aucun destinataire défini pour le département : ${department}`);
+            }
+
+            console.log(`📬 Destinataire pour ${department} : ${recipientEmail}`);
+
+            // 🏷️ Génération du token pour le formulaire
+            const token = await generateToken(doctorantEmail, this.doctorantService, doctorantEmail);
+            const link = `http://localhost:3001/formulaire?token=${token}`;
+
+            // 📄 Génération du PDF
+            const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+            const pdfFileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+
+            // ✉️ Envoi de l'email
+            const subject = `Evaluation CSI - ${doctorantPrenom}`;
+            const html = `
+                <p>Message destiné aux directeurs et aux gestionnaires du département : <strong>${department}</strong></p>
+                <p>Les membres du comité CSI de ${doctorantPrenom} ${doctorantNom} ont validé leur rapport final, que vous trouverez en copie dans ce mail.</p>
+                <p>Veuillez en prendre connaissance et vérifier que cette thèse se déroule sans accroc.</p>
+                <p><strong>The Doctoral School Management</strong></p>
+            `;
+
+            const attachments = [
+                {
+                    filename: pdfFileName,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf',
+                },
+            ];
+
+            console.log(`📧 Envoi de l'email à ${recipientEmail}`);
+            await sendMail(recipientEmail, subject, html, attachments);
+
+            // 🔥 Mise à jour du statut dans la base pour les représentants et le directeur
+            if (doctorant) {
+                if (doctorant && doctorant._id instanceof Object) {
+                    await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
+                        gestionnaireDirecteurValide: true, // Ajout du statut pour le directeur
+                    });
+                } else {
+                    console.error("❌ Erreur: `doctorant._id` est invalide :", doctorant);
+                }
+            }
+            
+
+            return { message: `Email envoyé avec succès à ${recipientEmail}` };
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'envoi de l\'email :', error.message);
+            throw new NotFoundException('Erreur lors de l\'envoi de l\'email.');
+        }
+    }
+
+    @Post('send-referent-confirmation')
+    async sendReferentConfirmation(
+        @Body('doctorantId') doctorantId: string,
+        @Body('doctorantEmail') doctorantEmail: string,
+        @Body('doctorantPrenom') doctorantPrenom: string,
+        @Body('doctorantNom') doctorantNom: string
+    ) {
+        try {
+            // 🔍 Récupération du doctorant
+            const doctorant = await this.doctorantService.findOne(doctorantId);
+            if (!doctorant) {
+                throw new NotFoundException("Doctorant introuvable.");
+            }
+
+            console.log(`✅ Doctorant trouvé : ${doctorant.nom} ${doctorant.prenom}`);
+
+            // 📩 Récupération des emails des référents
+            const referents = [doctorant.emailMembre1, doctorant.emailMembre2, doctorant.emailAdditionalMembre]
+                .filter(email => email); // ⚠️ Supprime les valeurs nulles
+
+            if (referents.length === 0) {
+                console.warn("⚠️ Aucun référent trouvé pour ce doctorant.");
+                return { message: "Aucun référent à notifier." };
+            }
+
+            console.log(`📬 Référents à notifier : ${referents.join(", ")}`);
+
+            // 📄 Génération du PDF
+            const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+            const pdfFileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+
+            // ✉️ Contenu de l'email
+            const subject = `Final CSI Report - ${doctorantPrenom} ${doctorantNom}`;
+            const html = `
+                <p>Dear colleagues,</p>
+                <p>You have just finalized your CSI report for <strong>${doctorantPrenom} ${doctorantNom}</strong>.</p>
+                <p>You will find a copy of this report attached.</p>
+                <p>Thank you immensely for your help in ensuring the follow-up of our PhD students’ journey.</p>
+                <p>Best regards,</p>
+                <p><strong>The Doctoral School Management</strong></p>
+            `;
+
+            const attachments = [
+                {
+                    filename: pdfFileName,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf',
+                },
+            ];
+
+            // 🔄 Envoi des emails aux référents
+            for (const referentEmail of referents) {
+                console.log(`📧 Envoi de l'email à ${referentEmail}`);
+                await sendMail(referentEmail, subject, html, attachments);
+            }
+
+            return { message: `Emails envoyés avec succès aux référents : ${referents.join(', ')}` };
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'envoi de l\'email aux référents :', error.message);
+            throw new NotFoundException('Erreur lors de l\'envoi de l\'email aux référents.');
         }
     }
 }

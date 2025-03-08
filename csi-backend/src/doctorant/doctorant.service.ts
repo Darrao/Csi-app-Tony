@@ -42,6 +42,11 @@ export class DoctorantService {
         return this.doctorantModel.findById(id);
     }
 
+    async deleteAll() {
+        console.log("🔥 Suppression de tous les doctorants...");
+        return await this.doctorantModel.deleteMany({}); // 🔥 Supprime tous les doctorants
+    }
+
     async create(createDoctorantDto: CreateDoctorantDto): Promise<Doctorant> {
         const normalizedEmail = createDoctorantDto.email.trim().toLowerCase();
         const createdDoctorant = new this.doctorantModel({
@@ -273,6 +278,7 @@ export class DoctorantService {
     async importDoctorantsFromCSV(csvData: string): Promise<any> {
         const rows = [];
         const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
+        const currentYear = new Date().getFullYear(); // 🔥 Obtenir l'année actuelle
     
         return new Promise((resolve, reject) => {
             const readableStream = require('stream').Readable.from(csvData);
@@ -280,7 +286,6 @@ export class DoctorantService {
             readableStream
                 .pipe(csvParser({ separator: ';' }))
                 .on('data', (row) => {
-                    // 🔥 Nettoyer les clés du CSV
                     const cleanedRow = {};
                     for (let key in row) {
                         cleanedRow[cleanKey(key)] = row[key];
@@ -294,29 +299,27 @@ export class DoctorantService {
                     for (const row of rows) {
                         console.log(`🔍 [DEBUG] Clés détectées :`, Object.keys(row));
     
-                        // Vérification de l'email
                         const email = row[cleanKey("Email d'envoi")]?.trim() || '';
                         if (!email) {
                             console.warn(`⚠️ Email manquant, ligne ignorée.`);
                             continue;
                         }
     
-                        // Vérification de l'existence
                         const existingDoctorant = await this.doctorantModel.findOne({ email }).exec();
                         if (existingDoctorant) {
                             console.log(`⚠️ Doctorant avec email ${email} existe déjà, ignoré.`);
                             continue;
                         }
     
-                        // Correction du prénom
-                        let prenom = row[cleanKey('Prénom')] ? row[cleanKey('Prénom')].trim() : '';
+                        let prenom = row[cleanKey('Prénom')]?.trim() || '';
                         console.log(`🔍 [DEBUG] Prénom après nettoyage pour ${email} : '${prenom}'`);
-                        
+    
                         if (!prenom) {
                             console.warn(`⚠️ Prénom manquant pour ${email}, vérifie ton CSV.`);
                         }
+                        
     
-                        // Création de l'objet Doctorant
+                        // Création de l'objet Doctorant avec importDate
                         const newDoctorant = new this.doctorantModel({
                             prenom,
                             nom: row[cleanKey('Nom')]?.trim() || '',
@@ -332,6 +335,7 @@ export class DoctorantService {
                             directeurEquipe: row[cleanKey('Equipes::Nom_Prenom_Responsable')] || '',
                             nomPrenomHDR: row[cleanKey('HDR::Nom_Prenom_HDR')] || '',
                             email_HDR: row[cleanKey('HDR::Email_HDR')] || '',
+                            importDate: currentYear, // 🆕 Ajout de l'année d'importation
                         });
     
                         console.log(`📝 [DEBUG] Objet Doctorant avant insertion:`, newDoctorant);
@@ -348,7 +352,7 @@ export class DoctorantService {
                 });
         });
     }
-
+    
     async findByReferentEmail(email: string) {
         return this.doctorantModel.findOne({
             $or: [
@@ -518,40 +522,37 @@ export class DoctorantService {
   
 
         const addTitle = (title: string) => {
-            if (y <= marginBottom) newPage();
+
+                y -= 20; // Ajoute un espace au-dessus du titre
     
-            const cleanedTitle = cleanText(title);
-            const words = cleanedTitle.split(" ");
-            let line = "";
-            const lines: string[] = [];
-            
-          
-            for (const word of words) {
-              const testLine = line.length ? line + " " + word : word;
-              const textWidth = boldFont.widthOfTextAtSize(testLine, 14);
-              if (textWidth < maxWidth) {
-                line = testLine;
-              } else {
-                lines.push(line);
-                line = word;
-              }
-            }
-            if (line) lines.push(line);
-          
-            // Affiche chaque ligne du titre
-            for (const l of lines) {
-              if (y <= marginBottom) newPage();
-              const textWidth = boldFont.widthOfTextAtSize(l, 14);
-              const centeredX = (600 - textWidth) / 2; // Centrage basé sur la largeur de la page
+                if (y <= marginBottom) newPage();
+                const cleanedTitle = cleanText(title);
+                const words = cleanedTitle.split(" ");
+                let line = "";
+                const lines: string[] = [];
+              
+                for (const word of words) {
+                  const testLine = line.length ? line + " " + word : word;
+                  const textWidth = boldFont.widthOfTextAtSize(testLine, 12);
+                  if (textWidth < maxWidth) {
+                    line = testLine;
+                  } else {
+                    lines.push(line);
+                    line = word;
+                  }
+                }
+                if (line) lines.push(line);
+              
+                // Affiche chaque ligne du titre
+                for (const l of lines) {
+                  if (y <= marginBottom) newPage();
+                  page.drawText(l, { x: marginLeft, y, size: 12, font: boldFont });
+                  y -= 20; // Espacement entre les lignes du titre
+                }
+                
+                y -= 5; // Espace supplémentaire après le titre
+              };
         
-              page.drawText(l, { x: centeredX, y, size: 14, font: boldFont });
-      
-              y -= 20; // Espacement entre les lignes du titre
-            }
-            
-            y -= 10; // Espace supplémentaire après le titre
-          };
-    
         // Ajout des titres de section
         const addSectionTitle = (title: string) => {
 
@@ -801,7 +802,7 @@ export class DoctorantService {
                 if (questionValue !== "N/A" || commentValue !== "N/A") {
                     if (y - 70 <= marginBottom) newPage();
                     // addSectionTitle(`Question ${i}`);
-                    addSectionTitle(questions[i - 1]);
+                    addTitle(questions[i - 1]);
 
                     if (y - 40 <= marginBottom) newPage();
                     addWrappedText("Evaluation :", questionValue);

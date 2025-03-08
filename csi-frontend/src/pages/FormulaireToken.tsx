@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import './FormulaireToken.css';
+import '../styles/FormulaireToken.css';
 
 const FormulaireToken: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -81,6 +81,9 @@ const FormulaireToken: React.FC = () => {
     });
 
     const onSubmit = async (values: any) => {
+
+        // Ici je dois envoyer un mail a l’adresse que tony m’a envoyé (regarder excel qu’il m’a envoyé)
+
         console.log("🚀 Soumission du formulaire en cours...", values);
         try {
             if (!doctorant) {
@@ -134,9 +137,33 @@ const FormulaireToken: React.FC = () => {
             console.log("📤 Données envoyées à l'API :", payload);
     
             if (doctorant._id) {
+
+                // envoyer mail donc fonction qui envoi le mail avec Choix figé pour Doctoral student's department pour qu'on puisse savoir a qui envoyer le mainModule, ca il faut le gerer dans le backend
                 console.log(doctorant._id);
+
                 const response = await api.put(`/doctorant/${doctorant._id}`, payload);
                 console.log("✅ Mise à jour réussie :", response.data);
+                
+                // ✉️ Envoi de l'email en fonction du département
+                const emailResponse = await api.post('/email/send-department', {
+                    doctorantId: doctorant._id,
+                    doctorantEmail: doctorant.email,
+                    doctorantPrenom: doctorant.prenom,
+                    doctorantNom: doctorant.nom,
+                    department: doctorant.departementDoctorant,
+                });
+                console.log("✅ Email envoyé au directeur et gestionnaire");
+
+                // ✉️ Envoi de l'email aux référents
+                await api.post('/email/send-referent-confirmation', {
+                    doctorantId: doctorant._id,
+                    doctorantEmail: doctorant.email,
+                    doctorantPrenom: doctorant.prenom,
+                    doctorantNom: doctorant.nom,
+                });
+                console.log("✅ Email de confirmation envoyé aux référents");    
+
+
                 alert('Mise à jour effectuée avec succès !');
             }
         } catch (error: any) {

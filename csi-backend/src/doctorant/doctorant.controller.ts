@@ -14,6 +14,7 @@ import { Model } from 'mongoose';
 import * as multer from 'multer';
 import { Multer, diskStorage } from 'multer';
 import * as path from 'path';
+import { format } from 'fast-csv';
 
 
 
@@ -282,23 +283,35 @@ export class DoctorantController {
 
     @Get('export/csv')
     async exportDoctorants(@Res() res: Response) {
-        const doctorants = await this.doctorantService.findAll();
-        const csv = doctorants.map((doc) => ({
-            nom: doc.nom,
-            prenom: doc.prenom,
-            email: doc.email,
-            dateInscription: doc.datePremiereInscription,
-            titreThese: doc.titreThese,
-            intituleUR: doc.intituleUR,
-            directeurThese: doc.nomPrenomHDR,
-            intituleEquipe: doc.intituleEquipe,
-            // referent1Choices: JSON.stringify(doc.representantData?.saisieChamp1 || {}),
-            // referent2Choices: JSON.stringify(doc.representantData?.saisieChamp2 || {}),
-        }));
+        const doctorants = await this.doctorantModel.find().lean(); // ✅ Récupère les doctorants en JSON
 
-        res.header('Content-Type', 'text/csv');
-        res.attachment('doctorants.csv');
-        res.send(csv);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=doctorants.csv');
+
+        const csvStream = format({ headers: true });
+        csvStream.pipe(res);
+
+        // 🔥 Récupération automatique des champs du schema Mongoose
+        const schemaFields = Object.keys(this.doctorantModel.schema.paths);
+
+        // ⚡ Génération des lignes du CSV automatiquement
+        doctorants.forEach(doc => {
+            const row: any = {};
+            schemaFields.forEach(field => {
+                let value = doc[field];
+
+                // 🔄 Convertir les dates en `YYYY-MM-DD`
+                if (value instanceof Date) {
+                    value = value.toISOString().split('T')[0];
+                }
+
+                row[field] = value ?? ''; // ✅ Évite les `undefined`
+            });
+
+            csvStream.write(row);
+        });
+
+        csvStream.end(); // ✅ Fin du stream
     }
 
     @Post('send-reminder')
@@ -466,5 +479,16 @@ export class DoctorantController {
         }
 
         return await this.doctorantService.updateDoctorant(id, updateData);
+    }
+
+    @Delete()
+    async deleteAll() {
+        try {
+            const result = await this.doctorantService.deleteAll(); // 🔥 Appel au service pour supprimer tous les doctorants
+            return { message: 'Tous les doctorants ont été supprimés avec succès.', deletedCount: result.deletedCount };
+        } catch (error) {
+            console.error('Erreur lors de la suppression des doctorants :', error);
+            throw new BadRequestException("Erreur lors de la suppression des doctorants.");
+        }
     }
 }

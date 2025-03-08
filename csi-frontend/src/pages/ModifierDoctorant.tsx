@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import './FormulaireToken.css';
+import '../styles/FormulaireToken.css';
 // ajouter container et class pour le css
 
 const ModifierDoctorant: React.FC = () => {
@@ -224,7 +224,18 @@ const ModifierDoctorant: React.FC = () => {
 
                         <div className='flex-item'>
                             <label>Doctoral student's department :</label>
-                            <input type="text" name="departementDoctorant" value={doctorant.departementDoctorant || ''} onChange={handleChange} />
+                            <select 
+                                name="departementDoctorant" 
+                                value={doctorant.departementDoctorant || ''} 
+                                onChange={handleChange}
+                            >
+                                <option value="">-- Select a Department --</option>
+                                <option value="MECA">MECA</option>
+                                <option value="PP">PP</option>
+                                <option value="IM">IM</option>
+                                <option value="IMMUNO">IMMUNO</option>
+                                <option value="GENE">GENE</option>
+                            </select>
                         </div>
                     </div>
 

@@ -24,6 +24,9 @@ export class Doctorant extends Document {
     ID_DOCTORANT?: string;
 
     @Prop({ required: false, default: '' })
+    importDate?: number;
+
+    @Prop({ required: false, default: '' })
     departementDoctorant?: string;
 
     @Prop({ required: false, default: null })
@@ -225,6 +228,9 @@ export class Doctorant extends Document {
 
     @Prop({ required: false, default: false })
     representantValide?: boolean;
+
+    @Prop({ required: false, default: false })
+    gestionnaireDirecteurValide?: boolean;
 }
 
 export const DoctorantSchema = SchemaFactory.createForClass(Doctorant);

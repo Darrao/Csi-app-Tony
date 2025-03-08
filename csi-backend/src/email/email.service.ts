@@ -3,6 +3,8 @@ import * as crypto from 'crypto';
 import * as dotenv from 'dotenv';
 import * as jwt from 'jsonwebtoken';
 import { DoctorantService } from '../doctorant/doctorant.service';
+import { JwtPayload } from 'jsonwebtoken';
+
 
 
 dotenv.config(); // Charge les variables d'environnement
@@ -39,7 +41,7 @@ export async function verifyTokenAndFindDoctorant(token: string, doctorantServic
     console.log("🔑 SECRET_KEY utilisé :", SECRET_KEY);
 
     try {
-        const decoded = jwt.verify(token, SECRET_KEY);
+        const decoded = jwt.verify(token, SECRET_KEY) as JwtPayload;
         console.log("✅ Token JWT décodé :", decoded);
 
         const doctorantEmail = decoded.doctorantEmail || decoded.email;  // Ajoute une vérification au cas où

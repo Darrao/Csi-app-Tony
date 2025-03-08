@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { FiUploadCloud } from 'react-icons/fi';
 import api from '../services/api';
+import '../styles/ImportCSVAndSendEmail.css';
 
 const ImportCSVAndSendEmail: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
-    const [emails, setEmails] = useState('');
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files.length > 0) {
-            setFile(event.target.files[0]);
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        if (acceptedFiles.length > 0) {
+            setFile(acceptedFiles[0]);
         }
-    };
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: { 'text/csv': ['.csv'] },
+        multiple: false
+    });
 
     const handleUpload = async () => {
         if (!file) {
@@ -33,36 +41,31 @@ const ImportCSVAndSendEmail: React.FC = () => {
         }
     };
 
-    const handleSendEmails = async () => {
-        if (!emails) {
-            alert('Veuillez entrer au moins un email.');
-            return;
-        }
-
-        const emailList = emails.split(',').map(email => email.trim());
-        try {
-            await api.post('/email/send', { emails: emailList });
-            console.log('Emails envoyés au backend:', emailList);
-            alert('Emails envoyés avec succès !');
-            setEmails('');
-        } catch (error) {
-            console.error("Erreur lors de l'envoi des emails :", error);
-            alert("Erreur lors de l'envoi des emails.");
-        }
-    };
-
     return (
-        <div>
-            <h1>Importer un fichier CSV et Envoyer des Emails</h1>
-            
-            {/* Section d'importation CSV */}
-            <div style={{ marginBottom: '20px' }}>
-                <h2>Importer un fichier CSV</h2>
-                <input type="file" accept=".csv" onChange={handleFileChange} />
-                <button onClick={handleUpload} style={{ marginTop: '10px', padding: '10px 20px', fontSize: '16px' }}>
-                    Importer
-                </button>
+        <div className="container">
+            <h1 className="title">Importer un fichier CSV</h1>
+
+            {/* Zone de Drag & Drop stylée */}
+            <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
+                <input {...getInputProps()} />
+                <div className="icon-container">
+                    <svg width="80" height="50" viewBox="0 0 24 24" fill="none" stroke="#C4C4CF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 16l-4-4-4 4M12 12v9M20.39 18.39A5 5 0 0018 8h-1.26A8 8 0 103 16.3" />
+                    </svg>
+                </div>
+                {file ? (
+                    <p className="file-name">{file.name}</p>
+                ) : (
+                    <p className="drag-text">
+                        Glissez-déposez un fichier ici ou <span className="click-text">cliquez pour sélectionner</span>
+                    </p>
+                )}
             </div>
+
+            {/* Bouton d'importation */}
+            <button className="upload-btn" onClick={handleUpload}>
+                Importer
+            </button>
         </div>
     );
 };

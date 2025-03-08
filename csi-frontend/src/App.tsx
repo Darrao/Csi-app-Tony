@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useAuth } from './context/AuthContext'; // Ajoute AuthProvider
+import PrivateRoute from './components/PrivateRoute'; // Ajoute PrivateRoute
 import FormulaireDoctorant from './pages/FormulaireDoctorant';
 import ListeDoctorants from './pages/ListeDoctorants';
 import ModifierDoctorant from './pages/ModifierDoctorant';
@@ -8,20 +10,28 @@ import Header from './components/Header';
 import EnvoiEmail from './pages/sendEmail';
 import FormulaireToken from './pages/FormulaireToken';
 import FormulaireRepresentant from './pages/FormulaireRepresentant';
+import Login from './components/Login';
 
 const App: React.FC = () => {
+    const { isAdmin } = useAuth();
     return (
-        <Router>
-          <Header />
-            <Routes>
-                <Route path="/" element={<EnvoiEmail />} />
-                <Route path="/doctorants" element={<ListeDoctorants />} />
-                <Route path="/modifier/:id" element={<ModifierDoctorant />} />
-                <Route path="/formulaire" element={<FormulaireToken />} />
-                <Route path="/formulaire-representant" element={<FormulaireRepresentant />} />
-                <Route path="/doctorant/modifier/:id" element={<ModifierDoctorantAdmin />} />
-            </Routes>
-        </Router>
+            <Router>
+                {isAdmin && <Header />}
+                <Routes>
+                    {/* Accès Public */}
+                    <Route path="/login" element={<Login />} />
+                    {/* <Route path="/formulaire" element={<FormulaireToken />} />
+                    <Route path="/formulaire-representant" element={<FormulaireRepresentant />} /> */}
+                    <Route path="/modifier/:id" element={<ModifierDoctorant />} />
+
+                    {/* Routes Admin Sécurisées */}
+                    <Route element={<PrivateRoute />}>
+                        <Route path="/" element={<EnvoiEmail />} />
+                        <Route path="/doctorants" element={<ListeDoctorants />} />
+                        <Route path="/doctorant/modifier/:id" element={<ModifierDoctorantAdmin />} />
+                    </Route>
+                </Routes>
+            </Router>
     );
 };
 
