@@ -4,6 +4,7 @@
 
 
 Requete pour créer un admin en local : 
+
 curl -X POST http://localhost:3000/admin/add \
      -H "Content-Type: application/json" \
      -H "Authorization: MonSuperTokenUltraSecret123" \
