@@ -6,11 +6,12 @@ import { TokenModule } from './token/token.module';
 import { AuthModule } from './admin/auth/auth.module';
 import { EmailConfigModule } from './emailConfig/email-config.module';
 import { ConfigModule } from '@nestjs/config';
+import { config } from './config';
 
 @Module({
     imports: [
         ConfigModule.forRoot(), // Charge les variables d'environnement
-        MongooseModule.forRoot(process.env.MONGODB_URI),
+        MongooseModule.forRoot(config.MONGODB_URI),
         DoctorantModule,
         TokenModule,
         AuthModule,
