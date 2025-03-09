@@ -325,6 +325,7 @@ export class DoctorantService {
             return text
             .normalize("NFD") // Supprime les accents
             .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\r?\n|\r/g, " ") // Remplace tous les sauts de ligne par un espace
             .replace(/[^\x00-\x7F]/g, char => {
                 // 🛠️ Remplacement des caractères problématiques
                 const replacements: Record<string, string> = {
@@ -785,7 +786,7 @@ export class DoctorantService {
         }
 
         // 📄 Nom et chemin du fichier
-        const fileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+        const fileName = `Rapport_${doctorant.nom}_${doctorant.prenom}_${doctorant._id}.pdf`;  
         const filePath = path.join(uploadDir, fileName);
 
         // 💾 Sauvegarde du fichier sur le serveur
@@ -800,6 +801,7 @@ export class DoctorantService {
             }
         }, { new: true });
 
+        console.log(`🔍 Contenu du PDF :`, cleanText(JSON.stringify(doctorant, null, 2)));
         return pdfBuffer;
     }
 }

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import '../styles/FormulaireToken.css';
+import { useNavigate } from 'react-router-dom';
 
 const FormulaireToken: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -11,6 +12,10 @@ const FormulaireToken: React.FC = () => {
     const [email, setEmail] = useState<string | null>(null);
     const [doctorant, setDoctorant] = useState<any>(null);
     const [loading, setLoading] = useState<boolean>(true);
+    const [submitting, setSubmitting] = useState<boolean>(false);
+    const navigate = useNavigate();
+    const [formSubmitted, setFormSubmitted] = useState<boolean>(false); // ✅ Ajout de l'état pour suivre la soumission
+
 
     useEffect(() => {
         const validateToken = async () => {
@@ -25,6 +30,11 @@ const FormulaireToken: React.FC = () => {
 
                     console.log("📌 Doctorant stocké :", response.data.doctorant);
                     console.log("📌 Email stocké :", response.data.email);
+
+                    if (response.data.doctorant?.representantValide) {
+                        console.log("🔒 Ce lien a déjà été utilisé. Redirection...");
+                        navigate('/merci');
+                    }
 
                     // ✅ On désactive le chargement seulement après avoir stocké les données
                     setLoading(false);
@@ -81,13 +91,16 @@ const FormulaireToken: React.FC = () => {
     });
 
     const onSubmit = async (values: any) => {
+        setFormSubmitted(true); // ✅ Marque le formulaire comme soumis
 
         // Ici je dois envoyer un mail a l’adresse que tony m’a envoyé (regarder excel qu’il m’a envoyé)
 
         console.log("🚀 Soumission du formulaire en cours...", values);
+        setSubmitting(true);
         try {
             if (!doctorant) {
                 alert("❌ Erreur : Les données du doctorant sont absentes !");
+                setSubmitting(false);
                 return;
             }
     
@@ -169,6 +182,8 @@ const FormulaireToken: React.FC = () => {
 
 
                 alert('Mise à jour effectuée avec succès !');
+                // ✅ Redirection après soumission
+                navigate('/merci');
             }
         } catch (error: any) {
             console.error('❌ Erreur lors de la soumission du formulaire :', error);
@@ -177,6 +192,8 @@ const FormulaireToken: React.FC = () => {
                 console.error("📥 Réponse de l'API :", error.response.data);
                 alert(`Erreur lors de la soumission. ${error.response.data.message}`);
             }
+        } finally {
+            setSubmitting(false); // Désactive l'état de soumission, même en cas d'erreur
         }
     };
 
@@ -307,8 +324,18 @@ const FormulaireToken: React.FC = () => {
                     <Field as="textarea" name="recommendation_comment" className="comment-box" />
                     <ErrorMessage name="recommendation_comment" component="div" />
 
-                    <button type="submit" disabled={!isValid}>Soumettre</button>
-                <pre>🛑 Erreurs de validation : {JSON.stringify(errors, null, 2)}</pre>
+                    {submitting ? (
+                        <p className="loading-message">⏳ Submission in progress, please wait...</p>
+                    ) : (
+                        <button type="submit" disabled={!isValid || submitting}>
+                            {submitting ? "Submitting..." : "Submit"}
+                        </button>
+                    )}
+                    {/* ✅ Affichage des erreurs uniquement après soumission */}
+                    {formSubmitted && Object.keys(errors).length > 0 && (
+                        <pre>🛑 Erreurs de validation : {JSON.stringify(errors, null, 2)}</pre>
+                    )}
+
                 </Form>
                 )}
             </Formik>

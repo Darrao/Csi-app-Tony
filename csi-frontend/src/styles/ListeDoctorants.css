@@ -118,7 +118,7 @@
     border: none;
     font-weight: bold;
     background: #efeff8;
-    color: white;
+    color: rgb(65, 65, 65) !important;
 }
 
 .btn:hover {
@@ -136,6 +136,7 @@
 
 .btn-doctorant{
     margin: 5px;
+    color: rgb(65, 65, 65);;
 }
 
 /* 📌 Pagination */

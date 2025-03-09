@@ -17,6 +17,9 @@ const ModifierDoctorant: React.FC = () => {
     const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [scientificReport, setScientificReport] = useState<File | null>(null);
     const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [missingFields, setMissingFields] = useState<string[]>([]);
+
 
 
     useEffect(() => {
@@ -27,7 +30,7 @@ const ModifierDoctorant: React.FC = () => {
                 setLoading(false);
             } catch (err) {
                 console.error("Erreur lors de la récupération du doctorant :", err);
-                setError("Erreur lors du chargement des données.");
+                setError("Vous avez déjà rempli votre formulaire !");
                 setLoading(false);
             }
         };
@@ -109,7 +112,29 @@ const ModifierDoctorant: React.FC = () => {
         e.preventDefault();
         setMessage(null);
         setError(null);
+
+        // Vérification des champs obligatoires
+        const requiredFields = [
+            "prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT",
+            "departementDoctorant", "titreThese", "anneeThese", "typeFinancement",
+            "intituleUR", "directeurUR", "intituleEquipe", "directeurEquipe",
+            "nomPrenomHDR", "email_HDR", "nomMembre1", "emailMembre1",
+            "nomMembre2", "emailMembre2"
+        ];
+
+        const missing = requiredFields.filter(field => !doctorant[field] || doctorant[field].trim() === "");
+
+        if (missing.length > 0) {
+            setMissingFields(missing); // Stocker les champs manquants sans affecter l'affichage
+            return;
+        }
+
+        // ✅ Confirmation avant soumission
+        const confirmation = window.confirm("Êtes-vous sûr de vouloir valider ?\nAvez-vous bien tout vérifié ?");
+        if (!confirmation) return;
     
+        setSubmitting(true);
+
         const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
     
         // 🔥 Supprime les champs vides (backend peut les rejeter)
@@ -179,9 +204,12 @@ const ModifierDoctorant: React.FC = () => {
             }
             
             console.log("✅ Mise à jour réussie !");
+            setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
         } catch (err) {
             console.error("❌ Erreur lors de la mise à jour :", err);
             setError("Échec de la mise à jour.");
+        }finally {
+            setSubmitting(false); // Désactive l'animation de chargement
         }
     };
 
@@ -396,7 +424,7 @@ const ModifierDoctorant: React.FC = () => {
                     </div>
 
                     {/* supprimer après, pour l'instant je garde pour les tests */}
-                    <h2>Fichiers déjà enregistrés :</h2>
+                    {/* <h2>Fichiers déjà enregistrés :</h2>
                     {doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0 ? (
                         <ul>
                             {doctorant.fichiersExternes.map((file: any, index: number) => (
@@ -407,7 +435,7 @@ const ModifierDoctorant: React.FC = () => {
                         </ul>
                     ) : (
                         <p>Aucun fichier enregistré.</p>
-                    )}
+                    )} */}
 
                     <h2>Additional information</h2>
                     <div className="flex-container">
@@ -416,10 +444,30 @@ const ModifierDoctorant: React.FC = () => {
                     </div>
 
 
+                    <br />
+                    {/** ✅ **Message d'erreur des champs manquants ici** */}
+                    {missingFields.length > 0 && (
+                        <div style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
+                            ⚠️ Please fill in all required fields:
+                            {/* <ul>
+                                {missingFields.map((field, index) => (
+                                    <li key={index}>{field}</li>
+                                ))}
+                            </ul> */}
+                        </div>
+                    )}
+
                     <div className="flex-container">
-                    <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
-                    <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
-                    <button type="submit">Submit</button>
+                        <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
+                        <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
+
+                        {submitting ? (
+                            <p className="loading-message">⏳ Saving your data, please wait...</p>
+                        ) : (
+                            <button type="submit" disabled={submitting}>
+                                {submitting ? "Submitting..." : "Submit"}
+                            </button>
+                        )}
                     </div>
                 </form>
             )}

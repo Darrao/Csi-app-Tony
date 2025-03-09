@@ -3,8 +3,19 @@ import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
 
+type Doctorant = {
+    _id: string;
+    nom: string;
+    prenom: string;
+    email: string;
+    email_HDR: string;
+    emailMembre1?: string;
+    emailMembre2?: string;
+    emailAdditionalMembre?: string;
+};
+
 const ListeDoctorants: React.FC = () => {
-    const [doctorants, setDoctorants] = useState([]);
+    const [doctorants, setDoctorants] = useState<Doctorant[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [sendingProgress, setSendingProgress] = useState<number | null>(null);
     const [totalToSend, setTotalToSend] = useState(0);
@@ -86,12 +97,40 @@ const ListeDoctorants: React.FC = () => {
     };
 
     const handleResendReferentEmails = async (id: string) => {
+        // 🔍 Recherche du doctorant concerné
+        const doctorant = doctorants.find((doc) => doc._id === id);
+        
+        if (!doctorant) {
+            alert("⚠️ Doctorant introuvable.");
+            return;
+        }
+    
+        // 📧 Vérification et récupération des emails des référents
+        const emailsReferents = [
+            doctorant.emailMembre1,
+            doctorant.emailMembre2,
+            doctorant.emailAdditionalMembre
+        ].filter((email): email is string => Boolean(email && email.trim() !== "")); // Supprime les valeurs nulles/vides
+    
+        if (emailsReferents.length === 0) {
+            alert(`❌ Aucun référent renseigné pour ${doctorant.prenom} ${doctorant.nom}.`);
+            return;
+        }
+    
         try {
-            await api.post(`/doctorant/send-representant-tokens/${id}`);
-            alert('Emails renvoyés aux référents avec succès !');
+            console.log(`📩 Envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom}...`, emailsReferents);
+    
+            await api.post('/email/send', {
+                emails: emailsReferents,
+                doctorantPrenom: doctorant.prenom,
+                doctorantEmail: doctorant.email,
+                directeurTheseEmail: doctorant.email_HDR
+            });
+    
+            alert(`✅ Emails envoyés avec succès aux référents de ${doctorant.prenom} ${doctorant.nom} !`);
         } catch (error) {
-            console.error('Erreur lors de l\'envoi des emails aux référents :', error);
-            alert('Erreur lors de l\'envoi des emails aux référents.');
+            console.error(`❌ Erreur lors de l'envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom} :`, error);
+            alert("⚠️ Échec de l'envoi des emails aux référents.");
         }
     };
 
@@ -134,6 +173,59 @@ const ListeDoctorants: React.FC = () => {
         alert('Tous les emails ont été envoyés !');
         setSendingProgress(null);
         fetchDoctorants(); // Rafraîchir la liste après envoi
+    };
+
+    const handleSendEmailsToUncontactedReferents = async () => {
+        // 📌 Filtrer les doctorants dont les référents n'ont pas encore été contactés
+        const doctorantsWithoutReferentEmails = doctorants.filter((doc: any) => !doc.sendToRepresentants);
+        const total = doctorantsWithoutReferentEmails.length;
+    
+        if (total === 0) {
+            alert('✅ Tous les référents ont déjà été contactés.');
+            return;
+        }
+    
+        setTotalToSend(total);
+        setCurrentSent(0);
+        setSendingProgress(0);
+    
+        for (const doc of doctorantsWithoutReferentEmails) {
+            const { _id, prenom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
+    
+            // 📧 Liste des emails des référents (exclut les valeurs nulles ou vides)
+            const referentsEmails = [emailMembre1, emailMembre2, emailAdditionalMembre].filter(
+                (email): email is string => Boolean(email && email.trim() !== "")
+            );
+    
+            if (referentsEmails.length === 0) {
+                console.warn(`⏩ Aucun référent pour ${prenom}, envoi ignoré.`);
+                continue;
+            }
+    
+            try {
+                console.log(`📩 Envoi des emails aux référents de ${prenom}...`, referentsEmails);
+    
+                await api.post('/email/send', {
+                    emails: referentsEmails,
+                    doctorantPrenom: prenom,
+                    doctorantEmail: email,
+                    directeurTheseEmail: email_HDR
+                });
+    
+                setCurrentSent((prev) => prev + 1);
+                setSendingProgress((prev) => prev !== null ? ((prev + 1) / total) * 100 : 100);
+    
+                // 🔀 Délai pseudo-aléatoire entre 10 et 15 ms
+                const delay = 10 + Math.random() * 5;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } catch (error) {
+                console.error(`❌ Erreur d'envoi aux référents de ${prenom} :`, error);
+            }
+        }
+    
+        alert('📨 Tous les emails ont été envoyés aux référents des doctorants non contactés !');
+        setSendingProgress(null);
+        fetchDoctorants(); // 🔄 Rafraîchir la liste après envoi
     };
 
     const handleExportFilteredCSV = () => {
@@ -284,6 +376,7 @@ const ListeDoctorants: React.FC = () => {
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
                 <button className="btn btn-export-pdf" onClick={() => window.location.href = "http://localhost:3000/doctorant/export/pdf"}>📑 Exporter tous les PDF</button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
+                <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
             </div>
 
             {/* 🔔 Affichage de la progression */}

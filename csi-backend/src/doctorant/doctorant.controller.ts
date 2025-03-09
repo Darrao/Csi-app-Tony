@@ -82,9 +82,16 @@ export class DoctorantController {
     @Get(':idOrEmail')
     async findOne(@Param('idOrEmail') idOrEmail: string) {
         const doctorant = await this.doctorantService.findOne(idOrEmail);
+
         if (!doctorant) {
-            return { message: 'Doctorant introuvable.' };
+            throw new NotFoundException('Doctorant introuvable.');
         }
+
+        // 🚫 Bloque l'accès si le doctorant a validé son formulaire
+        if (doctorant.doctorantValide) {
+            throw new BadRequestException("Le formulaire a déjà été validé et ne peut plus être modifié.");
+        }
+
         return doctorant;
     }
 

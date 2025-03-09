@@ -12,6 +12,7 @@ import FormulaireToken from './pages/FormulaireToken';
 import FormulaireRepresentant from './pages/FormulaireRepresentant';
 import Login from './components/Login';
 import AdminEmailConfig from './pages/AdminEmailConfig';
+import MerciPage from './pages/MerciPage';
 
 const App: React.FC = () => {
     const { isAdmin } = useAuth();
@@ -24,6 +25,7 @@ const App: React.FC = () => {
                     <Route path="/formulaire" element={<FormulaireToken />} />
                     {/* <Route path="/formulaire-representant" element={<FormulaireRepresentant />} /> */}
                     <Route path="/modifier/:id" element={<ModifierDoctorant />} />
+                    <Route path="/merci" element={<MerciPage />} />
 
                     {/* Routes Admin Sécurisées */}
                     <Route element={<PrivateRoute />}>
