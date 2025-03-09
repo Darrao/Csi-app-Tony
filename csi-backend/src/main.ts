@@ -9,6 +9,7 @@ import * as mongoose from 'mongoose';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
         // Connexion à MongoDB
+        console.log('🔍 MongoDB URI:', config.MONGODB_URI);
         if (!config.MONGODB_URI) {
             throw new Error('MongoDB URI is not defined. Check your environment variables.');
         }
