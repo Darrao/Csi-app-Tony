@@ -4,6 +4,7 @@ import { TokenService } from '../token/token.service';
 import { DoctorantService } from '../doctorant/doctorant.service'; // ➕ Import du service
 import { generateReferentToken, verifyTokenAndFindDoctorant } from './email.service';
 import { EmailConfigService } from '../emailConfig/email-config.service';
+import { config } from '../config';
 
 @Controller('email')
 export class EmailController {
@@ -57,7 +58,7 @@ export class EmailController {
                 const token = await generateToken(email, this.doctorantService, doctorantEmail);
                 await this.tokenService.saveToken(token, email, 'doctorant');
 
-                const link = `http://localhost:3001/formulaire?token=${token}`;
+                const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
 
                 // 🔄 Remplacement des variables dans le template `formCsiMember`
                 const emailTemplate = emailConfig.formCsiMember;
@@ -91,7 +92,7 @@ export class EmailController {
             const doctorantToken = await generateToken(doctorantEmail, this.doctorantService, doctorantEmail);
             await this.tokenService.saveToken(doctorantToken, doctorantEmail, 'doctorant');
 
-            const doctorantLink = `http://localhost:3001/formulaire?token=${doctorantToken}`;
+            const doctorantLink = `${config.FRONTEND_URL}/formulaire?token=${doctorantToken}`;
 
             // 🔄 Remplacement des variables dans le template `doctorantSubmit`
             const doctorantTemplate = emailConfig.doctorantSubmit;
@@ -179,7 +180,7 @@ export class EmailController {
 
             // 🏷️ Génération du token pour le formulaire
             const token = await generateToken(doctorantEmail, this.doctorantService, doctorantEmail);
-            const link = `http://localhost:3001/formulaire?token=${token}`;
+            const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
 
             // 📄 Génération du PDF
             const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);

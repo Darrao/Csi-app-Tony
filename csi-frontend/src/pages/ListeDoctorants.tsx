@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
+import config from '../config';
 
 type Doctorant = {
     _id: string;
@@ -372,9 +373,9 @@ const ListeDoctorants: React.FC = () => {
 
             <div className="actions-container">
                 <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
-                <button className="btn btn-export" onClick={() => window.location.href = "http://localhost:3000/doctorant/export/csv"}>📂 Exporter en CSV</button>
+                <button className="btn btn-export" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/csv`}>📂 Exporter en CSV</button>
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
-                <button className="btn btn-export-pdf" onClick={() => window.location.href = "http://localhost:3000/doctorant/export/pdf"}>📑 Exporter tous les PDF</button>
+                <button className="btn btn-export-pdf" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/pdf`}>📑 Exporter tous les PDF</button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
             </div>

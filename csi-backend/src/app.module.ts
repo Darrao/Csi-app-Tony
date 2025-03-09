@@ -5,10 +5,12 @@ import { EmailController } from './email/email.controller';
 import { TokenModule } from './token/token.module';
 import { AuthModule } from './admin/auth/auth.module';
 import { EmailConfigModule } from './emailConfig/email-config.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
     imports: [
-        MongooseModule.forRoot('mongodb://localhost:27017/csi-db'),
+        ConfigModule.forRoot(), // Charge les variables d'environnement
+        MongooseModule.forRoot(process.env.MONGODB_URI),
         DoctorantModule,
         TokenModule,
         AuthModule,

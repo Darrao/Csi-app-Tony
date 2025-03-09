@@ -16,6 +16,7 @@ import { Multer, diskStorage } from 'multer';
 import * as path from 'path';
 import { format } from 'fast-csv';
 import { EmailConfigService } from '../emailConfig/email-config.service';
+import { config } from '../config';
 
 
 
@@ -123,7 +124,7 @@ export class DoctorantController {
             console.log(`✅ Configuration email récupérée.`);
 
             // 🔗 Génération du lien de modification
-            const link = `http://localhost:3001/modifier/${id}`;
+            const link = `${config.FRONTEND_URL}/modifier/${id}`;
 
             // 🎯 Récupération des liens dynamiques depuis la BDD
             const presentationTemplate = emailConfig.presentationTemplate;

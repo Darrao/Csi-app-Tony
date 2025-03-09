@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import 'dotenv/config';
+import { config } from './config';
 
 
 async function bootstrap() {
@@ -14,7 +16,7 @@ async function bootstrap() {
 
     // Activer CORS
     app.enableCors({
-        origin: 'http://localhost:3001', // Frontend URL
+        origin: `${config.FRONTEND_URL}`, // Frontend URL
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
     });
