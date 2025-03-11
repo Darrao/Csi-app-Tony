@@ -9,9 +9,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-
-  // 🔍 Fonction pour vérifier si le token JWT est valide et contient "admin"
   const checkAdminStatus = () => {
     const token = localStorage.getItem("adminToken");
     if (!token) return false;
@@ -26,8 +23,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => checkAdminStatus()); // ✅ Initialisation correcte
+
   useEffect(() => {
-    setIsAdmin(checkAdminStatus()); // Met à jour l'état admin
+    setIsAdmin(checkAdminStatus()); // ✅ Vérification lors du chargement
   }, []);
 
   const login = (token: string) => {
@@ -40,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("adminToken"); // ✅ Supprime le token
     setIsAdmin(false); // ✅ Met à jour l'état d'authentification
   };
+
   return (
     <AuthContext.Provider value={{ isAdmin, login, logout }}>
       {children}

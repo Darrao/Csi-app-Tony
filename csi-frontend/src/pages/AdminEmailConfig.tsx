@@ -31,10 +31,11 @@ const AdminEmailConfig: React.FC = () => {
 
     const fetchEmailConfig = async () => {
         try {
-            console.log('[FRONTEND] Récupération des configurations d\'email...');
+            // console.log('[FRONTEND] Récupération des configurations d\'email...');
             const response = await api.get<EmailConfig[]>('/email-config');
-            console.log('[FRONTEND] Réponse de l\'API:', response.data);
-    
+            // console.log('[FRONTEND] Réponse brute de l\'API :', response);
+            // console.log('[FRONTEND] Réponse de l\'API:', response.data);
+
             if (response.data.length > 0) {
                 setEmailConfig(response.data[0]); // Il n'y a qu'une seule configuration
             } else {

@@ -13,7 +13,9 @@ export class EmailConfigService {
     }
 
     async findAll(): Promise<EmailConfig[]> {
-        return this.emailConfigModel.find().exec();
+        const configs = await this.emailConfigModel.find().exec();
+        console.log("🔍 Configurations récupérées depuis MongoDB :", configs);
+        return configs;
     }
 
     async update(id: string, data: Partial<EmailConfig>): Promise<EmailConfig> {
