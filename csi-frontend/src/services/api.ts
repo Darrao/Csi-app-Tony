@@ -2,6 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "https://csi.edbiospc.fr/api", // 🔥 On force l'URL correcte du backend
+//   baseURL: "http://localhost:3000",
   headers: {
     "Content-Type": "application/json",
   },

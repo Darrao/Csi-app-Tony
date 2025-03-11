@@ -291,6 +291,8 @@ const ListeDoctorants: React.FC = () => {
         }
     };
 
+    const totalPages = Math.ceil(filteredDoctorants.length / itemsPerPage);
+
     const paginatedDoctorants = filteredDoctorants.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -401,9 +403,9 @@ const ListeDoctorants: React.FC = () => {
                         setCurrentPage(1);
                     }}
                 >
-                    <option value={1}>1</option>
-                    <option value={2}>2</option>
-                    <option value={5}>5</option>
+                    <option value={15}>15</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
                 </select>
             </div>
 
@@ -479,11 +481,13 @@ const ListeDoctorants: React.FC = () => {
             </div>
             {/* 📌 Pagination */}
             <div className="pagination-container">
-                <button className="pagination-btn" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>
+                <button className="pagination-btn" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
                     ◀
                 </button>
-                <span className="pagination-text">{currentPage} / {Math.ceil(filteredDoctorants.length / itemsPerPage)}</span>
-                <button className="pagination-btn" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === Math.ceil(filteredDoctorants.length / itemsPerPage)}>
+                <span className="pagination-text">
+                    {currentPage} / {totalPages > 0 ? totalPages : 1}
+                </span>
+                <button className="pagination-btn" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
                     ▶
                 </button>
             </div>
