@@ -25,7 +25,7 @@ const ListeDoctorants: React.FC = () => {
     const [filterYear, setFilterYear] = useState('Tous'); // 🆕 Filtre par année
     const [availableYears, setAvailableYears] = useState<number[]>([]); // 🆕 Liste des années
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(1); // Défaut : 15 doctorants par page
+    const [itemsPerPage, setItemsPerPage] = useState(15); // Défaut : 15 doctorants par page
 
 
 
