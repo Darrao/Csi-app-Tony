@@ -1,0 +1,46 @@
+/* Formulaire de connexion */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+}
+
+/* Champs d'entrée */
+.input-field {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.input-field:focus {
+    border-color: #b0b0bb;
+    outline: none;
+}
+
+/* Message d'erreur */
+.error-message {
+    color: red;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+/* Bouton connexion */
+.btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    background: #efeff8;
+    color: rgb(65, 65, 65);
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+.btn:hover {
+    background: #b0b0bb;
+}
