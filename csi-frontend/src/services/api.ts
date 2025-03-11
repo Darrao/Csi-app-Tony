@@ -1,8 +1,7 @@
 import axios from "axios";
 
-// Détermine l'URL de l'API en fonction de l'environnement
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "https://csi.edbiospc.fr/api",
+  baseURL: "https://csi.edbiospc.fr/api", // 🔥 On force l'URL correcte du backend
   headers: {
     "Content-Type": "application/json",
   },
