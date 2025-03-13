@@ -423,20 +423,6 @@ const ModifierDoctorant: React.FC = () => {
 
                     </div>
 
-                    {/* supprimer après, pour l'instant je garde pour les tests */}
-                    {/* <h2>Fichiers déjà enregistrés :</h2>
-                    {doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0 ? (
-                        <ul>
-                            {doctorant.fichiersExternes.map((file: any, index: number) => (
-                                <li key={index}>
-                                    <span>{file.nomOriginal}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>Aucun fichier enregistré.</p>
-                    )} */}
-
                     <h2>Additional information</h2>
                     <div className="flex-container">
                     <label>You can transmit additional information to your committee here (optional):</label>
@@ -461,13 +447,17 @@ const ModifierDoctorant: React.FC = () => {
                         <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
                         <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
 
-                        {submitting ? (
-                            <p className="loading-message">⏳ Saving your data, please wait...</p>
-                        ) : (
-                            <button type="submit" disabled={submitting}>
-                                {submitting ? "Submitting..." : "Submit"}
-                            </button>
-                        )}
+                            <button 
+                            type="submit" 
+                            className={`submit-btn ${submitting ? 'loading' : ''}`} 
+                            disabled={submitting}
+                        >
+                            {submitting ? (
+                                <>
+                                    <span className="spinner"></span> ⏳ Saving your data, please wait...
+                                </>
+                            ) : "Submit"}
+                        </button>
                     </div>
                 </form>
             )}
