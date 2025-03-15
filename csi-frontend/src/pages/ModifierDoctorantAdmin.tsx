@@ -262,7 +262,7 @@ const ModifierDoctorant: React.FC = () => {
                                 <option value="PP">PP</option>
                                 <option value="IM">IM</option>
                                 <option value="IMMUNO">IMMUNO</option>
-                                <option value="GENE">GENE</option>
+                                <option value="GENYX">GENYX</option>
                             </select>
                         </div>
                     </div>

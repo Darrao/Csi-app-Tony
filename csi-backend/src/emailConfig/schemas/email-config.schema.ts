@@ -6,7 +6,7 @@ export type EmailConfigDocument = EmailConfig & Document;
 @Schema({ timestamps: true })
 export class EmailConfig {
 
-    /** 🆕 Ajout des groupes MECA, PP, IM, IMMUNO et GENE */
+    /** 🆕 Ajout des groupes MECA, PP, IM, IMMUNO et GENYX */
     @Prop({ type: { recipient: [String], cc: [String] }, default: { recipient: [], cc: [] } })
     MECA: { recipient: string[]; cc: string[] };
 
@@ -20,7 +20,7 @@ export class EmailConfig {
     IMMUNO: { recipient: string[]; cc: string[] };
 
     @Prop({ type: { recipient: [String], cc: [String] }, default: { recipient: [], cc: [] } })
-    GENE: { recipient: string[]; cc: string[] };
+    GENYX: { recipient: string[]; cc: string[] };
 
     @Prop({ type: String, default: '' })
     presentationTemplate: string;

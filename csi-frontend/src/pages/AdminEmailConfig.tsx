@@ -14,7 +14,7 @@ interface EmailConfig {
     PP: EmailGroup;
     IM: EmailGroup;
     IMMUNO: EmailGroup;
-    GENE: EmailGroup;
+    GENYX: EmailGroup;
     presentationTemplate: string;
     csiProposalLink: string;
     contactLink: string;
@@ -46,7 +46,7 @@ const AdminEmailConfig: React.FC = () => {
                     PP: { recipient: [], cc: [] },
                     IM: { recipient: [], cc: [] },
                     IMMUNO: { recipient: [], cc: [] },
-                    GENE: { recipient: [], cc: [] },
+                    GENYX: { recipient: [], cc: [] },
                     presentationTemplate: '',
                     csiProposalLink: '',
                     contactLink: '',
@@ -188,7 +188,7 @@ const AdminEmailConfig: React.FC = () => {
             {emailConfig ? (
                 <>
                     {/* 🔧 Champs pour les emails des groupes */}
-                    {(['MECA', 'PP', 'IM', 'IMMUNO', 'GENE'] as (keyof EmailConfig)[]).map((group) => (
+                    {(['MECA', 'PP', 'IM', 'IMMUNO', 'GENYX'] as (keyof EmailConfig)[]).map((group) => (
                         <div key={group} className="email-group">
                             <h2>{group}</h2>
 
