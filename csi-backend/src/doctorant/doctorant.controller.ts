@@ -211,37 +211,57 @@ export class DoctorantController {
         return { message: 'Données reçues, mais gestion des représentants désactivée.', success: true };
     }
 
+
     @Get('export/csv')
     async exportDoctorants(@Res() res: Response) {
-        const doctorants = await this.doctorantModel.find().lean(); // ✅ Récupère les doctorants en JSON
+        try {
+            const doctorants = await this.doctorantModel.find().lean(); // ✅ Récupère les doctorants en JSON
 
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=doctorants.csv');
+            if (doctorants.length === 0) {
+                return res.status(404).json({ message: 'Aucun doctorant trouvé.' });
+            }
 
-        const csvStream = format({ headers: true });
-        csvStream.pipe(res);
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename=doctorants.csv');
 
-        // 🔥 Récupération automatique des champs du schema Mongoose
-        const schemaFields = Object.keys(this.doctorantModel.schema.paths);
+            const csvStream = format({ headers: true });
+            csvStream.pipe(res);
 
-        // ⚡ Génération des lignes du CSV automatiquement
-        doctorants.forEach(doc => {
-            const row: any = {};
-            schemaFields.forEach(field => {
-                let value = doc[field];
+            // 🔥 Récupération automatique des champs du schéma Mongoose
+            const schemaFields = Object.keys(this.doctorantModel.schema.paths);
 
-                // 🔄 Convertir les dates en `YYYY-MM-DD`
-                if (value instanceof Date) {
-                    value = value.toISOString().split('T')[0];
-                }
+            doctorants.forEach(doc => {
+                const row: any = {};
+                schemaFields.forEach(field => {
+                    let value = doc[field];
 
-                row[field] = value ?? ''; // ✅ Évite les `undefined`
+                    // 🔄 Convertir les dates en format `YYYY-MM-DD`
+                    if (value instanceof Date) {
+                        value = value.toISOString().split('T')[0];
+                    }
+
+                    // 🔄 Convertir les tableaux en texte lisible
+                    if (Array.isArray(value)) {
+                        value = value.join(', ');
+                    }
+
+                    // ✅ Ajouter l'URL complète pour `cheminStockage`
+                    if (field === 'rapport' && typeof value === 'object' && value !== null) {
+                        const relativePath = value.cheminStockage ?? '';
+                        value = relativePath ? `${config.FRONTEND_URL}/${relativePath}` : ''; // Ajoute l'URL complète
+                    }
+
+                    row[field] = value ?? ''; // ✅ Évite les `undefined`
+                });
+
+                csvStream.write(row);
             });
 
-            csvStream.write(row);
-        });
-
-        csvStream.end(); // ✅ Fin du stream
+            csvStream.end(); // ✅ Fin du stream
+        } catch (error) {
+            console.error('❌ Erreur lors de l’export CSV:', error);
+            res.status(500).json({ message: 'Erreur interne lors de l’export CSV.', error: error.message });
+        }
     }
 
     @Get('export/pdf')
