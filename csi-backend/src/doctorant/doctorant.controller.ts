@@ -246,9 +246,12 @@ export class DoctorantController {
                     }
 
                     // ✅ Ajouter l'URL complète pour `cheminStockage`
+                    console.log('🔗', field, value);
                     if (field === 'rapport' && typeof value === 'object' && value !== null) {
                         const relativePath = value.cheminStockage ?? '';
+                        console.log('🔗 Chemin relatif du rapport :', relativePath);
                         value = relativePath ? `${config.FRONTEND_URL}/${relativePath}` : ''; // Ajoute l'URL complète
+                        console.log('🔗 URL du rapport :', value);
                     }
 
                     row[field] = value ?? ''; // ✅ Évite les `undefined`
