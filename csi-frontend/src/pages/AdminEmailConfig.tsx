@@ -245,7 +245,7 @@ const AdminEmailConfig: React.FC = () => {
                         </div>
                     </div>
                     <div className="email-group">
-                        <h2>Lien vers le template pour les présentation des doctorants</h2>
+                        <h2>Lien vers le template pour les présentations des doctorants</h2>
                         <div className="email-entry">
                             <input
                                 type="text"

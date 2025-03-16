@@ -215,7 +215,7 @@ const ModifierDoctorant: React.FC = () => {
 
     return (
         <div className="container">
-            <h1>Modifier Doctorant</h1>
+            <h1>CSI annual report</h1>
 
             {loading && <p>Chargement des données...</p>}
             {error && <p style={{ color: 'red' }}>{error}</p>}
@@ -223,35 +223,35 @@ const ModifierDoctorant: React.FC = () => {
 
             {doctorant && (
                 <form onSubmit={handleSubmit}>
-                    <h2>Informations personnelles</h2>
+                    <h2>Personal information</h2>
                     <div className="flex-container">
                         <div className='flex-item'>
-                            <label>First Name :</label>
+                            <label>First Name <span style={{ color: "red" }}>*</span></label>
                             <input type="text" name="prenom" value={doctorant.prenom || ''} onChange={handleChange} />
                         </div>
 
                         <div className='flex-item'>
-                            <label>Family Name :</label>
+                            <label>Family Name <span style={{ color: "red" }}>*</span></label>
                             <input type="text" name="nom" value={doctorant.nom || ''} onChange={handleChange} />
                         </div>
 
                         <div className='flex-item'>
-                            <label>Email :</label>
+                            <label>Email <span style={{ color: "red" }}>*</span></label>
                             <input type="email" name="email" value={doctorant.email || ''} onChange={handleChange} />
                         </div>
 
                         <div className='flex-item'>
-                            <label>Date first registration :</label>
+                            <label>Date first registration <span style={{ color: "red" }}>*</span></label>
                             <input type="date" name="datePremiereInscription" value={doctorant.datePremiereInscription?.split('T')[0] || ''} onChange={handleChange} />
                         </div>
 
                         <div className='flex-item'>
-                            <label>Unique ID :</label>
+                            <label>Unique ID <span style={{ color: "red" }}>*</span></label>
                             <input disabled type="text" name="ID_DOCTORANT" value={doctorant.ID_DOCTORANT || ''} onChange={handleChange} />
                         </div>
 
                         <div className='flex-item'>
-                            <label>Doctoral student's department :</label>
+                            <label>Doctoral student's department <span style={{ color: "red" }}>*</span></label>
                             <select 
                                 name="departementDoctorant" 
                                 value={doctorant.departementDoctorant || ''} 
@@ -270,21 +270,21 @@ const ModifierDoctorant: React.FC = () => {
                     <h2>Thesis information & supervision</h2>
                     <div className="flex-container">
 
-                    <label>Thesis Title :</label>
-                    <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} />
+                    <label>Thesis Title <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} placeholder='Thesis Title' />
 
-                    <label>CSI Number :</label>
-                    <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} />
+                    <label>CSI Number <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} placeholder='Thesis year' />
 
-                    <label>Funding :</label>
-                    <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} />
+                    <label>Funding <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} placeholder='Funding' />
 
                     <h2>Research Unit</h2>
-                    <label>Title of the research unit :</label>
-                    <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} />
+                    <label>Title of the research unit <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} placeholder='Title of the research unit' />
 
-                    <label>Director of the research unit :</label>
-                    <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} />
+                    <label>Director of the research unit <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} placeholder='Family name and first name' />
 
                     </div>
 
@@ -292,24 +292,24 @@ const ModifierDoctorant: React.FC = () => {
                     <div className="flex-container">
 
                     <div className='flex-item'>
-                    <label>Title of the team :</label>
-                    <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} />
+                    <label>Title of the team <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} placeholder='Title of the team' />
                     </div>
 
                     <div className='flex-item'>
-                    <label>Team leader :</label>
-                    <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} />
+                    <label>Team leader <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} placeholder='Family name and first name' />
                     </div>
 
                     <div className='flex-item'>
-                    <label>Thesis supervisor :</label>
-                    <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} />
+                    <label>Thesis supervisor <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} placeholder='Family name and first name' />
                     <input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} placeholder='email'/>
                     </div>
 
                     <div className='flex-item'>
                     <label>Thesis co-supervisor (optional) :</label>
-                    <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} />
+                    <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} placeholder='First name and family name' />
                     </div>
 
                     </div>
@@ -317,37 +317,37 @@ const ModifierDoctorant: React.FC = () => {
                     <h2>Member of the CSI committee</h2>
                     <div className="flex-container">
 
-                    <label>Member #1 :</label>
-                    <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} />
-                    <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='email'/>
+                    <label>Member #1 <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} placeholder='First name and family name' />
+                    <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='Email'/>
 
-                    <label>Member #2 :</label>
-                    <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} />
-                    <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='email'/>
+                    <label>Member #2 <span style={{ color: "red" }}>*</span></label>
+                    <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} placeholder='First name and family name' />
+                    <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='Email'/>
 
-                    <label>Additional member :</label>
-                    <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} />
-                    <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} />
+                    <label>Additional member (optionnal)</label>
+                    <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} placeholder='First name and family name' />
+                    <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} placeholder='Email' />
 
                     </div>
 
                     <h2>Scientific activities</h2>
                     <div className="flex-container">
 
-                    <label>Missions :</label>
-                    <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} />
+                    <label>Missions</label>
+                    <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} placeholder='"None" for empty field'/>
 
-                    <label>Publications :</label>
-                    <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} />
+                    <label>Publications</label>
+                    <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Conferences :</label>
-                    <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} />
+                    <label>Conferences</label>
+                    <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Posters :</label>
-                    <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} />
+                    <label>Posters</label>
+                    <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Public communications :</label>
-                    <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} />
+                    <label>Public communications</label>
+                    <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} placeholder='"None" for empty field'/>
                     </div>
 
                     <h2>Training modules</h2>
@@ -392,7 +392,8 @@ const ModifierDoctorant: React.FC = () => {
 
                     {/* Rapport Scientifique */}
                     <div className="file-upload">
-                        <label>Your annual scientific report :</label>
+                        <label className="text-file-upload">Your annual scientific report</label>
+                        <br />
                         <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
                         {scientificReport && (
                             <div className="file-preview">
@@ -403,10 +404,13 @@ const ModifierDoctorant: React.FC = () => {
                     </div>
 
                     <br />
+                    <br />
 
                     {/* Auto-évaluation */}
                     <div className="file-upload">
-                        <label>Self assessment of doctoral students' competency acquisition (optional) :</label>
+                        <label>Self assessment of doctoral students' competency (optional)</label>
+                        <span className='sub-text'><a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here.</a> <a>If you do so, you will receive a PDF file that you can drop here</a></span>
+                        <br />
                         <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
                         {selfAssessment && (
                             <div className="file-preview">
@@ -415,9 +419,6 @@ const ModifierDoctorant: React.FC = () => {
                             </div>
                         )}
                     </div>
-
-
-                    <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here</a>  
                     
                     <br />                  
 
