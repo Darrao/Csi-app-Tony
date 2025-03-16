@@ -327,6 +327,29 @@ const ListeDoctorants: React.FC = () => {
         }
     };
 
+    const handleExportCSV = async () => {
+        try {
+            const response = await api.get('/doctorant/export/csv', {
+                responseType: 'blob', // 🔥 Permet d'obtenir un fichier CSV
+            });
+    
+            const csvBlob = new Blob([response.data], { type: 'text/csv' });
+            const csvUrl = URL.createObjectURL(csvBlob);
+    
+            // 📥 Créer un lien temporaire pour télécharger le fichier
+            const a = document.createElement('a');
+            a.href = csvUrl;
+            a.download = `Doctorants_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+    
+            // 🧹 Nettoyage de l'URL Blob après utilisation
+            URL.revokeObjectURL(csvUrl);
+        } catch (error) {
+            console.error('❌ Erreur lors de l’export du CSV :', error);
+            alert("Échec de l'export du fichier CSV.");
+        }
+    };
+
 
     return (
         <div className="liste-doctorants-container">
@@ -375,7 +398,7 @@ const ListeDoctorants: React.FC = () => {
 
             <div className="actions-container">
                 <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
-                <button className="btn btn-export" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/csv`}>📂 Exporter en CSV</button>
+                <button className="btn btn-export" onClick={handleExportCSV}>📂 Exporter en CSV</button>
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
                 <button className="btn btn-export-pdf" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/pdf`}>📑 Exporter tous les PDF</button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
