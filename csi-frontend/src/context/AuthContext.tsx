@@ -8,15 +8,36 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Fonction pour décoder un Base64 URL-safe (JWT)
+const decodeBase64UrlSafe = (base64: string) => {
+  try {
+    base64 = base64.replace(/-/g, "+").replace(/_/g, "/"); // Corrige le format URL-safe
+    while (base64.length % 4 !== 0) base64 += "="; // Ajoute le padding manquant
+    return atob(base64);
+  } catch (error) {
+    console.error("❌ Erreur de décodage Base64:", error);
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const checkAdminStatus = () => {
     const token = localStorage.getItem("adminToken");
+    console.log("📌 Token JWT récupéré:", token);
+    
     if (!token) return false;
-
+    
     try {
-      const payloadBase64 = token.split(".")[1]; // Extrait le payload du JWT
-      const decodedPayload = JSON.parse(atob(payloadBase64)); // Décode en JSON
-      return decodedPayload.role === "admin"; // Vérifie si l'utilisateur est admin
+      const parts = token.split(".");
+      if (parts.length !== 3) throw new Error("JWT mal formé");
+      
+      const payloadBase64 = parts[1]; // Extrait le payload du JWT
+      const decodedPayload = decodeBase64UrlSafe(payloadBase64);
+      
+      if (!decodedPayload) throw new Error("Échec du décodage du payload");
+      
+      const payloadJson = JSON.parse(decodedPayload);
+      return payloadJson.role === "admin"; // Vérifie si l'utilisateur est admin
     } catch (error) {
       console.error("❌ Erreur lors du décodage du token:", error);
       return false;

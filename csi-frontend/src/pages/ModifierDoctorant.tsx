@@ -334,19 +334,19 @@ const ModifierDoctorant: React.FC = () => {
                     <h2>Scientific activities</h2>
                     <div className="flex-container">
 
-                    <label>Missions</label>
+                    <label>Missions <span style={{ color: "red" }}>*</span></label>
                     <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} placeholder='"None" for empty field'/>
 
-                    <label>Publications</label>
+                    <label>Publications <span style={{ color: "red" }}>*</span></label>
                     <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Conferences</label>
+                    <label>Conferences <span style={{ color: "red" }}>*</span></label>
                     <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Posters</label>
+                    <label>Posters <span style={{ color: "red" }}>*</span></label>
                     <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} placeholder='"None" for empty field' />
 
-                    <label>Public communications</label>
+                    <label>Public communications <span style={{ color: "red" }}>*</span></label>
                     <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} placeholder='"None" for empty field'/>
                     </div>
 

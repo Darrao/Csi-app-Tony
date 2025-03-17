@@ -174,7 +174,7 @@ const AdminEmailConfig: React.FC = () => {
 
     const emailLabels: Partial<Record<keyof EmailConfig, string>> = {
         firstDoctorantEmail: "1er mail d'invitation destiné aux doctorants pour remplir leur compte rendu annuel",
-        doctorantSubmit: "Accusé de réception envoyé au doctorant après soumission de son compte rendu",
+        doctorantSubmit: "Accusé de réception envoyé au doctorant et au directeur de thèse en CC après soumission de son compte rendu",
         formCsiMember: "Mail d'invitation pour les membres du comité de suivi pour remplir le compte rendu annuel du doctorant",
         thanksForSubmitCsiMember: "Accusé de réception envoyé aux membres du comité de suivi après validation de leur compte rendu",
         CsiMemberHasSubmitForDirector: "Mail envoyé aux directeurs de département et aux gestionnaires",
