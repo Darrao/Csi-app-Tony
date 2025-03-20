@@ -26,6 +26,9 @@ export class EmailConfig {
     presentationTemplate: string;
 
     @Prop({ type: String, default: '' })
+    csiPdfExplicatif: string;
+
+    @Prop({ type: String, default: '' })
     csiProposalLink: string;
 
     @Prop({ type: String, default: '' })

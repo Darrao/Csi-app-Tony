@@ -129,3 +129,16 @@ button.btn-primary:hover {
 .email-content textarea:focus {
     border: 1px solid #007bff;
 }
+
+.ql-editor {
+    min-height: 200px; /* ✅ Hauteur minimale pour éviter que Quill affiche des boutons de navigation */
+    max-height: 500px;
+    overflow-y: auto;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.ql-container {
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}

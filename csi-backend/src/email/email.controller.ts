@@ -48,6 +48,7 @@ export class EmailController {
 
             // 🔗 Génération des liens dynamiques
             const presentationTemplate = emailConfig.presentationTemplate;
+            const csiPdfExplicatif = emailConfig.csiPdfExplicatif;
             const csiProposalLink = emailConfig.csiProposalLink;
             const contactLink = emailConfig.contactLink;
 
@@ -66,6 +67,7 @@ export class EmailController {
                     doctorantPrenom,
                     link,
                     presentationTemplate,
+                    csiPdfExplicatif,
                     csiProposalLink,
                     contactLink
                 });

@@ -128,6 +128,7 @@ export class DoctorantController {
 
             // 🎯 Récupération des liens dynamiques depuis la BDD
             const presentationTemplate = emailConfig.presentationTemplate;
+            const csiPdfExplicatif = emailConfig.csiPdfExplicatif;
             const csiProposalLink = emailConfig.csiProposalLink;
             const contactLink = emailConfig.contactLink;
 
@@ -139,6 +140,7 @@ export class DoctorantController {
                 prenom,
                 link,
                 presentationTemplate,
+                csiPdfExplicatif,
                 csiProposalLink,
                 contactLink
             });

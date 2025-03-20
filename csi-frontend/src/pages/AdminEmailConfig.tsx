@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import '../styles/AdminEmailConfig.css';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // ✅ Définition des types de configuration email
 interface EmailGroup {
@@ -16,6 +18,7 @@ interface EmailConfig {
     IMMUNO: EmailGroup;
     GENYX: EmailGroup;
     presentationTemplate: string;
+    csiPdfExplicatif: string;
     csiProposalLink: string;
     contactLink: string;
     firstDoctorantEmail: string;
@@ -48,6 +51,7 @@ const AdminEmailConfig: React.FC = () => {
                     IMMUNO: { recipient: [], cc: [] },
                     GENYX: { recipient: [], cc: [] },
                     presentationTemplate: '',
+                    csiPdfExplicatif: '',
                     csiProposalLink: '',
                     contactLink: '',
                     firstDoctorantEmail: '',
@@ -225,7 +229,19 @@ const AdminEmailConfig: React.FC = () => {
                     ))}
                     
                     <div className="email-group">
+                        <h2>Lien pdf explicatif pour doctorant</h2>
+                        <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${csiPdfExplicatif}"}</strong></p>
+                        <div className="email-entry">
+                            <input
+                                type="text"
+                                value={emailConfig.csiPdfExplicatif}
+                                onChange={(e) => handleInputChange('csiPdfExplicatif', e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="email-group">
                         <h2>Lien pour les doctorant pour faire valider leur comitée de CSI</h2>
+                        <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${csiProposalLink}"}</strong></p>
                         <div className="email-entry">
                             <input
                                 type="text"
@@ -236,6 +252,7 @@ const AdminEmailConfig: React.FC = () => {
                     </div>
                     <div className="email-group">
                         <h2>Lien de contact de l'ED</h2>
+                        <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${contactLink}"}</strong></p>
                         <div className="email-entry">
                             <input
                                 type="text"
@@ -246,6 +263,7 @@ const AdminEmailConfig: React.FC = () => {
                     </div>
                     <div className="email-group">
                         <h2>Lien vers le template pour les présentations des doctorants</h2>
+                        <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${presentationTemplate}"}</strong></p>
                         <div className="email-entry">
                             <input
                                 type="text"
@@ -267,9 +285,11 @@ const AdminEmailConfig: React.FC = () => {
                         ] as (keyof EmailConfig)[]).map((field) => (
                             <div key={field} className="email-content">
                                 <h3>{emailLabels[field]}</h3>
-                                <textarea
-                                    value={typeof emailConfig[field] === 'string' ? (emailConfig[field] as string) : ''}
-                                    onChange={(e) => handleInputChange(field, e.target.value)}
+                                <ReactQuill
+                                    theme="snow"
+                                    value={emailConfig[field] as string}
+                                    onChange={(value) => handleInputChange(field, value)}
+                                    style={{ backgroundColor: "#fff", borderRadius: "8px", minHeight: "200px" }} // ✅ Corrige les styles
                                 />
                             </div>
                         ))}
