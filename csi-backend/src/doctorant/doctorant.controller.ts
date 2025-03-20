@@ -113,7 +113,7 @@ export class DoctorantController {
 
     // il faut specifier dans un des mails que le co directeur sera pas dans la boucle
     @Post('send-link/:id')
-    async sendLink(@Param('id') id: string, @Body('email') email: string, @Body('prenom') prenom: string) {
+    async sendLink(@Param('id') id: string, @Body('email') email: string, @Body('prenom') prenom: string, @Body('nom') nom: string) {
         try {
             // 🔍 Récupération de la configuration email depuis la BDD
             const emailConfig = await this.emailConfigService.getEmailConfig();
@@ -122,6 +122,7 @@ export class DoctorantController {
             }
 
             console.log(`✅ Configuration email récupérée.`);
+            console.log(`📧 Envoi de l'email à ${email} pour le doctorant ${prenom} ${nom} (ID: ${id})`);
 
             // 🔗 Génération du lien de modification
             const link = `${config.FRONTEND_URL}/modifier/${id}`;
@@ -138,6 +139,7 @@ export class DoctorantController {
             // 🔄 Remplacement des variables dynamiques dans le template d'email
             const emailContent = this.emailConfigService.replaceEmailVariables(emailTemplate, {
                 prenom,
+                nom,
                 link,
                 presentationTemplate,
                 csiPdfExplicatif,

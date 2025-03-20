@@ -66,13 +66,13 @@ const ListeDoctorants: React.FC = () => {
         }
     };
 
-    const handleSendEmail = async (id: string, email: string, prenom: string) => {
+    const handleSendEmail = async (id: string, email: string, prenom: string, nom: string) => {
         if (!email) {
             alert('Cet utilisateur n\'a pas d\'email défini.');
             return;
         }
         try {
-            await api.post(`/doctorant/send-link/${id}`, { email, prenom });
+            await api.post(`/doctorant/send-link/${id}`, { email, prenom, nom });
             console.log('Lien envoyé avec succès !');
         } catch (error) {
             console.error('Erreur lors de l\'envoi de l\'email :', error);
@@ -124,6 +124,7 @@ const ListeDoctorants: React.FC = () => {
             await api.post('/email/send', {
                 emails: emailsReferents,
                 doctorantPrenom: doctorant.prenom,
+                doctorantNom: doctorant.nom,
                 doctorantEmail: doctorant.email,
                 directeurTheseEmail: doctorant.email_HDR
             });
@@ -150,7 +151,7 @@ const ListeDoctorants: React.FC = () => {
         setSendingProgress(0);
 
         for (const doc of doctorantsToEmail) {
-            const { _id, email, prenom } = doc; // 🔄 Récupération des données comme dans `handleSendEmail()`
+            const { _id, email, prenom, nom } = doc; // 🔄 Récupération des données comme dans `handleSendEmail()`
 
             if (!email) {
                 console.warn(`⏩ Aucun email pour ${prenom}, envoi ignoré.`);
@@ -158,7 +159,7 @@ const ListeDoctorants: React.FC = () => {
             }
 
             try {
-                await handleSendEmail(_id, email, prenom); // 🔥 Réutilisation de `handleSendEmail()`
+                await handleSendEmail(_id, email, prenom, nom); // 🔥 Réutilisation de `handleSendEmail()`
 
                 setCurrentSent(prev => prev + 1);
                 setSendingProgress((prev) => prev !== null ? ((prev + 1) / total) * 100 : 100);
@@ -191,7 +192,7 @@ const ListeDoctorants: React.FC = () => {
         setSendingProgress(0);
     
         for (const doc of doctorantsWithoutReferentEmails) {
-            const { _id, prenom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
+            const { _id, prenom, nom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
     
             // 📧 Liste des emails des référents (exclut les valeurs nulles ou vides)
             const referentsEmails = [emailMembre1, emailMembre2, emailAdditionalMembre].filter(
@@ -209,6 +210,7 @@ const ListeDoctorants: React.FC = () => {
                 await api.post('/email/send', {
                     emails: referentsEmails,
                     doctorantPrenom: prenom,
+                    doctorantNom: nom,
                     doctorantEmail: email,
                     directeurTheseEmail: email_HDR
                 });
@@ -479,7 +481,7 @@ const ListeDoctorants: React.FC = () => {
 
                         <div className="action-buttons" style={{ marginTop: '10px' }}>
                             <div className="btn-group">
-                                <button className="btn btn-primary btn-doctorant" onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom)}>Renvoyer mail d'invitation au doctorant</button>
+                                <button className="btn btn-primary btn-doctorant" onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom, doc.nom)}>Renvoyer mail d'invitation au doctorant</button>
 
                                 <button className="btn btn-primary btn-doctorant" onClick={() => handleResendReferentEmails(doc._id)}>
                                     Renvoyer mail avec rapport du doctorant aux référents

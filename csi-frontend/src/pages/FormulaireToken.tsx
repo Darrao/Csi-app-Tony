@@ -236,13 +236,16 @@ const FormulaireToken: React.FC = () => {
                                         "Is the research progressing as expected? If not, would an extension of the thesis preparation period allow for a successful defense?"
                                     ][i]}
                                 </label>
-
+                                <div className='select-container'>
                                 <Field as="select" name={`Q${i + 1}`} className="comment-select">
                                     <option value="">Choisir</option>
                                     <option value="-">-</option>
                                     <option value="±">±</option>
                                     <option value="+">+</option>
+                                    <option value="NotAddressed">Not addressed</option>
                                 </Field>
+                                <span style={{ color: "red" }}>*</span>
+                                </div>
 
                                 <Field as="textarea" name={`Q${i + 1}_comment`} placeholder="Commentaire" className="comment-box" />
                             </div>
@@ -266,12 +269,16 @@ const FormulaireToken: React.FC = () => {
                                     ][i]}
                                 </label>
 
+                                <div className='select-container'>
                                 <Field as="select" name={`Q${i + 4}`} className="comment-select">
                                     <option value="">Choisir</option>
                                     <option value="-">-</option>
                                     <option value="±">±</option>
                                     <option value="+">+</option>
+                                    <option value="NotAddressed">Not addressed</option>
                                 </Field>
+                                <span style={{ color: "red" }}>*</span>
+                                </div>
 
                                 <Field as="textarea" name={`Q${i + 4}_comment`} placeholder="Commentaire" className="comment-box" />
                             </div>
@@ -293,23 +300,27 @@ const FormulaireToken: React.FC = () => {
                                     ][i]}
                                 </label>
 
+                                <div className='select-container'>
                                 <Field as="select" name={`Q${i + 12}`} className="comment-select">
                                     <option value="">Choisir</option>
                                     <option value="-">-</option>
                                     <option value="±">±</option>
                                     <option value="+">+</option>
+                                    <option value="NotAddressed">Not addressed</option>
                                 </Field>
+                                <span style={{ color: "red" }}>*</span>
+                                </div>
 
                                 <Field as="textarea" name={`Q${i + 12}_comment`} placeholder="Commentaire" className="comment-box" />
                             </div>
                         ))}
                     </div>
 
-                    <h2>Conclusion</h2>
+                    <h2>Conclusion <span style={{ color: "red" }}>*</span></h2>
                     <Field as="textarea" name="conclusion" className="conclusion-box" />
                     <ErrorMessage name="conclusion" component="div" />
 
-                    <h2>Recommandations</h2>
+                    <h2>Recommandations <span style={{ color: "red" }}>*</span></h2>
                     <div className="recommendation-container">
                         {["approve", "disapprove", "exemption", "unfavourable", "new_meeting"].map((value, i) => (
                             <label key={value}>
@@ -320,7 +331,7 @@ const FormulaireToken: React.FC = () => {
                     </div>
                     <ErrorMessage name="recommendation" component="div" />
 
-                    <h2>Comment on the recommandation</h2>
+                    <h2>Comment on the recommandation <span style={{ color: "red" }}>*</span></h2>
                     <Field as="textarea" name="recommendation_comment" className="comment-box" />
                     <ErrorMessage name="recommendation_comment" component="div" />
 

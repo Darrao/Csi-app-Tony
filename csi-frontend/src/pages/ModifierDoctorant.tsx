@@ -198,7 +198,7 @@ const ModifierDoctorant: React.FC = () => {
             console.log("📧 Emails des référents :", referentsEmails);
             if (referentsEmails.length > 0) {
                 console.log(doctorant.email_HDR)
-                await api.post('/email/send', { emails: referentsEmails, doctorantPrenom: doctorant.prenom, doctorantEmail: doctorant.email, directeurTheseEmail: doctorant.email_HDR });
+                await api.post('/email/send', { emails: referentsEmails, doctorantPrenom: doctorant.prenom, doctorantNom: doctorant.nom, doctorantEmail: doctorant.email, directeurTheseEmail: doctorant.email_HDR });
                 console.log('doctorant prenom' + doctorant.prenom);
                 console.log("📧 Emails envoyés aux référents :", referentsEmails);
             }

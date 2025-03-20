@@ -18,6 +18,7 @@ export class EmailController {
     async sendEmails(
         @Body('emails') emails: string[],
         @Body('doctorantPrenom') doctorantPrenom: string,
+        @Body('doctorantNom') doctorantNom: string,
         @Body('doctorantEmail') doctorantEmail: string,
         @Body('directeurTheseEmail') directeurTheseEmail: string
     ) {
@@ -65,6 +66,7 @@ export class EmailController {
                 const emailTemplate = emailConfig.formCsiMember;
                 const emailContent = this.emailConfigService.replaceEmailVariables(emailTemplate, {
                     doctorantPrenom,
+                    doctorantNom,
                     link,
                     presentationTemplate,
                     csiPdfExplicatif,
@@ -72,7 +74,7 @@ export class EmailController {
                     contactLink
                 });
 
-                const subject = `CSI Evaluation for ${doctorantPrenom}`;
+                const subject = `CSI Evaluation for ${doctorantPrenom} ${doctorantNom}`;
                 const attachments = [{ filename: pdfFileName, content: pdfBuffer, contentType: 'application/pdf' }];
 
                 console.log(`📧 Envoi de l'email à : ${email}`);
