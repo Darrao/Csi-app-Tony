@@ -124,6 +124,11 @@ const ModifierDoctorant: React.FC = () => {
 
         const missing = requiredFields.filter(field => !doctorant[field] || doctorant[field].trim() === "");
 
+        // 🔴 Vérifier si le rapport scientifique est bien présent
+        if (!scientificReport) {
+            missing.push("scientificReport");
+        }
+
         if (missing.length > 0) {
             setMissingFields(missing); // Stocker les champs manquants sans affecter l'affichage
             return;
@@ -392,7 +397,7 @@ const ModifierDoctorant: React.FC = () => {
 
                     {/* Rapport Scientifique */}
                     <div className="file-upload">
-                        <label className="text-file-upload">Your annual scientific report</label>
+                        <label className="text-file-upload">Your annual scientific report <span style={{ color: "red" }}>*</span></label>
                         <br />
                         <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
                         {scientificReport && (
@@ -400,6 +405,9 @@ const ModifierDoctorant: React.FC = () => {
                                 <span>{scientificReport.name}</span>
                                 <button type="button" onClick={() => handleRemoveFile("scientificReport")}>🗑</button>
                             </div>
+                        )}
+                        {missingFields.includes("scientificReport") && (
+                            <p style={{ color: "red", fontWeight: "bold" }}>⚠️ You must upload your annual scientific report.</p>
                         )}
                     </div>
 
@@ -451,7 +459,7 @@ const ModifierDoctorant: React.FC = () => {
                             <button 
                             type="submit" 
                             className={`submit-btn ${submitting ? 'loading' : ''}`} 
-                            disabled={submitting}
+                            disabled={submitting || !scientificReport}
                         >
                             {submitting ? (
                                 <>

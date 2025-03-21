@@ -93,6 +93,9 @@ const FormulaireToken: React.FC = () => {
     const onSubmit = async (values: any) => {
         setFormSubmitted(true); // ✅ Marque le formulaire comme soumis
 
+        const confirmation = window.confirm("⚠️ Only one member of the committee must submit this form!\n\nPlease make sure this hasn't been done yet before proceeding.");
+        if (!confirmation) return;
+
         // Ici je dois envoyer un mail a l’adresse que tony m’a envoyé (regarder excel qu’il m’a envoyé)
 
         console.log("🚀 Soumission du formulaire en cours...", values);
@@ -334,6 +337,10 @@ const FormulaireToken: React.FC = () => {
                     <h2>Comment on the recommandation <span style={{ color: "red" }}>*</span></h2>
                     <Field as="textarea" name="recommendation_comment" className="comment-box" />
                     <ErrorMessage name="recommendation_comment" component="div" />
+
+                    <p style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
+                        ⚠️ <u>Only one member of the committee must submit this form!</u>
+                    </p>
 
                     {submitting ? (
                         <p className="loading-message">⏳ Submission in progress, please wait...</p>
