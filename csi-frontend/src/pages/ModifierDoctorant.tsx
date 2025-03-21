@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import '../styles/FormulaireToken.css';
@@ -19,6 +19,7 @@ const ModifierDoctorant: React.FC = () => {
     const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
+    const scientificReportInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -69,6 +70,9 @@ const ModifierDoctorant: React.FC = () => {
     const handleRemoveFile = (fileType: string) => {
         if (fileType === "scientificReport") {
             setScientificReport(null);
+            if (scientificReportInputRef.current) {
+                scientificReportInputRef.current.value = "";
+            }        
         } else if (fileType === "selfAssessment") {
             setSelfAssessment(null);
         }
@@ -399,7 +403,7 @@ const ModifierDoctorant: React.FC = () => {
                     <div className="file-upload">
                         <label className="text-file-upload">Your annual scientific report <span style={{ color: "red" }}>*</span></label>
                         <br />
-                        <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
+                        <input ref={scientificReportInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
                         {scientificReport && (
                             <div className="file-preview">
                                 <span>{scientificReport.name}</span>
