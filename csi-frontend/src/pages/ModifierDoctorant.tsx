@@ -20,6 +20,7 @@ const ModifierDoctorant: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const scientificReportInputRef = useRef<HTMLInputElement>(null);
+    const selfAssessmentInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -75,6 +76,9 @@ const ModifierDoctorant: React.FC = () => {
             }        
         } else if (fileType === "selfAssessment") {
             setSelfAssessment(null);
+            if (selfAssessmentInputRef.current) {
+                selfAssessmentInputRef.current.value = "";
+            }
         }
     };
 
@@ -423,7 +427,7 @@ const ModifierDoctorant: React.FC = () => {
                         <label>Self assessment of doctoral students' competency (optional)</label>
                         <span className='sub-text'><a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here.</a> <a>If you do so, you will receive a PDF file that you can drop here</a></span>
                         <br />
-                        <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
+                        <input ref={selfAssessmentInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
                         {selfAssessment && (
                             <div className="file-preview">
                                 <span>{selfAssessment.name}</span>
