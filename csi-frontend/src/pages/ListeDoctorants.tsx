@@ -438,7 +438,8 @@ const ListeDoctorants: React.FC = () => {
             {/* 📋 Liste des doctorants */}
             <div className="table-container">
             <ul className="doctorants-list">
-                {paginatedDoctorants.map((doc: any) => (
+                {paginatedDoctorants.map((doc: any) => {
+                    return (
                     <li key={doc._id} className="doctorant-item">
                         <div className='doctorant-info'>
                             <strong>{doc.nom} {doc.prenom}</strong>
@@ -495,13 +496,35 @@ const ListeDoctorants: React.FC = () => {
                             </div>
 
 
-
-                            <button onClick={() => handleDelete(doc._id)} className="btn btn-danger">
-                                Supprimer Doctorant
-                            </button>
+                            <div className='delete-and-referents'>
+                            <div className='referents-names'>
+                                <strong>Référents :</strong>
+                                {doc.prenomMembre1 || doc.nomMembre1 || doc.prenomMembre2 || doc.nomMembre2 ? (
+                                    <>
+                                        {doc.prenomMembre1 || doc.nomMembre1 ? (
+                                            <div className='referents-names referent-card'>
+                                                <span>#1 {doc.prenomMembre1} {doc.nomMembre1}</span>
+                                                <span className='referents-emails'>{doc.emailMembre1}</span>
+                                            </div>
+                                        ) : null}
+                                        {doc.prenomMembre2 || doc.nomMembre2 ? (
+                                            <div className='referents-names referent-card'>
+                                                <span>#2 {doc.prenomMembre2} {doc.nomMembre2}</span>
+                                                <span className='referents-emails'>{doc.emailMembre2}</span>
+                                        </div>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <span className='referent-non-saisis'>Référents non encore saisis par le doctorant</span>
+                                )}
+                            </div>
+                                <button onClick={() => handleDelete(doc._id)} className="btn btn-danger btn-card">
+                                    Supprimer Doctorant
+                                </button>
+                            </div>
                         </div>
                     </li>
-                ))}
+                )})}
             </ul>
             </div>
             {/* 📌 Pagination */}
