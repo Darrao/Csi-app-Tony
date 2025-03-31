@@ -213,6 +213,13 @@ export class DoctorantService {
         return doctorant;
     }
 
+    private safeParseDate(input: string): Date | undefined {
+        if (!input) return undefined;
+        const cleaned = input.trim().replace(/\r|\n/g, '');
+        const parsed = new Date(cleaned);
+        return isNaN(parsed.getTime()) ? undefined : parsed;
+    }
+
     async importDoctorantsFromCSV(csvData: string): Promise<any> {
         const rows = [];
         const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
@@ -264,7 +271,7 @@ export class DoctorantService {
                             email,
                             ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
                             departementDoctorant: row[cleanKey('DEPARTEMENT_DOCTORANT DIRECT::Nom Département')] || '',
-                            datePremiereInscription: row[cleanKey('Date 1ère Inscription')] ? new Date(row[cleanKey('Date 1ère Inscription')]) : null,
+                            datePremiereInscription: this.safeParseDate(row[cleanKey('Date 1ère Inscription')]),
                             anneeThese: row[cleanKey('AnnéeThèse')] || '',
                             titreThese: row[cleanKey("Sujet Thèse à l'inscription")] || '',
                             intituleUR: row[cleanKey('UnitésRecherche::Intitulé Unité Recherche')] || '',

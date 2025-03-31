@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as multer from 'multer';
-import { Multer, diskStorage } from 'multer';
+import { Multer, diskStorage, File } from 'multer';
 import * as path from 'path';
 import { format } from 'fast-csv';
 import { EmailConfigService } from '../emailConfig/email-config.service';
@@ -318,19 +318,30 @@ export class DoctorantController {
         }
     }
     @Post('import-csv')
-    @UseInterceptors(FileInterceptor('file'))
-    async importDoctorantsCSV(@UploadedFile() file: Multer.File, @Res() res: Response) {
-        if (!file) {
-            return res.status(400).json({ message: 'Aucun fichier fourni.' });
-        }
+    @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+        destination: './uploads/tmp', // ⚠️ Crée ce dossier si nécessaire
+        filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+    }),
+    limits: {
+        fileSize: 100 * 1024 * 1024 // ✅ 100 Mo de limite, tu peux mettre plus
+    }
+    }))
+    async importDoctorantsCSV(@UploadedFile() file: File, @Res() res: Response) {
+    if (!file) {
+        return res.status(400).json({ message: 'Aucun fichier fourni.' });
+    }
 
-        try {
-            const result = await this.doctorantService.importDoctorantsFromCSV(file.buffer.toString('utf8'));
-            return res.status(200).json({ message: 'Importation terminée.', result });
-        } catch (error) {
-            console.error('Erreur lors de l’importation CSV :', error);
-            return res.status(500).json({ message: 'Erreur interne', error: error.message });
-        }
+    try {
+        const buffer = fs.readFileSync(file.path, 'utf8');
+        const result = await this.doctorantService.importDoctorantsFromCSV(buffer);
+        return res.status(200).json({ message: 'Importation terminée.', result });
+    } catch (error) {
+        console.error('Erreur lors de l’importation CSV :', error);
+        return res.status(500).json({ message: 'Erreur interne', error: error.message });
+    } finally {
+        fs.unlink(file.path, () => {}); // 🔁 Supprime le fichier temporaire
+    }
     }
 
     @Post('upload/:id')

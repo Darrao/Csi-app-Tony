@@ -6,10 +6,16 @@ import { config } from './config';
 import * as mongoose from 'mongoose';
 import * as express from 'express';
 import { join } from 'path';
+import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
+    
+    // 🔧 Augmenter les limites de taille des requêtes (utile pour gros CSV ou PDF)
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+    app.use(express.raw({ limit: '50mb' }));
 
     // ✅ Connexion à MongoDB
     console.log('🔍 MongoDB URI:', config.MONGODB_URI);
