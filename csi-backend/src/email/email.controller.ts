@@ -45,6 +45,7 @@ export class EmailController {
 
             // 📄 Génération du PDF
             const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+            console.log(`📄 Taille du PDF : ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} Mo`);
             const pdfFileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
 
             // 🔗 Génération des liens dynamiques

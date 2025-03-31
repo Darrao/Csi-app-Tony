@@ -119,20 +119,30 @@ const ListeDoctorants: React.FC = () => {
         }
     
         try {
-            // console.log(`📩 Envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom}...`, emailsReferents);
-    
-            await api.post('/email/send', {
+            const response = await api.post('/email/send', {
                 emails: emailsReferents,
                 doctorantPrenom: doctorant.prenom,
                 doctorantNom: doctorant.nom,
                 doctorantEmail: doctorant.email,
                 directeurTheseEmail: doctorant.email_HDR
             });
-    
+        
+            // ✅ Vérifie si le backend renvoie un flag `success`
+            if (response.data?.success === false || response.data?.error) {
+                const messageErreur = response.data?.message || "Erreur inconnue lors de l'envoi.";
+                throw new Error(messageErreur);
+            }
+        
             alert(`✅ Emails envoyés avec succès aux référents de ${doctorant.prenom} ${doctorant.nom} !`);
-        } catch (error) {
+        } catch (error: any) {
             console.error(`❌ Erreur lors de l'envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom} :`, error);
-            alert("⚠️ Échec de l'envoi des emails aux référents.");
+        
+            const backendMessage =
+                error?.response?.data?.message ||
+                error?.message ||
+                "Erreur inconnue";
+        
+            alert(`❌ Erreur lors de l'envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom} :\n\n${backendMessage} (check file size)`);
         }
     };
 

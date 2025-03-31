@@ -301,7 +301,7 @@ export class CreateDoctorantDto {
     finalSend?: boolean;
 
     @IsOptional()
-    @IsBoolean()    
+    @IsNumber()    
     NbFinalSend?: number;
 
     @IsOptional()
