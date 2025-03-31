@@ -34,7 +34,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
             });
 
             alert('Importation réussie !');
-            console.log('Résultat:', response.data);
+            // console.log('Résultat:', response.data);
         } catch (error) {
             console.error('Erreur lors de l’importation du CSV :', error);
             alert('Échec de l’importation.');
@@ -42,7 +42,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
     };
 
     return (
-        <div className="container">
+        <div className="container-csv">
             <h1 className="title">Importer un fichier CSV</h1>
 
             {/* Zone de Drag & Drop stylée */}
@@ -66,6 +66,29 @@ const ImportCSVAndSendEmail: React.FC = () => {
             <button className="upload-btn" onClick={handleUpload}>
                 Importer
             </button>
+            <div className="csv-info-box">
+                <h2>Format attendu du fichier CSV :</h2>
+                <p>Le fichier doit contenir les colonnes suivantes <strong>dans cet ordre exact</strong> :</p>
+                <ul>
+                    <li><code>Prénom</code></li>
+                    <li><code>Nom</code></li>
+                    <li><code>Date 1ère Inscription</code></li>
+                    <li><code>AnnéeThèse</code></li>
+                    <li><code>Type Financement Clean</code></li>
+                    <li><code>Missions</code></li>
+                    <li><code>Sujet Thèse à l'inscription</code></li>
+                    <li><code>UnitésRecherche::Intitulé Unité Recherche</code></li>
+                    <li><code>UnitésRecherche::Nom_Prenom_DU</code></li>
+                    <li><code>Equipes::Nom Equipe Affichée</code></li>
+                    <li><code>Equipes::Nom_Prenom_Responsable</code></li>
+                    <li><code>HDR::Nom_Prenom_HDR</code></li>
+                    <li><code>Email d'envoi</code></li>
+                    <li><code>ID_DOCTORANT</code></li>
+                    <li><code>DEPARTEMENT_DOCTORANT</code></li>
+                    <li><code>DIRECT::Nom Département</code></li>
+                </ul>
+                <p>⚠️ Le fichier doit être encodé en <strong>UTF-8</strong> et utiliser une <strong>virgule (,)</strong> comme séparateur.</p>
+            </div>
         </div>
     );
 };

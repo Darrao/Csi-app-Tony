@@ -19,10 +19,10 @@ const FormulaireRepresentant: React.FC = () => {
     useEffect(() => {
         const validateToken = async () => {
             try {
-                console.log('Validation du token en cours...'); // Ajouté
+                // console.log('Validation du token en cours...'); // Ajouté
                 const response = await api.post('/email/validate-token', { token });
         
-                console.log('Réponse du backend après validation du token :', response.data); // Ajouté
+                // console.log('Réponse du backend après validation du token :', response.data); // Ajouté
         
                 if (response.data.valid && response.data.doctorant?.representantData) {
                     setRole(
@@ -32,13 +32,13 @@ const FormulaireRepresentant: React.FC = () => {
                     );
         
                     setDoctorantData(response.data.doctorant);
-                    console.log('Role défini pour le représentant :', response.data.email === response.data.doctorant.representantData.representantEmail1 ? 'representant1' : 'representant2'); // Ajouté
+                    // console.log('Role défini pour le représentant :', response.data.email === response.data.doctorant.representantData.representantEmail1 ? 'representant1' : 'representant2'); // Ajouté
                 } else {
-                    console.log('Validation échouée ou données incomplètes :', response.data); // Ajouté
+                    // console.log('Validation échouée ou données incomplètes :', response.data); // Ajouté
                     alert(response.data.message || 'Lien invalide ou expiré.');
                 }
             } catch (error) {
-                console.error('Erreur lors de la validation du token :', error); // Ajouté
+                // console.error('Erreur lors de la validation du token :', error); // Ajouté
             }
         };
 
@@ -57,19 +57,19 @@ const FormulaireRepresentant: React.FC = () => {
     : doctorantData?.representantData?.representant2Choices || { choix1: '', choix2: '' };
 
     const onSubmit = async (values: any) => {
-        console.log('Données soumises par le rôle :', role); // Ajouté
-        console.log('Données soumises :', values); // Ajouté
+        // console.log('Données soumises par le rôle :', role); // Ajouté
+        // console.log('Données soumises :', values); // Ajouté
 
         try {
             const updateData = role === 'representant1'
                 ? { representant1Choices: values }
                 : { representant2Choices: values };
 
-            console.log('Payload envoyé au backend :', {
-                doctorantEmail: doctorantData.email,
-                role,
-                choices: values,
-            }); // Ajouté
+            // console.log('Payload envoyé au backend :', {
+            //     doctorantEmail: doctorantData.email,
+            //     role,
+            //     choices: values,
+            // }); // Ajouté
 
             await api.post('/doctorant/representant', {
                 doctorantEmail: doctorantData.email,

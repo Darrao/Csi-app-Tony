@@ -27,6 +27,7 @@ interface EmailConfig {
     thanksForSubmitCsiMember: string;
     CsiMemberHasSubmitForDoctorant: string;
     CsiMemberHasSubmitForDirector: string;
+    finalEmail: string;
 }
 
 const AdminEmailConfig: React.FC = () => {
@@ -42,7 +43,7 @@ const AdminEmailConfig: React.FC = () => {
             if (response.data.length > 0) {
                 setEmailConfig(response.data[0]); // Il n'y a qu'une seule configuration
             } else {
-                console.log('[FRONTEND] Aucune configuration trouvée. Affichage des champs par défaut.');
+                // console.log('[FRONTEND] Aucune configuration trouvée. Affichage des champs par défaut.');
                 setEmailConfig({
                     _id: '', // 🛠 Champ vide car il sera généré par MongoDB à la création
                     MECA: { recipient: [], cc: [] },
@@ -60,6 +61,7 @@ const AdminEmailConfig: React.FC = () => {
                     thanksForSubmitCsiMember: '',
                     CsiMemberHasSubmitForDoctorant: '',
                     CsiMemberHasSubmitForDirector: '',
+                    finalEmail: '',
                 });
             }
         } catch (error) {
@@ -78,7 +80,7 @@ const AdminEmailConfig: React.FC = () => {
         }
     
         try {
-            console.log('[FRONTEND] Réinitialisation et recréation de la configuration...');
+            // console.log('[FRONTEND] Réinitialisation et recréation de la configuration...');
     
             // Crée une copie avec _id optionnel
             const configToSend: Partial<EmailConfig> = { ...emailConfig };
@@ -94,7 +96,8 @@ const AdminEmailConfig: React.FC = () => {
                 'doctorantSubmit',
                 'formCsiMember',
                 'thanksForSubmitCsiMember',
-                'CsiMemberHasSubmitForDirector'
+                'CsiMemberHasSubmitForDirector',
+                'finalEmail'
             ];
     
             textFields.forEach(field => {
@@ -183,6 +186,7 @@ const AdminEmailConfig: React.FC = () => {
         thanksForSubmitCsiMember: "Accusé de réception envoyé aux membres du comité de suivi après validation de leur compte rendu",
         CsiMemberHasSubmitForDirector: "Mail envoyé aux directeurs de département et aux gestionnaires",
         CsiMemberHasSubmitForDoctorant: "Confirmation de soumission du membre du CSI pour le doctorant",
+        finalEmail: "Email final envoyé aux doctorants et aux directeurs de thèse après la validation dans le back office",
     };
 
     return (
@@ -282,6 +286,7 @@ const AdminEmailConfig: React.FC = () => {
                             'thanksForSubmitCsiMember',
                             // 'CsiMemberHasSubmitForDoctorant',
                             'CsiMemberHasSubmitForDirector',
+                            'finalEmail',
                         ] as (keyof EmailConfig)[]).map((field) => (
                             <div key={field} className="email-content">
                                 <h3>{emailLabels[field]}</h3>

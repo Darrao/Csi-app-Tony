@@ -13,29 +13,37 @@ import FormulaireRepresentant from './pages/FormulaireRepresentant';
 import Login from './components/Login';
 import AdminEmailConfig from './pages/AdminEmailConfig';
 import MerciPage from './pages/MerciPage';
+import Footer from './components/Footer';
+import './App.css';
 
 const App: React.FC = () => {
     const { isAdmin } = useAuth();
     return (
-            <Router>
-                {isAdmin && <Header />}
+        <Router>
+        <div className="App">
+            {isAdmin && <Header />}
+    
+            <div className="main-content">
                 <Routes>
                     {/* Accès Public */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/formulaire" element={<FormulaireToken />} />
-                    {/* <Route path="/formulaire-representant" element={<FormulaireRepresentant />} /> */}
                     <Route path="/modifier/:id" element={<ModifierDoctorant />} />
                     <Route path="/merci" element={<MerciPage />} />
-
+    
                     {/* Routes Admin Sécurisées */}
                     <Route element={<PrivateRoute />}>
                         <Route path="/" element={<EnvoiEmail />} />
                         <Route path="/doctorants" element={<ListeDoctorants />} />
                         <Route path="/doctorant/modifier/:id" element={<ModifierDoctorantAdmin />} />
-                        <Route path='/email-config' element={<AdminEmailConfig />} />
+                        <Route path="/email-config" element={<AdminEmailConfig />} />
                     </Route>
                 </Routes>
-            </Router>
+            </div>
+    
+            <Footer />
+        </div>
+    </Router>
     );
 };
 

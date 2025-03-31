@@ -42,11 +42,11 @@ const FormulaireDoctorant: React.FC = () => {
   });
 
   const onSubmit = async (values: any) => {
-    console.log('Soumission du formulaire avec les valeurs :', values); // Ajoute ce log
+    // console.log('Soumission du formulaire avec les valeurs :', values); // Ajoute ce log
 
     try {
         const response = await api.post('/doctorant', values);
-        console.log('Réponse du backend :', response.data);
+        // console.log('Réponse du backend :', response.data);
     } catch (error) {
         console.error('Erreur lors de l’envoi des données :', error);
     }

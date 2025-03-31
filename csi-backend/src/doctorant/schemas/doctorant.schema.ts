@@ -209,7 +209,6 @@ export class Doctorant extends Document {
 
     @Prop({ type: [FichierExterne], default: [] }) 
     fichiersExternes: FichierExterne[];
-
     
     @Prop({ required: false, default: false })
     sendToDoctorant?: boolean;
@@ -231,6 +230,12 @@ export class Doctorant extends Document {
 
     @Prop({ required: false, default: false })
     gestionnaireDirecteurValide?: boolean;
+
+    @Prop({ required: false, default: false })
+    finalSend?: boolean;
+
+    @Prop({ required: false, default: 0 })
+    NbFinalSend?: number;
 
     @Prop({ type: Object })
     rapport?: { nomOriginal: string; cheminStockage: string };

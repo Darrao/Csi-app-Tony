@@ -295,4 +295,43 @@ export class EmailController {
             throw new NotFoundException('Erreur lors de l\'envoi de l\'email aux référents.');
         }
     }
+
+    @Post('send-final')
+    async sendFinalReport(
+        @Body('doctorantId') doctorantId: string,
+        @Body('doctorantEmail') doctorantEmail: string,
+        @Body('doctorantPrenom') doctorantPrenom: string,
+        @Body('doctorantNom') doctorantNom: string,
+        @Body('directeurTheseEmail') directeurTheseEmail: string
+    ) {
+        try {
+            const doctorant = await this.doctorantService.findOne(doctorantId);
+            if (!doctorant) throw new NotFoundException('Doctorant introuvable');
+
+            const config = await this.emailConfigService.getEmailConfig();
+            const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+            const pdfName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+
+            const html = this.emailConfigService.replaceEmailVariables(config.finalEmail, {
+                doctorantNom,
+                doctorantPrenom,
+            });
+
+            const subject = `Final CSI Report - ${doctorantPrenom} ${doctorantNom}`;
+            const attachments = [{ filename: pdfName, content: pdfBuffer, contentType: 'application/pdf' }];
+
+            await sendMailWithCC(doctorantEmail, subject, html, attachments, directeurTheseEmail);
+
+            // ✅ Ajout de finalSend: true ici
+            await this.doctorantService.updateDoctorant(doctorantId, {
+                NbFinalSend: (doctorant.NbFinalSend || 0) + 1,
+                finalSend: true,
+            });
+
+            return { message: 'Email final envoyé avec succès.', destinataires: [doctorantEmail, directeurTheseEmail] };
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'envoi du rapport final :', error.message);
+            throw new NotFoundException('Erreur lors de l\'envoi du rapport final.');
+        }
+    }
 }

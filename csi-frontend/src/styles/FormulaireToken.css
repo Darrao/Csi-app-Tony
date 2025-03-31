@@ -1,6 +1,10 @@
 .container {
     max-width: 900px;
-    margin: auto;
+    margin: 50px auto;
+    padding: 40px;
+    background: #fff;
+    box-shadow: 0px 5px 15px rgba(237, 221, 221, 0.1);
+    border-radius: 12px;
 }
 
 .grid-container {
@@ -90,7 +94,7 @@
     height: 16px;
     margin-right: 8px;
     border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top: 3px solid white;
+    border-top: 3px solid black;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

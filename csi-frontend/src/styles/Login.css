@@ -1,3 +1,12 @@
+.container-login {
+    max-width: 700px;
+    margin: 50px auto;
+    padding: 40px;
+    background: #fff;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
 .login-form {
     display: flex;
     flex-direction: column;
@@ -7,7 +16,6 @@
 
 /* Champs d'entrée */
 .input-field {
-    width: 100%;
     padding: 12px;
     border-radius: 8px;
     border: 1px solid #ddd;

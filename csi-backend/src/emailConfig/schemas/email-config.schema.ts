@@ -53,6 +53,9 @@ export class EmailConfig {
     @Prop({ type: String, default: '' })
     CsiMemberHasSubmitForDirector: string;
 
+    @Prop({ type: String, default: '' })
+    finalEmail: string;
+
     @Prop({ default: true })
     active: boolean;
 }

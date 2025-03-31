@@ -152,7 +152,7 @@ const ModifierDoctorant: React.FC = () => {
     
         // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {
-            console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
+            // console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
             if (sanitizedDoctorant[key] === "" || sanitizedDoctorant[key] === null) {
                 delete sanitizedDoctorant[key];
             }
@@ -172,7 +172,7 @@ const ModifierDoctorant: React.FC = () => {
 
         sanitizedDoctorant.doctorantValide = true; // Marque le doctorant comme validé
     
-        console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
+        // console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
     
         try {
             let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
@@ -183,22 +183,22 @@ const ModifierDoctorant: React.FC = () => {
                 if (scientificReport) formData.append("fichiersExternes", scientificReport);
                 if (selfAssessment) formData.append("fichiersExternes", selfAssessment);
     
-                console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
+                // console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
     
                 const uploadResponse = await api.post(`/doctorant/upload/${id}`, formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
     
-                console.log("✅ Fichiers uploadés :", uploadResponse.data);
+                // console.log("✅ Fichiers uploadés :", uploadResponse.data);
                 uploadedFiles = uploadResponse.data.fichiersExternes;
             }
     
             // Étape 2 : Mise à jour du doctorant avec les fichiers stockés dans fichiersExternes
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
-            console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
+            // console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
             const response = await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
-            console.log("✅ Réponse API :", response.data);
+            // console.log("✅ Réponse API :", response.data);
             setMessage("Modifications enregistrées avec succès !");
     
             // 📩 Envoi d'un email aux référents s'ils existent
@@ -208,15 +208,15 @@ const ModifierDoctorant: React.FC = () => {
                 doctorant.emailAdditionalMembre
             ].filter(Boolean);
 
-            console.log("📧 Emails des référents :", referentsEmails);
+            // console.log("📧 Emails des référents :", referentsEmails);
             if (referentsEmails.length > 0) {
-                console.log(doctorant.email_HDR)
+                // console.log(doctorant.email_HDR)
                 await api.post('/email/send', { emails: referentsEmails, doctorantPrenom: doctorant.prenom, doctorantNom: doctorant.nom, doctorantEmail: doctorant.email, directeurTheseEmail: doctorant.email_HDR });
-                console.log('doctorant prenom' + doctorant.prenom);
-                console.log("📧 Emails envoyés aux référents :", referentsEmails);
+                // console.log('doctorant prenom' + doctorant.prenom);
+                // console.log("📧 Emails envoyés aux référents :", referentsEmails);
             }
             
-            console.log("✅ Mise à jour réussie !");
+            // console.log("✅ Mise à jour réussie !");
             setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
         } catch (err) {
             console.error("❌ Erreur lors de la mise à jour :", err);

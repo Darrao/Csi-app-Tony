@@ -31,10 +31,10 @@ const ListeDoctorants: React.FC = () => {
 
     const fetchDoctorants = async () => {
         try {
-            console.log('[FRONTEND] Rafraîchissement des statuts côté backend...');
+            // console.log('[FRONTEND] Rafraîchissement des statuts côté backend...');
             await api.get('/doctorant/refresh-statuses');
 
-            console.log('[FRONTEND] Récupération de la liste des doctorants...');
+            // console.log('[FRONTEND] Récupération de la liste des doctorants...');
             const response = await api.get('/doctorant');
             setDoctorants(response.data);
         
@@ -73,7 +73,7 @@ const ListeDoctorants: React.FC = () => {
         }
         try {
             await api.post(`/doctorant/send-link/${id}`, { email, prenom, nom });
-            console.log('Lien envoyé avec succès !');
+            // console.log('Lien envoyé avec succès !');
         } catch (error) {
             console.error('Erreur lors de l\'envoi de l\'email :', error);
             alert('Erreur lors de l\'envoi de l\'email.');
@@ -119,7 +119,7 @@ const ListeDoctorants: React.FC = () => {
         }
     
         try {
-            console.log(`📩 Envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom}...`, emailsReferents);
+            // console.log(`📩 Envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom}...`, emailsReferents);
     
             await api.post('/email/send', {
                 emails: emailsReferents,
@@ -205,7 +205,7 @@ const ListeDoctorants: React.FC = () => {
             }
     
             try {
-                console.log(`📩 Envoi des emails aux référents de ${prenom}...`, referentsEmails);
+                // console.log(`📩 Envoi des emails aux référents de ${prenom}...`, referentsEmails);
     
                 await api.post('/email/send', {
                     emails: referentsEmails,
@@ -352,6 +352,70 @@ const ListeDoctorants: React.FC = () => {
         }
     };
 
+    const handleSendFinalReport = async (id: string) => {
+        if (!window.confirm("📩 Es-tu sûre de vouloir envoyer le rapport final au doctorant et à son directeur ?")) return;
+    
+        const doctorant = doctorants.find((d) => d._id === id);
+        if (!doctorant) {
+            alert("Doctorant introuvable");
+            return;
+        }
+    
+        try {
+            // console.log(`📧 Envoi du rapport final à ${doctorant.prenom} ${doctorant.nom}...`);
+            const response = await api.post(`/email/send-final`, {
+                doctorantId: doctorant._id,
+                doctorantEmail: doctorant.email,
+                doctorantPrenom: doctorant.prenom,
+                doctorantNom: doctorant.nom,
+                directeurTheseEmail: doctorant.email_HDR
+            });
+            alert(`✅ Rapport final envoyé avec succès à ${response.data.destinataires.join(', ')}`);
+            fetchDoctorants();
+        } catch (error) {
+            console.error("❌ Erreur lors de l'envoi du rapport final :", error);
+            alert("❌ Échec de l'envoi du rapport final.");
+        }
+    };
+
+    const handleSendFinalReportsToFiltered = async () => {
+        if (filteredDoctorants.length === 0) {
+            alert("Aucun doctorant ne correspond au filtre actuel.");
+            return;
+        }
+    
+        if (!window.confirm(`📩 Tu t'apprêtes à envoyer le rapport final à ${filteredDoctorants.length} doctorant(s). Continuer ?`)) return;
+    
+        setTotalToSend(filteredDoctorants.length);
+        setCurrentSent(0);
+        setSendingProgress(0);
+    
+        for (const doctorant of filteredDoctorants) {
+            const { _id, email, prenom, nom, email_HDR } = doctorant;
+    
+            try {
+                await api.post(`/email/send-final`, {
+                    doctorantId: _id,
+                    doctorantEmail: email,
+                    doctorantPrenom: prenom,
+                    doctorantNom: nom,
+                    directeurTheseEmail: email_HDR
+                });
+    
+                setCurrentSent(prev => prev + 1);
+                setSendingProgress((prev) => prev !== null ? ((prev + 1) / filteredDoctorants.length) * 100 : 100);
+    
+                const delay = 10 + Math.random() * 5;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } catch (error) {
+                console.error(`❌ Erreur pour ${prenom} ${nom} :`, error);
+            }
+        }
+    
+        alert('✅ Tous les rapports finaux ont été envoyés !');
+        setSendingProgress(null);
+        fetchDoctorants();
+    };
 
     return (
         <div className="liste-doctorants-container">
@@ -405,12 +469,15 @@ const ListeDoctorants: React.FC = () => {
                 <button className="btn btn-export-pdf" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/pdf`}>📑 Exporter tous les PDF</button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
+                <button className="btn btn-send-bulk" onClick={handleSendFinalReportsToFiltered}>📩 Envoyer rapport final à tous les doctorants et directeur UR filtrés</button>
             </div>
 
             {/* 🔔 Affichage de la progression */}
             {sendingProgress !== null && (
                 <div className="progress-container">
                     <strong>📨 Envoi en cours :</strong> {currentSent}/{totalToSend}
+                    <br />
+                    <div className="spinner"></div>
                     <br />
                     <progress className="progress-bar" value={sendingProgress} max={100}></progress>
                 </div>
@@ -469,12 +536,19 @@ const ListeDoctorants: React.FC = () => {
                                 <span>Envoyé au directeur de département :</span>
                                 <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.gestionnaireDirecteurValide ? 'green' : 'red' }}></div>
                             </div>
+                            <div className='status'>
+                                <span>Rapport final envoyé au Doctorant et au Directeur UR :</span>
+                                <div style={{ width: '15px', height: '15px', borderRadius: '50%', backgroundColor: doc.finalSend ? 'green' : 'red' }}></div>
+                            </div>
                             <div className='status-envois'>
                                 <div className='envois up'>
                                     <span>Nb envois au doctorant :</span> <strong>{doc.NbSendToDoctorant}</strong>
                                 </div>
                                 <div className='envois'>
                                     <span>Nb envois aux référents :</span> <strong>{doc.NbSendToRepresentants}</strong>
+                                </div>
+                                <div className='envois'>
+                                    <span>Nb envois rapport final :</span> <strong>{doc.NbFinalSend || 0}</strong>
                                 </div>
                             </div>
                         </div>
@@ -493,6 +567,12 @@ const ListeDoctorants: React.FC = () => {
                                 <Link to={`/doctorant/modifier/${doc._id}`}>
                                     <button className="btn btn-primary btn-doctorant">Modifier contenu du rapport du doctorant</button>
                                 </Link>
+                                <button
+                                    className="btn btn-secondary btn-doctorant"
+                                    onClick={() => handleSendFinalReport(doc._id)}
+                                >
+                                    Envoyer rapport final au doctorant + directeur
+                                </button>
                             </div>
 
 
