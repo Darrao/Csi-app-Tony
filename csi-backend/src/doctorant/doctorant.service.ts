@@ -330,19 +330,23 @@ export class DoctorantService {
         const cleanText = (text: string | null): string => {
             if (!text) return "N/A";
             return text
-            .normalize("NFD") // Supprime les accents
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/\r?\n|\r/g, " ") // Remplace tous les sauts de ligne par un espace
-            .replace(/[^\x00-\x7F]/g, char => {
-                // 🛠️ Remplacement des caractères problématiques
-                const replacements: Record<string, string> = {
-                    "±": "+/-", // Alternative lisible
-                    "•": "-",   // Point noir remplacé par un tiret
-                    "×": "x",   // Multiplication remplacée par 'x'
-                    "→": "->"   // Flèche remplacée par '->'
-                };
-                return replacements[char] || "?"; // Si inconnu, mettre '?'
-            });
+                .normalize("NFD") // Supprime les accents
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/\t/g, "    ") // ✅ remplace les tabulations par 4 espaces
+                .replace(/\r?\n|\r/g, " ") // remplace les sauts de ligne par un espace
+                .replace(/[^\x00-\x7F]/g, char => {
+                    const replacements: Record<string, string> = {
+                        "±": "+/-",
+                        "•": "-",
+                        "×": "x",
+                        "→": "->",
+                        "“": "\"",
+                        "”": "\"",
+                        "‘": "'",
+                        "’": "'"
+                    };
+                    return replacements[char] || "?";
+                });
         };
     
         // Ajout de texte avec mise en page
