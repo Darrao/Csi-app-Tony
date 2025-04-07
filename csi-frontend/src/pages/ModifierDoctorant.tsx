@@ -417,6 +417,7 @@ const ModifierDoctorant: React.FC = () => {
                     <div className="file-upload">
                     
                         <label className="text-file-upload">Your annual scientific report <span style={{ color: "red" }}>*</span></label>
+                        <label className="warning-message">Do not reuse last year’s CSI form. All required information is now entered directly into the online form. Please upload only your current scientific report as a separate PDF</label>
                         <span className="note-fichier ">(Max: 5 MB, format PDF)</span>
                         <br />
                         <input ref={scientificReportInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />

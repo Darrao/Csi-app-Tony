@@ -115,3 +115,9 @@
 .note-fichier{
     font-size: 12px;
 }
+
+.warning-message {
+    color: red;
+    font-weight: bold;
+    font-size: 12px;
+}
