@@ -14,7 +14,7 @@ console.log('SECRET_KEY:', SECRET_KEY);
 
 export function generateReferentToken(referentEmail: string, doctorantEmail: string): string {
     const payload = { referentEmail, doctorantEmail };
-    const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "24h" });
+    const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "100y" });
 
     console.log("🚀 Token JWT généré :", token);
     console.log("🔑 Payload utilisé :", payload);
@@ -91,7 +91,7 @@ export async function generateToken(email: string, doctorantService: DoctorantSe
 
     // Génération du token JWT avec l'email du doctorant
     const payload = { doctorantEmail };
-    const token = jwt.sign(payload, process.env.SECRET_KEY, { expiresIn: "24h" });
+    const token = jwt.sign(payload, process.env.SECRET_KEY, { expiresIn: "100y" });
 
     console.log(`🚀 Token JWT généré : ${token}`);
     return token;
