@@ -200,12 +200,15 @@ export class DoctorantService {
             return null;
         }
     
-        console.log(`[DEBUG] 🔍 Recherche du doctorant avec email : '${doctorantEmail.trim().toLowerCase()}'`);
+        const cleanedEmail = doctorantEmail.trim().replace(/\u200B/g, '');
+        console.log(`[DEBUG] 🔍 Recherche du doctorant avec email (nettoyé) : '${cleanedEmail}'`);
     
-        const doctorant = await this.doctorantModel.findOne({ email: doctorantEmail.trim().toLowerCase() }).exec();
+        const doctorant = await this.doctorantModel.findOne({
+            email: { $regex: `^${cleanedEmail}$`, $options: 'i' }  // ✅ insensible à la casse
+        }).exec();
     
         if (!doctorant) {
-            console.log(`❌ Aucun doctorant trouvé pour '${doctorantEmail.trim().toLowerCase()}'`);
+            console.log(`❌ Aucun doctorant trouvé pour '${cleanedEmail}'`);
         } else {
             console.log(`✅ Doctorant trouvé : ${doctorant.nom} ${doctorant.prenom} (${doctorant.email})`);
         }
