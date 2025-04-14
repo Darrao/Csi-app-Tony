@@ -9,7 +9,7 @@ import { AdminModule } from '../admin.module'; // Import du module Admin
     AdminModule, // Assure-toi qu'il est bien importé
     JwtModule.register({
       secret: process.env.SECRET_KEY, // Assure-toi que SECRET_KEY est bien défini dans .env
-      signOptions: { expiresIn: '24h' },
+      signOptions: { expiresIn: '100y' },
     }),
   ],
   controllers: [AuthController],
