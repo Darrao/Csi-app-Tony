@@ -20,41 +20,49 @@ const FormulaireToken: React.FC = () => {
     useEffect(() => {
         const validateToken = async () => {
             try {
-                // console.log("🔄 Validation du token en cours...");
+                console.log("🔄 Validation du token en cours avec :", token);
                 const response = await api.post('/email/validate-token', { token });
-
-                // console.log("✅ Réponse de l'API :", response.data);
+    
+                console.log("✅ Réponse de l'API :", response.data);
                 if (response.data) {
                     setEmail(response.data.email);
                     setDoctorant(response.data.doctorant);
-
-                    // console.log("📌 Doctorant stocké :", response.data.doctorant);
-                    // console.log("📌 Email stocké :", response.data.email);
-
+    
+                    console.log("📌 Doctorant stocké :", response.data.doctorant);
+                    console.log("📌 Email stocké :", response.data.email);
+    
                     if (response.data.doctorant?.representantValide) {
-                        // console.log("🔒 Ce lien a déjà été utilisé. Redirection...");
                         navigate('/merci');
                     }
-
-                    // ✅ On désactive le chargement seulement après avoir stocké les données
+    
                     setLoading(false);
                 } else {
-                    console.log(response.data.message || 'Lien invalide ou expiré.');
+                    console.warn("⚠️ Token invalide ou expiré :", response.data);
                     setLoading(false);
                 }
-            } catch (error) {
-                // console.error('❌ Erreur lors de la validation du token :', error);
+            } catch (error: any) {
+                console.error("❌ Erreur lors de la validation du token :", {
+                    message: error.message,
+                    code: error.code,
+                    config: error.config,
+                    response: error.response,
+                    url: error.config?.url,
+                    dataSent: error.config?.data,
+                });
+    
                 alert('Erreur lors de la validation du lien.');
                 setLoading(false);
             }
         };
-
+    
         if (token) {
             validateToken();
+        } else {
+            console.warn("⚠️ Aucun token présent dans l'URL");
         }
     }, [token]);
 
-    // console.log("🕵️‍♂️ État final", { loading, doctorant });
+    console.log("🕵️‍♂️ État final", { loading, doctorant });
 
     if (loading) {
         return <p>Chargement...</p>;
@@ -98,7 +106,7 @@ const FormulaireToken: React.FC = () => {
 
         // Ici je dois envoyer un mail a l’adresse que tony m’a envoyé (regarder excel qu’il m’a envoyé)
 
-        // console.log("🚀 Soumission du formulaire en cours...", values);
+        console.log("🚀 Soumission du formulaire en cours...", values);
         setSubmitting(true);
         try {
             if (!doctorant) {
@@ -152,17 +160,17 @@ const FormulaireToken: React.FC = () => {
                 };
             };
     
-            // console.log("🔍 Doctorant avant envoi :", doctorant);
+            console.log("🔍 Doctorant avant envoi :", doctorant);
             const payload = normalizeData(doctorant, cleanedValues);
-            // console.log("📤 Données envoyées à l'API :", payload);
+            console.log("📤 Données envoyées à l'API :", payload);
     
             if (doctorant._id) {
 
                 // envoyer mail donc fonction qui envoi le mail avec Choix figé pour Doctoral student's department pour qu'on puisse savoir a qui envoyer le mainModule, ca il faut le gerer dans le backend
-                // console.log(doctorant._id);
+                console.log(doctorant._id);
 
                 const response = await api.put(`/doctorant/${doctorant._id}`, payload);
-                // console.log("✅ Mise à jour réussie :", response.data);
+                console.log("✅ Mise à jour réussie :", response.data);
                 
                 // ✉️ Envoi de l'email en fonction du département
                 const emailResponse = await api.post('/email/send-department', {
@@ -172,7 +180,7 @@ const FormulaireToken: React.FC = () => {
                     doctorantNom: doctorant.nom,
                     department: doctorant.departementDoctorant,
                 });
-                // console.log("✅ Email envoyé au directeur et gestionnaire");
+                console.log("✅ Email envoyé au directeur et gestionnaire");
 
                 // ✉️ Envoi de l'email aux référents
                 await api.post('/email/send-referent-confirmation', {
@@ -181,7 +189,7 @@ const FormulaireToken: React.FC = () => {
                     doctorantPrenom: doctorant.prenom,
                     doctorantNom: doctorant.nom,
                 });
-                // console.log("✅ Email de confirmation envoyé aux référents");    
+                console.log("✅ Email de confirmation envoyé aux référents");    
 
 
                 alert('Mise à jour effectuée avec succès !');
@@ -207,7 +215,7 @@ const FormulaireToken: React.FC = () => {
             {/* ils recoivent dans la boite mail le pdf des informations du doctorant avec les pdfs qu'il a upload juste avant  */}
 
             {doctorant ? (
-                // console.log("📌 Doctorant dans le return :", doctorant),
+                console.log("📌 Doctorant dans le return :", doctorant),
                 <div>
                     <h2>Doctoral student</h2>
                     <p><strong>Family name :</strong> {doctorant.nom || "Non renseigné"}</p>
