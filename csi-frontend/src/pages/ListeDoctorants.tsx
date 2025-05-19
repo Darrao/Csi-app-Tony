@@ -37,6 +37,7 @@ const ListeDoctorants: React.FC = () => {
             // console.log('[FRONTEND] Récupération de la liste des doctorants...');
             const response = await api.get('/doctorant');
             setDoctorants(response.data);
+            console.log("🧪 Résultat brut (distant) :", response.data);
         
             // 🔄 Mise à jour des années disponibles
             const years = Array.from(new Set(response.data.map((doc: any) => doc.importDate)))
