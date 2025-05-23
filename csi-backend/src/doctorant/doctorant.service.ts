@@ -320,8 +320,10 @@ export class DoctorantService {
         let page = pdfDoc.addPage([600, 800]);
     
         // 🔥 Importation des polices standard
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const fontBytes = fs.readFileSync(path.join(__dirname, '../assets/fonts/Roboto-Regular.ttf'));
+        const font = await pdfDoc.embedFont(fontBytes);
+        const boldFontBytes = fs.readFileSync(path.join(__dirname, '../assets/fonts/Roboto-Bold.ttf'));
+        const boldFont = await pdfDoc.embedFont(boldFontBytes);
     
         let y = 770; // 📌 Position initiale
         const marginLeft = 50;
@@ -333,23 +335,9 @@ export class DoctorantService {
         const cleanText = (text: string | null): string => {
             if (!text) return "N/A";
             return text
-                .normalize("NFD") // Supprime les accents
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/\t/g, "    ") // ✅ remplace les tabulations par 4 espaces
-                .replace(/\r?\n|\r/g, " ") // remplace les sauts de ligne par un espace
-                .replace(/[^\x00-\x7F]/g, char => {
-                    const replacements: Record<string, string> = {
-                        "±": "+/-",
-                        "•": "-",
-                        "×": "x",
-                        "→": "->",
-                        "“": "\"",
-                        "”": "\"",
-                        "‘": "'",
-                        "’": "'"
-                    };
-                    return replacements[char] || "?";
-                });
+                .replace(/\t/g, "    ") // tabulations => 4 espaces
+                .replace(/\r\n|\r/g, "\n") // standardise les retours à la ligne
+                .trim();
         };
     
         // Ajout de texte avec mise en page
@@ -539,36 +527,41 @@ export class DoctorantService {
             y -= 5; // Espace supplémentaire après le titre
           };
 
-        const addWrappedTextContent = (value: string | null) => {
+          const addWrappedTextContent = (value: string | null) => {
             if (y <= marginBottom) newPage();
             if (!value) return;
         
-            const cleanedValue = cleanText(value) || "N/A";
-            const words = cleanedValue.split(" ");
-            let line = "";
-            const lines: string[] = [];
+            const cleanedValue = cleanText(value);
+            const paragraphs = cleanedValue.split("\n");
         
-            for (const word of words) {
-                const testLine = line.length ? line + " " + word : word;
-                const textWidth = font.widthOfTextAtSize(testLine, 10);
+            for (const para of paragraphs) {
+                const words = para.split(" ");
+                let line = "";
+                const lines: string[] = [];
         
-                if (textWidth < maxWidth) {
-                    line = testLine;
-                } else {
-                    lines.push(line);
-                    line = word;
+                for (const word of words) {
+                    const testLine = line.length ? line + " " + word : word;
+                    const textWidth = font.widthOfTextAtSize(testLine, 10);
+        
+                    if (textWidth < maxWidth) {
+                        line = testLine;
+                    } else {
+                        lines.push(line);
+                        line = word;
+                    }
                 }
+                if (line) lines.push(line);
+        
+                lines.forEach((line) => {
+                    if (y <= marginBottom) newPage();
+                    page.drawText(line, { x: marginLeft, y, size: 10, font });
+                    y -= 10;
+                });
+        
+                y -= 10; // 🔁 double espace après un paragraphe
             }
-            if (line) lines.push(line);
         
-            // Affichage du texte wrap
-            lines.forEach((line) => {
-                if (y <= marginBottom) newPage();
-                page.drawText(line, { x: marginLeft, y, size: 10, font });
-                y -= 10; // Espacement entre les lignes
-            });
-        
-            y -= 5; // Espace supplémentaire après le champ
+            y -= 5; // Espace supplémentaire
         };
     
         // Fonction pour gérer le saut de page
