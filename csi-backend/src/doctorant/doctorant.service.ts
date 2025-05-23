@@ -320,9 +320,9 @@ export class DoctorantService {
         let page = pdfDoc.addPage([600, 800]);
     
         // 🔥 Importation des polices standard
-        const fontBytes = fs.readFileSync(path.join(__dirname, '../assets/fonts/Roboto-Regular.ttf'));
+        const fontBytes = fs.readFileSync(path.join(__dirname, '../../../fonts/Roboto-Regular.ttf'));
         const font = await pdfDoc.embedFont(fontBytes);
-        const boldFontBytes = fs.readFileSync(path.join(__dirname, '../assets/fonts/Roboto-Bold.ttf'));
+        const boldFontBytes = fs.readFileSync(path.join(__dirname, '../../../fonts/Roboto-Bold.ttf'));
         const boldFont = await pdfDoc.embedFont(boldFontBytes);
     
         let y = 770; // 📌 Position initiale
