@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Doctorant } from './schemas/doctorant.schema';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csvParser from 'csv-parser';
@@ -334,9 +334,10 @@ export class DoctorantService {
             if (!text) return "N/A";
             return text
                 .normalize("NFD") // Supprime les accents
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/\t/g, "    ") // ✅ remplace les tabulations par 4 espaces
-                .replace(/\r?\n|\r/g, " ") // remplace les sauts de ligne par un espace
+                .replace(/[\u0300-\u036f]/g, "") // Diacritiques
+                .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // 🚨 Supprime les caractères de contrôle (comme \v)
+                .replace(/\t/g, "    ") // Tabulation → espaces
+                .replace(/\r?\n|\r/g, " ") // Sauts de ligne → espace
                 .replace(/[^\x00-\x7F]/g, char => {
                     const replacements: Record<string, string> = {
                         "±": "+/-",
@@ -349,7 +350,8 @@ export class DoctorantService {
                         "’": "'"
                     };
                     return replacements[char] || "?";
-                });
+                })
+                .trim();
         };
     
         // Ajout de texte avec mise en page
