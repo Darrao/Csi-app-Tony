@@ -6,21 +6,28 @@ import config from '../config';
 
 type Doctorant = {
     _id: string;
-    nom: string;
     prenom: string;
+    nom: string;
     email: string;
-    email_HDR: string;
-    emailMembre1?: string;
-    emailMembre2?: string;
-    emailAdditionalMembre?: string;
-
-    sendToDoctorant?: boolean;
-    doctorantValide?: boolean;
-    sendToRepresentants?: boolean;
-    representantValide?: boolean;
-    finalSend?: boolean;
-    gestionnaireDirecteurValide?: boolean;
-};
+    ID_DOCTORANT?: string;
+    importDate?: number;
+    // ✅ Autres champs racine
+    rapport?: {
+      nomOriginal?: string;
+      cheminStockage?: string;
+      url?: string; // important
+      [key: string]: any; // ✅ Permet l’accès dynamique
+    };
+    formulaire?: {
+      missions?: string;
+      titreThese?: string;
+      conclusion?: string;
+      recommendation?: string;
+      recommendation_comment?: string;
+      [key: string]: any; // autorise Q1, Q1_comment, etc.
+    };
+    [key: string]: any; // ✅ accès dynamique pour TS
+  };
 
 const ListeDoctorants: React.FC = () => {
     const [doctorants, setDoctorants] = useState<Doctorant[]>([]);
@@ -251,43 +258,124 @@ const ListeDoctorants: React.FC = () => {
 
     const handleExportFilteredCSV = () => {
         if (filteredDoctorants.length === 0) {
-            alert("Aucun doctorant correspondant aux filtres sélectionnés.");
-            return;
+          alert("Aucun doctorant correspondant aux filtres sélectionnés.");
+          return;
         }
-    
-        // Définition des colonnes pour l'export
+      
         const headers = [
-            "Nom", "Prénom", "Email", "ID_DOCTORANT", "Année d'importation",
-            "Envoyé au doctorant", "Validation par le doctorant",
-            "Envoyé aux référents", "Validation par les référents"
+          "_id",
+          "prenom",
+          "nom",
+          "email",
+          "ID_DOCTORANT",
+          "importDate",
+          "departementDoctorant",
+          "datePremiereInscription",
+          "anneeThese",
+          "typeFinancement",
+          "typeThesis",
+          "missions",
+          "titreThese",
+          "intituleUR",
+          "directeurUR",
+          "nomPrenomHDR",
+          "email_HDR",
+          "intituleEquipe",
+          "directeurEquipe",
+          "directeurThese",
+          "coDirecteurThese",
+          "prenomMembre1",
+          "nomMembre1",
+          "emailMembre1",
+          "univesityMembre1",
+          "prenomMembre2",
+          "nomMembre2",
+          "emailMembre2",
+          "univesityMembre2",
+          "prenomAdditionalMembre",
+          "nomAdditionalMembre",
+          "emailAdditionalMembre",
+          "universityAdditionalMembre",
+          "nbHoursScientificModules",
+          "nbHoursCrossDisciplinaryModules",
+          "nbHoursProfessionalIntegrationModules",
+          "totalNbHours",
+          "posters",
+          "conferencePapers",
+          "publications",
+          "publicCommunication",
+          "dateValidation",
+          "additionalInformation",
+          ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i+1}`, `Q${i+1}_comment`]),
+          "conclusion",
+          "recommendation",
+          "recommendation_comment",
+          "sendToDoctorant",
+          "doctorantValide",
+          "NbSendToDoctorant",
+          "sendToRepresentants",
+          "representantValide",
+          "NbSendToRepresentants",
+          "gestionnaireDirecteurValide",
+          "finalSend",
+          "NbFinalSend",
+          "rapport_nomOriginal",
+          "rapport_cheminStockage",
+          "rapport_url",
+          "dateEntretien"
         ];
-    
-        // Création des lignes du CSV
+      
         const csvRows = [
-            headers.join(";"), // Première ligne : les entêtes
-            ...filteredDoctorants.map((doc: any) => [
-                doc.nom, doc.prenom, doc.email, doc.ID_DOCTORANT, doc.importDate,
-                doc.sendToDoctorant ? "Oui" : "Non",
-                doc.doctorantValide ? "Oui" : "Non",
-                doc.sendToRepresentants ? "Oui" : "Non",
-                doc.representantValide ? "Oui" : "Non"
-            ].join(";"))
+          headers.join(";"),
+          ...filteredDoctorants.map(doc =>
+            headers.map(header => {
+              if (header.startsWith("rapport_")) {
+                const key = header.replace("rapport_", "");
+                return doc.rapport?.[key] ?? "";
+              }
+              if (
+                ["missions", "titreThese", "conclusion", "recommendation", "recommendation_comment"]
+                  .includes(header) ||
+                header.startsWith("Q")
+              ) {
+                return doc.formulaire?.[header] ?? "";
+              }
+              return doc[header] ?? "";
+            }).join(";")
+          )
         ];
-    
-        // Conversion en blob pour le téléchargement
+      
         const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv" });
         const csvUrl = URL.createObjectURL(csvBlob);
-    
-        // Création d'un lien de téléchargement temporaire
+      
         const a = document.createElement("a");
         a.href = csvUrl;
         a.download = `Doctorants_Filtrés_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
-    
-        // Nettoyage de l'URL Blob
+      
         URL.revokeObjectURL(csvUrl);
-    };
+      };
 
+      const handleExportAllPDFsAsZip = async () => {
+        try {
+          const response = await api.get('/doctorant/export/zip', {
+            responseType: 'blob', // Important pour les fichiers binaires
+          });
+      
+          const zipBlob = new Blob([response.data], { type: 'application/zip' });
+          const zipUrl = URL.createObjectURL(zipBlob);
+      
+          const a = document.createElement('a');
+          a.href = zipUrl;
+          a.download = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
+          a.click();
+      
+          URL.revokeObjectURL(zipUrl);
+        } catch (err) {
+          console.error('❌ Erreur lors du téléchargement du ZIP :', err);
+          alert('Erreur lors du téléchargement du ZIP.');
+        }
+      };
 
     // 🔽 **Filtrage des doctorants selon le statut, l'année et le département**
     const filteredDoctorants = doctorants.filter((doc: any) =>
@@ -356,29 +444,106 @@ const ListeDoctorants: React.FC = () => {
         }
     };
 
-    const handleExportCSV = async () => {
-        try {
-            const response = await api.get('/doctorant/export/csv', {
-                responseType: 'blob', // 🔥 Permet d'obtenir un fichier CSV
-            });
-    
-            const csvBlob = new Blob([response.data], { type: 'text/csv' });
-            const csvUrl = URL.createObjectURL(csvBlob);
-    
-            // 📥 Créer un lien temporaire pour télécharger le fichier
-            const a = document.createElement('a');
-            a.href = csvUrl;
-            a.download = `Doctorants_${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-    
-            // 🧹 Nettoyage de l'URL Blob après utilisation
-            URL.revokeObjectURL(csvUrl);
-        } catch (error) {
-            console.error('❌ Erreur lors de l’export du CSV :', error);
-            alert("Échec de l'export du fichier CSV.");
+    const handleExportCSV = () => {
+        if (doctorants.length === 0) {
+          alert("Aucun doctorant disponible à exporter.");
+          return;
         }
-    };
-
+      
+        const headers = [
+          "_id",
+          "prenom",
+          "nom",
+          "email",
+          "ID_DOCTORANT",
+          "importDate",
+          "departementDoctorant",
+          "datePremiereInscription",
+          "anneeThese",
+          "typeFinancement",
+          "typeThesis",
+          "missions",
+          "titreThese",
+          "intituleUR",
+          "directeurUR",
+          "nomPrenomHDR",
+          "email_HDR",
+          "intituleEquipe",
+          "directeurEquipe",
+          "directeurThese",
+          "coDirecteurThese",
+          "prenomMembre1",
+          "nomMembre1",
+          "emailMembre1",
+          "univesityMembre1",
+          "prenomMembre2",
+          "nomMembre2",
+          "emailMembre2",
+          "univesityMembre2",
+          "prenomAdditionalMembre",
+          "nomAdditionalMembre",
+          "emailAdditionalMembre",
+          "universityAdditionalMembre",
+          "nbHoursScientificModules",
+          "nbHoursCrossDisciplinaryModules",
+          "nbHoursProfessionalIntegrationModules",
+          "totalNbHours",
+          "posters",
+          "conferencePapers",
+          "publications",
+          "publicCommunication",
+          "dateValidation",
+          "additionalInformation",
+          ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i+1}`, `Q${i+1}_comment`]),
+          "conclusion",
+          "recommendation",
+          "recommendation_comment",
+          "sendToDoctorant",
+          "doctorantValide",
+          "NbSendToDoctorant",
+          "sendToRepresentants",
+          "representantValide",
+          "NbSendToRepresentants",
+          "gestionnaireDirecteurValide",
+          "finalSend",
+          "NbFinalSend",
+          "rapport_nomOriginal",
+          "rapport_cheminStockage",
+          "rapport_url",
+          "dateEntretien"
+        ];
+      
+        const csvRows = [
+          headers.join(";"),
+          ...doctorants.map(doc =>
+            headers.map(header => {
+              if (header.startsWith("rapport_")) {
+                const key = header.replace("rapport_", "");
+                return doc.rapport?.[key] ?? "";
+              }
+              if (
+                ["missions", "titreThese", "conclusion", "recommendation", "recommendation_comment"]
+                  .includes(header) ||
+                header.startsWith("Q")
+              ) {
+                return doc.formulaire?.[header] ?? "";
+              }
+              return doc[header] ?? "";
+            }).join(";")
+          )
+        ];
+      
+        const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+        const csvUrl = URL.createObjectURL(csvBlob);
+      
+        const a = document.createElement("a");
+        a.href = csvUrl;
+        a.download = `Doctorants_Complet_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+      
+        URL.revokeObjectURL(csvUrl);
+      };
+      
     const handleSendFinalReport = async (id: string) => {
         if (!window.confirm("📩 Es-tu sûre de vouloir envoyer le rapport final au doctorant et à son directeur ?")) return;
     
@@ -493,7 +658,9 @@ const ListeDoctorants: React.FC = () => {
                 <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
                 <button className="btn btn-export" onClick={handleExportCSV}>📂 Exporter en CSV</button>
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
-                <button className="btn btn-export-pdf" onClick={() => window.location.href = `${config.FRONTEND_URL}/doctorant/export/pdf`}>📑 Exporter tous les PDF</button>
+                <button className="btn btn-export-pdf" onClick={handleExportAllPDFsAsZip}>
+                    📑 Exporter tous les rapports en ZIP
+                </button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendFinalReportsToFiltered}>📩 Envoyer rapport final à tous les doctorants et directeur UR filtrés</button>

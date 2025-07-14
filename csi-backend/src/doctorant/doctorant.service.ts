@@ -12,6 +12,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as csvParser from 'csv-parser';
 import { ObjectId } from 'mongodb';
+import 'dotenv/config';
+import * as archiver from 'archiver';
+import { Readable } from 'stream';
 
 @Injectable()
 export class DoctorantService {
@@ -46,6 +49,50 @@ export class DoctorantService {
     doctorant.fichiersExternes.push(...fichiers);
     await doctorant.save();
     return doctorant;
+  }
+
+  async generateAllReportsZip(): Promise<Buffer> {
+    const doctorants = await this.findAll();
+    console.log(`✅ ${doctorants.length} doctorants trouvés pour l'export.`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const outputBuffers: Buffer[] = [];
+
+    archive.on('data', (data) => outputBuffers.push(data));
+
+    for (const doctorant of doctorants) {
+      if (!doctorant.rapport?.cheminStockage) {
+        console.warn(`⚠️ Pas de rapport pour ${doctorant.nom}`);
+        continue;
+      }
+
+      const filePath = path.join(
+        __dirname,
+        '../../',
+        doctorant.rapport.cheminStockage,
+      );
+
+      if (!fs.existsSync(filePath)) {
+        console.warn(`❌ Fichier manquant : ${filePath}`);
+        continue;
+      }
+
+      const fileStream = fs.createReadStream(filePath);
+
+      // ✅ Utilise ID_DOCTORANT comme nom de sous-dossier, fallback sur _id
+      const folderName = doctorant.ID_DOCTORANT || doctorant._id;
+      const safeFolderName = folderName
+        .toString()
+        .replace(/[/\\?%*:|"<>]/g, '-');
+
+      const archivePath = `doctorants/${safeFolderName}/rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
+
+      archive.append(fileStream, { name: archivePath });
+    }
+
+    await archive.finalize();
+
+    return Buffer.concat(outputBuffers);
   }
 
   async getDoctorant(id: string) {
@@ -942,21 +989,23 @@ export class DoctorantService {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // 📄 Nom et chemin du fichier
     const fileName = `Rapport_${doctorant.nom}_${doctorant.prenom}_${doctorant._id}.pdf`;
     const filePath = path.join(uploadDir, fileName);
 
-    // 💾 Sauvegarde du fichier sur le serveur
     fs.writeFileSync(filePath, pdfBuffer);
     console.log(`✅ Rapport PDF sauvegardé à : ${filePath}`);
 
-    // 🔄 Mise à jour de la base de données avec le chemin du rapport
+    // ⛔ Ici tu faisais une erreur :
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const publicURL = `${frontendUrl}/${doctorant.rapport.cheminStockage}`;
+
     await this.doctorantModel.findByIdAndUpdate(
       doctorant._id,
       {
         rapport: {
           nomOriginal: fileName,
           cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/${fileName}`,
+          url: publicURL, // ✅ Sauvegarde du lien
         },
       },
       { new: true },
