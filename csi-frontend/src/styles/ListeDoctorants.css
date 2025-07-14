@@ -334,3 +334,35 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+
+  .stats-globales-container {
+    margin: 20px 0;
+  }
+  
+  .stats-globales-container h2 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  
+  .stats-table {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.9rem;
+  }
+  
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding: 4px 0;
+  }
+  
+  .stat-label {
+    color: #555;
+  }
+  
+  .stat-value {
+    font-weight: bold;
+    color: #111;
+  }

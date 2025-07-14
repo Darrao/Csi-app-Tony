@@ -13,6 +13,13 @@ type Doctorant = {
     emailMembre1?: string;
     emailMembre2?: string;
     emailAdditionalMembre?: string;
+
+    sendToDoctorant?: boolean;
+    doctorantValide?: boolean;
+    sendToRepresentants?: boolean;
+    representantValide?: boolean;
+    finalSend?: boolean;
+    gestionnaireDirecteurValide?: boolean;
 };
 
 const ListeDoctorants: React.FC = () => {
@@ -203,7 +210,7 @@ const ListeDoctorants: React.FC = () => {
         setSendingProgress(0);
     
         for (const doc of doctorantsWithoutReferentEmails) {
-            const { _id, prenom, nom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
+            const {prenom, nom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
     
             // 📧 Liste des emails des référents (exclut les valeurs nulles ou vides)
             const referentsEmails = [emailMembre1, emailMembre2, emailAdditionalMembre].filter(
@@ -297,6 +304,15 @@ const ListeDoctorants: React.FC = () => {
             (filterStatus === 'Référents validés' && doc.representantValide) ||
             (filterStatus === 'Non validé par les référents' && !doc.representantValide))
     );
+
+    // 🔢 STATISTIQUES GLOBALES
+    const totalDoctorants = doctorants.length;
+    const totalEnvoyesDoctorant = doctorants.filter(doc => doc.sendToDoctorant).length;
+    const totalValidDoctorant = doctorants.filter(doc => doc.doctorantValide).length;
+    const totalEnvoyesReferents = doctorants.filter(doc => doc.sendToRepresentants).length;
+    const totalValidReferents = doctorants.filter(doc => doc.representantValide).length;
+    const totalEnvoyesDirecteurDept = doctorants.filter(doc => doc.gestionnaireDirecteurValide).length;
+    const totalRapportFinal = doctorants.filter(doc => doc.finalSend).length;
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= Math.ceil(filteredDoctorants.length / itemsPerPage)) {
@@ -512,6 +528,40 @@ const ListeDoctorants: React.FC = () => {
                 </select>
             </div>
 
+            {/* 📊 Bloc Statistiques Globales */}
+            <div className="stats-globales-container">
+            <h2>📊 Statistiques globales</h2>
+            <div className="stats-table">
+                <div className="stats-row">
+                    <span className="stat-label">Total doctorants :</span>
+                    <span className="stat-value">{totalDoctorants}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Envoyé au doctorant :</span>
+                    <span className="stat-value">{totalEnvoyesDoctorant}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Validation par le doctorant :</span>
+                    <span className="stat-value">{totalValidDoctorant}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Envoyé aux référents :</span>
+                    <span className="stat-value">{totalEnvoyesReferents}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Validation par les référents :</span>
+                    <span className="stat-value">{totalValidReferents}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Envoyé au directeur de département :</span>
+                    <span className="stat-value">{totalEnvoyesDirecteurDept}</span>
+                </div>
+                <div className="stats-row">
+                    <span className="stat-label">Rapport final envoyé au Doctorant et au Directeur UR :</span>
+                    <span className="stat-value">{totalRapportFinal}</span>
+                </div>
+                </div>
+            </div>
 
             {/* 📋 Liste des doctorants */}
             <div className="table-container">
