@@ -798,19 +798,21 @@ const ListeDoctorants: React.FC = () => {
 
             {/* 🔢 Paramètres d'affichage */}
             <div className="pagination-settings">
-                <label>Afficher : </label>
-                <select
-                    className="select-items-per-page"
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                        setItemsPerPage(Number(e.target.value));
-                        setCurrentPage(1);
-                    }}
-                >
-                    <option value={15}>15</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </select>
+            <label>Afficher : </label>
+            <select
+                className="select-items-per-page"
+                value={itemsPerPage}
+                onChange={(e) => {
+                const selectedValue = e.target.value === 'Tous' ? filteredDoctorants.length : Number(e.target.value);
+                setItemsPerPage(selectedValue);
+                setCurrentPage(1);
+                }}
+            >
+                <option value={15}>15</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value="Tous">Tous</option>
+            </select>
             </div>
 
             {/* 📊 Bloc Statistiques Globales */}
