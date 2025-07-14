@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Query,
   Post,
   Param,
   Delete,
@@ -72,15 +73,26 @@ export class DoctorantController {
   }
 
   @Get('/export/zip')
-  async exportAllPDFsAsZip(@Res() res: Response) {
-    const zipBuffer = await this.doctorantService.generateAllReportsZip();
+  async exportZip(
+    @Query('searchTerm') searchTerm: string,
+    @Query('filterStatus') filterStatus: string,
+    @Query('filterYear') filterYear: string,
+    @Res() res: Response,
+  ) {
+    const zipBuffer = await this.doctorantService.generateAllReportsZip({
+      searchTerm,
+      filterStatus,
+      filterYear,
+    });
 
     res.set({
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="Rapports_Doctorants.zip"`,
+      'Content-Disposition': `attachment; filename="Rapports_Doctorants_${new Date()
+        .toISOString()
+        .slice(0, 10)}.zip"`,
     });
 
-    res.send(zipBuffer);
+    res.end(zipBuffer);
   }
 
   @Post()
@@ -327,12 +339,10 @@ export class DoctorantController {
       csvStream.end(); // ✅ Fin du stream
     } catch (error) {
       console.error('❌ Erreur lors de l’export CSV:', error);
-      res
-        .status(500)
-        .json({
-          message: 'Erreur interne lors de l’export CSV.',
-          error: error.message,
-        });
+      res.status(500).json({
+        message: 'Erreur interne lors de l’export CSV.',
+        error: error.message,
+      });
     }
   }
 
@@ -355,12 +365,10 @@ export class DoctorantController {
       );
       res.send(pdfBuffer);
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          message: 'Erreur lors de la génération du PDF.',
-          error: error.message,
-        });
+      res.status(500).json({
+        message: 'Erreur lors de la génération du PDF.',
+        error: error.message,
+      });
     }
   }
 
@@ -390,12 +398,10 @@ export class DoctorantController {
       return res.send(pdfBuffer);
     } catch (error) {
       console.error('❌ Erreur lors de la génération du PDF :', error);
-      return res
-        .status(500)
-        .json({
-          message: 'Erreur lors de la génération du PDF',
-          error: error.message,
-        });
+      return res.status(500).json({
+        message: 'Erreur lors de la génération du PDF',
+        error: error.message,
+      });
     }
   }
   @Post('import-csv')

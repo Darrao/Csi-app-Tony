@@ -51,9 +51,55 @@ export class DoctorantService {
     return doctorant;
   }
 
-  async generateAllReportsZip(): Promise<Buffer> {
-    const doctorants = await this.findAll();
-    console.log(`✅ ${doctorants.length} doctorants trouvés pour l'export.`);
+  async generateAllReportsZip(filters: {
+    searchTerm?: string;
+    filterStatus?: string;
+    filterYear?: string;
+  }): Promise<Buffer> {
+    let doctorants = await this.findAll();
+
+    // 🔍 Applique les mêmes filtres côté backend
+    if (filters.searchTerm) {
+      const search = filters.searchTerm.toLowerCase();
+      doctorants = doctorants.filter(
+        (doc) =>
+          doc.nom?.toLowerCase().includes(search) ||
+          doc.ID_DOCTORANT?.toLowerCase().includes(search),
+      );
+    }
+
+    if (filters.filterYear && filters.filterYear !== 'Tous') {
+      doctorants = doctorants.filter(
+        (doc) => Number(doc.importDate) === Number(filters.filterYear),
+      );
+    }
+
+    if (filters.filterStatus && filters.filterStatus !== 'Tous') {
+      doctorants = doctorants.filter((doc) => {
+        switch (filters.filterStatus) {
+          case 'Non envoyé au doctorant':
+            return !doc.sendToDoctorant;
+          case 'Envoyé au doctorant':
+            return doc.sendToDoctorant;
+          case 'Doctorant validé':
+            return doc.doctorantValide;
+          case 'Non validé par le doctorant':
+            return !doc.doctorantValide;
+          case 'Envoyé aux référents':
+            return doc.sendToRepresentants;
+          case 'Non envoyé aux référents':
+            return !doc.sendToRepresentants;
+          case 'Référents validés':
+            return doc.representantValide;
+          case 'Non validé par les référents':
+            return !doc.representantValide;
+          default:
+            return true;
+        }
+      });
+    }
+
+    console.log(`✅ ${doctorants.length} doctorants filtrés pour export.`);
 
     const archive = archiver('zip', { zlib: { level: 9 } });
     const outputBuffers: Buffer[] = [];
@@ -61,25 +107,16 @@ export class DoctorantService {
     archive.on('data', (data) => outputBuffers.push(data));
 
     for (const doctorant of doctorants) {
-      if (!doctorant.rapport?.cheminStockage) {
-        console.warn(`⚠️ Pas de rapport pour ${doctorant.nom}`);
-        continue;
-      }
+      if (!doctorant.rapport?.cheminStockage) continue;
 
       const filePath = path.join(
         __dirname,
         '../../',
         doctorant.rapport.cheminStockage,
       );
-
-      if (!fs.existsSync(filePath)) {
-        console.warn(`❌ Fichier manquant : ${filePath}`);
-        continue;
-      }
+      if (!fs.existsSync(filePath)) continue;
 
       const fileStream = fs.createReadStream(filePath);
-
-      // ✅ Utilise ID_DOCTORANT comme nom de sous-dossier, fallback sur _id
       const folderName = doctorant.ID_DOCTORANT || doctorant._id;
       const safeFolderName = folderName
         .toString()
@@ -91,7 +128,6 @@ export class DoctorantService {
     }
 
     await archive.finalize();
-
     return Buffer.concat(outputBuffers);
   }
 

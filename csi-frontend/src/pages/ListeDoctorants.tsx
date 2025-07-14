@@ -359,7 +359,12 @@ const ListeDoctorants: React.FC = () => {
       const handleExportAllPDFsAsZip = async () => {
         try {
           const response = await api.get('/doctorant/export/zip', {
-            responseType: 'blob', // Important pour les fichiers binaires
+            params: {
+              searchTerm,
+              filterStatus,
+              filterYear,
+            },
+            responseType: 'blob',
           });
       
           const zipBlob = new Blob([response.data], { type: 'application/zip' });
@@ -659,7 +664,7 @@ const ListeDoctorants: React.FC = () => {
                 <button className="btn btn-export" onClick={handleExportCSV}>📂 Exporter en CSV</button>
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
                 <button className="btn btn-export-pdf" onClick={handleExportAllPDFsAsZip}>
-                    📑 Exporter tous les rapports en ZIP
+                    📑 Exporter les rapports filtrés en ZIP
                 </button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
