@@ -70,6 +70,7 @@ const FormulaireToken: React.FC = () => {
 
     
     const initialValues = {
+        dateEntretien: '',
         Q1: '', Q1_comment: '',
         Q2: '', Q2_comment: '',
         Q3: '', Q3_comment: '',
@@ -93,6 +94,8 @@ const FormulaireToken: React.FC = () => {
     };
 
     const validationSchema = Yup.object({
+        dateEntretien: Yup.date()
+        .required('La date de l’entretien est obligatoire'),
         conclusion: Yup.string().required('La conclusion est obligatoire'),
         recommendation: Yup.string().required('Veuillez choisir une recommandation'),
         recommendation_comment: Yup.string().required('Veuillez ajouter un commentaire'),
@@ -243,6 +246,9 @@ const FormulaireToken: React.FC = () => {
             >
                 {({ errors, isValid }) => (
                 <Form>
+                    <h2>Date of interview <span style={{ color: "red" }}>*</span></h2>
+                    <Field type="date" name="dateEntretien" className="comment-box" />
+                    <ErrorMessage name="dateEntretien" component="div" className="error-message" />
                     <h2>Advances in research</h2>
                     <div className="grid-container">
                         {Array.from({ length: 3 }, (_, i) => (
