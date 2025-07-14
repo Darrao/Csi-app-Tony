@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
-import config from '../config';
+import * as XLSX from 'xlsx';
 
 type Doctorant = {
     _id: string;
@@ -357,6 +357,99 @@ const ListeDoctorants: React.FC = () => {
         URL.revokeObjectURL(csvUrl);
       };
 
+      const handleExportFilteredXLSX = () => {
+        if (filteredDoctorants.length === 0) {
+          alert("Aucun doctorant correspondant aux filtres sélectionnés.");
+          return;
+        }
+      
+        const headers = [
+          "_id",
+          "prenom",
+          "nom",
+          "email",
+          "ID_DOCTORANT",
+          "importDate",
+          "departementDoctorant",
+          "datePremiereInscription",
+          "anneeThese",
+          "typeFinancement",
+          "typeThesis",
+          "missions",
+          "titreThese",
+          "intituleUR",
+          "directeurUR",
+          "nomPrenomHDR",
+          "email_HDR",
+          "intituleEquipe",
+          "directeurEquipe",
+          "directeurThese",
+          "coDirecteurThese",
+          "prenomMembre1",
+          "nomMembre1",
+          "emailMembre1",
+          "univesityMembre1",
+          "prenomMembre2",
+          "nomMembre2",
+          "emailMembre2",
+          "univesityMembre2",
+          "prenomAdditionalMembre",
+          "nomAdditionalMembre",
+          "emailAdditionalMembre",
+          "universityAdditionalMembre",
+          "nbHoursScientificModules",
+          "nbHoursCrossDisciplinaryModules",
+          "nbHoursProfessionalIntegrationModules",
+          "totalNbHours",
+          "posters",
+          "conferencePapers",
+          "publications",
+          "publicCommunication",
+          "dateValidation",
+          "additionalInformation",
+          ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i + 1}`, `Q${i + 1}_comment`]),
+          "conclusion",
+          "recommendation",
+          "recommendation_comment",
+          "sendToDoctorant",
+          "doctorantValide",
+          "NbSendToDoctorant",
+          "sendToRepresentants",
+          "representantValide",
+          "NbSendToRepresentants",
+          "gestionnaireDirecteurValide",
+          "finalSend",
+          "NbFinalSend",
+          "rapport_nomOriginal",
+          "rapport_cheminStockage",
+          "rapport_url",
+          "dateEntretien"
+        ];
+      
+        const rows = filteredDoctorants.map(doc =>
+          headers.map(header => {
+            if (header.startsWith("rapport_")) {
+              const key = header.replace("rapport_", "");
+              return doc.rapport?.[key] ?? "";
+            }
+            if (
+              ["missions", "titreThese", "conclusion", "recommendation", "recommendation_comment"]
+                .includes(header) || header.startsWith("Q")
+            ) {
+              return doc.formulaire?.[header] ?? "";
+            }
+            return doc[header] ?? "";
+          })
+        );
+      
+        // Génération XLSX :
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Doctorants_Filtres");
+      
+        XLSX.writeFile(workbook, `Doctorants_Filtres_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      };
+
       const handleExportAllPDFsAsZip = async () => {
         if (filteredDoctorants.length === 0) {
           alert("Aucun doctorant correspondant aux filtres.");
@@ -679,6 +772,12 @@ const ListeDoctorants: React.FC = () => {
                 disabled={loadingButton === "zip"}
                 >
                 {loadingButton === "zip" ? "⏳ Export en cours..." : "📑 Exporter les rapports filtrés en ZIP"}
+                </button>
+                <button
+                className="btn btn-export-filtered"
+                onClick={handleExportFilteredXLSX}disabled={loadingButton === "zip"}
+                >
+                {loadingButton === "zip" ? "⏳ Export en cours..." : "📊 Exporter les doctorants filtrés en XLSX"}
                 </button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
