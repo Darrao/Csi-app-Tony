@@ -96,7 +96,14 @@ const FormulaireToken: React.FC = () => {
         conclusion: Yup.string().required('La conclusion est obligatoire'),
         recommendation: Yup.string().required('Veuillez choisir une recommandation'),
         recommendation_comment: Yup.string().required('Veuillez ajouter un commentaire'),
-    });
+      
+        // 🔥 Validation ajoutée pour toutes les questions Q1 à Q17
+        ...Array.from({ length: 17 }, (_, i) => i + 1).reduce((schema, questionNum) => {
+          schema[`Q${questionNum}`] = Yup.string().required(`La réponse à la question ${questionNum} est obligatoire`);
+          schema[`Q${questionNum}_comment`] = Yup.string().required(`Le commentaire de la question ${questionNum} est obligatoire`);
+          return schema;
+        }, {} as Record<string, Yup.StringSchema<string>>)
+      });
 
     const onSubmit = async (values: any) => {
         setFormSubmitted(true); // ✅ Marque le formulaire comme soumis
