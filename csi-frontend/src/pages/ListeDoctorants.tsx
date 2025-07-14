@@ -40,6 +40,7 @@ const ListeDoctorants: React.FC = () => {
     const [availableYears, setAvailableYears] = useState<number[]>([]); // 🆕 Liste des années
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(15); // Défaut : 15 doctorants par page
+    const [loadingButton, setLoadingButton] = useState<string | null>(null);
 
 
 
@@ -357,6 +358,13 @@ const ListeDoctorants: React.FC = () => {
       };
 
       const handleExportAllPDFsAsZip = async () => {
+        if (filteredDoctorants.length === 0) {
+          alert("Aucun doctorant correspondant aux filtres.");
+          return;
+        }
+      
+        setLoadingButton("zip");
+      
         try {
           const response = await api.get('/doctorant/export/zip', {
             params: {
@@ -380,6 +388,8 @@ const ListeDoctorants: React.FC = () => {
           console.error('❌ Erreur lors du téléchargement du ZIP :', err);
           alert('Erreur lors du téléchargement du ZIP.');
         }
+      
+        setLoadingButton(null);
       };
 
     // 🔽 **Filtrage des doctorants selon le statut, l'année et le département**
@@ -663,8 +673,12 @@ const ListeDoctorants: React.FC = () => {
                 <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
                 <button className="btn btn-export" onClick={handleExportCSV}>📂 Exporter en CSV</button>
                 <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
-                <button className="btn btn-export-pdf" onClick={handleExportAllPDFsAsZip}>
-                    📑 Exporter les rapports filtrés en ZIP
+                <button 
+                className="btn btn-export-pdf" 
+                onClick={handleExportAllPDFsAsZip}
+                disabled={loadingButton === "zip"}
+                >
+                {loadingButton === "zip" ? "⏳ Export en cours..." : "📑 Exporter les rapports filtrés en ZIP"}
                 </button>
                 <button className="btn btn-send-bulk" onClick={handleSendBulkEmails}>📩 Envoyer un mail aux doctorants non contactés</button>
                 <button className="btn btn-send-bulk" onClick={handleSendEmailsToUncontactedReferents}>📩 Envoyer un mail aux référents non contactés</button>
