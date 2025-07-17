@@ -1033,15 +1033,16 @@ export class DoctorantService {
 
     // ⛔ Ici tu faisais une erreur :
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const publicURL = `${frontendUrl}/${doctorant.rapport.cheminStockage}`;
+    const cheminStockage = `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/${fileName}`;
+    const publicURL = `${frontendUrl}/${cheminStockage}`;
 
     await this.doctorantModel.findByIdAndUpdate(
       doctorant._id,
       {
         rapport: {
           nomOriginal: fileName,
-          cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/${fileName}`,
-          url: publicURL, // ✅ Sauvegarde du lien
+          cheminStockage,
+          url: publicURL,
         },
       },
       { new: true },
