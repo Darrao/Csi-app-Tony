@@ -257,104 +257,29 @@ const ListeDoctorants: React.FC = () => {
         fetchDoctorants(); // 🔄 Rafraîchir la liste après envoi
     };
 
-    const handleExportFilteredCSV = () => {
-        if (filteredDoctorants.length === 0) {
-          alert("Aucun doctorant correspondant aux filtres sélectionnés.");
-          return;
+    const handleExportFilteredCSV = async () => {
+        try {
+            const response = await api.get("/doctorant/export/filtered-csv", {
+                params: {
+                  filterStatus,
+                  filterYear,
+                  searchTerm
+                },
+                responseType: "blob",
+            });
+      
+          const blob = new Blob([response.data], { type: "text/csv" });
+          const url = window.URL.createObjectURL(blob);
+      
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Doctorants_Complet_${new Date().toISOString().slice(0, 10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error("❌ Erreur lors de l’export CSV :", error);
+          alert("Erreur lors de l'export CSV.");
         }
-      
-        const headers = [
-          "_id",
-          "prenom",
-          "nom",
-          "email",
-          "ID_DOCTORANT",
-          "importDate",
-          "departementDoctorant",
-          "datePremiereInscription",
-          "anneeThese",
-          "typeFinancement",
-          "typeThesis",
-          "missions",
-          "titreThese",
-          "intituleUR",
-          "directeurUR",
-          "nomPrenomHDR",
-          "email_HDR",
-          "intituleEquipe",
-          "directeurEquipe",
-          "directeurThese",
-          "coDirecteurThese",
-          "prenomMembre1",
-          "nomMembre1",
-          "emailMembre1",
-          "univesityMembre1",
-          "prenomMembre2",
-          "nomMembre2",
-          "emailMembre2",
-          "univesityMembre2",
-          "prenomAdditionalMembre",
-          "nomAdditionalMembre",
-          "emailAdditionalMembre",
-          "universityAdditionalMembre",
-          "nbHoursScientificModules",
-          "nbHoursCrossDisciplinaryModules",
-          "nbHoursProfessionalIntegrationModules",
-          "totalNbHours",
-          "posters",
-          "conferencePapers",
-          "publications",
-          "publicCommunication",
-          "dateValidation",
-          "additionalInformation",
-          ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i+1}`, `Q${i+1}_comment`]),
-          "conclusion",
-          "recommendation",
-          "recommendation_comment",
-          "sendToDoctorant",
-          "doctorantValide",
-          "NbSendToDoctorant",
-          "sendToRepresentants",
-          "representantValide",
-          "NbSendToRepresentants",
-          "gestionnaireDirecteurValide",
-          "finalSend",
-          "NbFinalSend",
-          "rapport_nomOriginal",
-          "rapport_cheminStockage",
-          "rapport_url",
-          "dateEntretien"
-        ];
-      
-        const csvRows = [
-          headers.join(";"),
-          ...filteredDoctorants.map(doc =>
-            headers.map(header => {
-              if (header.startsWith("rapport_")) {
-                const key = header.replace("rapport_", "");
-                return doc.rapport?.[key] ?? "";
-              }
-              if (
-                ["missions", "titreThese", "conclusion", "recommendation", "recommendation_comment"]
-                  .includes(header) ||
-                header.startsWith("Q")
-              ) {
-                return doc.formulaire?.[header] ?? "";
-              }
-              return doc[header] ?? "";
-            }).join(";")
-          )
-        ];
-      
-        const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-        const csvUrl = URL.createObjectURL(csvBlob);
-      
-        const a = document.createElement("a");
-        a.href = csvUrl;
-        a.download = `Doctorants_Filtrés_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-      
-        URL.revokeObjectURL(csvUrl);
       };
 
       const handleExportFilteredXLSX = () => {

@@ -282,11 +282,14 @@ export class DoctorantController {
   @Get('export/csv')
   async exportDoctorants(@Res() res: Response) {
     try {
-      const doctorants = await this.doctorantModel.find().lean(); // ✅ Récupère les doctorants en JSON
+      const doctorants = await this.doctorantModel.find().lean();
 
       if (doctorants.length === 0) {
+        console.warn('⚠️ Aucun doctorant trouvé.');
         return res.status(404).json({ message: 'Aucun doctorant trouvé.' });
       }
+
+      console.log(`📦 Export de ${doctorants.length} doctorants`);
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader(
@@ -294,55 +297,325 @@ export class DoctorantController {
         'attachment; filename=doctorants.csv',
       );
 
-      const csvStream = format({ headers: true });
+      const headers = [
+        'ID_DOCTORANT',
+        'nom',
+        'prenom',
+        'email',
+        'anneeThese',
+        'departementDoctorant',
+        'titreThese',
+        'missions',
+        'intituleUR',
+        'directeurUR',
+        'intituleEquipe',
+        'directeurEquipe',
+        'nomPrenomHDR',
+        'email_HDR',
+        'coDirecteurThese',
+        'prenomMembre1',
+        'nomMembre1',
+        'emailMembre1',
+        'univesityMembre1',
+        'prenomMembre2',
+        'nomMembre2',
+        'emailMembre2',
+        'univesityMembre2',
+        'prenomAdditionalMembre',
+        'nomAdditionalMembre',
+        'emailAdditionalMembre',
+        'universityAdditionalMembre',
+        'report',
+        'nbHoursScientificModules',
+        'nbHoursCrossDisciplinaryModules',
+        'nbHoursProfessionalIntegrationModules',
+        'totalNbHours',
+        'posters',
+        'conferencePapers',
+        'publications',
+        'publicCommunication',
+        'additionalInformation',
+        ...Array.from({ length: 17 }).flatMap((_, i) => [
+          `Q${i + 1}`,
+          `Q${i + 1}_comment`,
+        ]),
+        'conclusion',
+        'recommendation',
+        'recommendation_comment',
+        'rapport_nomOriginal',
+        'rapport_cheminStockage',
+        'rapport_url',
+        'dateValidation',
+        'dateEntretien',
+        'sendToDoctorant',
+        'sendToRepresentants',
+        'finalSend',
+        'NbSendToDoctorant',
+        'NbSendToRepresentants',
+        'NbFinalSend',
+      ];
+
+      const csvStream = format({ headers });
       csvStream.pipe(res);
 
-      // 🔥 Récupération automatique des champs du schéma Mongoose
-      const schemaFields = Object.keys(this.doctorantModel.schema.paths);
+      doctorants.forEach((doc, index) => {
+        const form = (doc as any).formulaire ?? {};
+        const rapportUrl = doc.rapport?.cheminStockage
+          ? `${config.FRONTEND_URL}/${doc.rapport.cheminStockage}`
+          : '';
 
-      doctorants.forEach((doc) => {
-        const row: any = {};
-        schemaFields.forEach((field) => {
-          let value = doc[field];
+        const Qdata: Record<string, string> = {};
+        for (let i = 1; i <= 17; i++) {
+          const q = `Q${i}`;
+          Qdata[q] = doc[q] ?? '';
+          Qdata[`${q}_comment`] = doc[`${q}_comment`] ?? '';
+        }
 
-          // 🔄 Convertir les dates en format `YYYY-MM-DD`
-          if (value instanceof Date) {
-            value = value.toISOString().split('T')[0];
+        const row: Record<string, any> = { ...Qdata };
+
+        headers.forEach((header) => {
+          if (header in row) return; // skip Q1, Q1_comment etc. déjà remplis
+
+          let value = '';
+
+          if (header === 'rapport_url') {
+            value = rapportUrl;
+          } else if (header === 'rapport_nomOriginal') {
+            value = doc.rapport?.nomOriginal ?? '';
+          } else if (header === 'rapport_cheminStockage') {
+            value = doc.rapport?.cheminStockage ?? '';
+          } else {
+            value = doc[header];
+            if (value === undefined) {
+              value = form[header];
+            }
           }
 
-          // 🔄 Convertir les tableaux en texte lisible
-          if (Array.isArray(value)) {
-            value = value.join(', ');
-          }
-
-          // ✅ Ajouter l'URL complète pour `cheminStockage`
-          console.log('🔗', field, value);
-          if (
-            field === 'rapport' &&
-            typeof value === 'object' &&
-            value !== null
-          ) {
-            const relativePath = value.cheminStockage ?? '';
-            console.log('🔗 Chemin relatif du rapport :', relativePath);
-            value = relativePath
-              ? `${config.FRONTEND_URL}/${relativePath}`
-              : ''; // Ajoute l'URL complète
-            console.log('🔗 URL du rapport :', value);
-          }
-
-          row[field] = value ?? ''; // ✅ Évite les `undefined`
+          row[header] = value ?? '';
         });
+
+        console.log(`✅ Doctorant ${index + 1} :`, row);
 
         csvStream.write(row);
       });
 
-      csvStream.end(); // ✅ Fin du stream
+      csvStream.end();
     } catch (error) {
       console.error('❌ Erreur lors de l’export CSV:', error);
       res.status(500).json({
         message: 'Erreur interne lors de l’export CSV.',
         error: error.message,
       });
+    }
+  }
+
+  @Get('export/filtered-csv')
+  async exportFilteredDoctorants(
+    @Res() res: Response,
+    @Query('searchTerm') searchTerm: string,
+    @Query('filterStatus') filterStatus: string,
+    @Query('filterYear') filterYear: string,
+  ) {
+    try {
+      const query: any = {};
+
+      if (searchTerm) {
+        const regex = new RegExp(searchTerm, 'i');
+        query.$or = [
+          { nom: { $regex: regex } },
+          { ID_DOCTORANT: { $regex: regex } },
+        ];
+      }
+
+      if (filterYear && filterYear !== 'Tous') {
+        query.importDate = Number(filterYear);
+      }
+
+      const doctorants = await this.doctorantModel.find(query).lean();
+
+      console.log('🎛️ Paramètres reçus :', {
+        searchTerm,
+        filterStatus,
+        filterYear,
+      });
+
+      const filtered = doctorants.filter((doc) => {
+        const logLabel = `${doc.nom?.toUpperCase()} ${doc.prenom ?? ''}`;
+
+        switch (filterStatus) {
+          case 'Non envoyé au doctorant':
+            console.log(
+              `🧪 ${logLabel} ➜ sendToDoctorant =`,
+              doc.sendToDoctorant,
+            );
+            return !doc.sendToDoctorant;
+
+          case 'Envoyé au doctorant':
+            console.log(
+              `🧪 ${logLabel} ➜ sendToDoctorant =`,
+              doc.sendToDoctorant,
+            );
+            return doc.sendToDoctorant;
+
+          case 'Doctorant validé':
+            console.log(
+              `🧪 ${logLabel} ➜ doctorantValide =`,
+              doc.doctorantValide,
+            );
+            return doc.doctorantValide === true;
+
+          case 'Non validé par le doctorant':
+            console.log(
+              `🧪 ${logLabel} ➜ doctorantValide =`,
+              doc.doctorantValide,
+            );
+            return doc.doctorantValide !== true;
+
+          case 'Envoyé aux référents':
+            console.log(
+              `🧪 ${logLabel} ➜ sendToRepresentants =`,
+              doc.sendToRepresentants,
+            );
+            return doc.sendToRepresentants === true;
+
+          case 'Non envoyé aux référents':
+            console.log(
+              `🧪 ${logLabel} ➜ sendToRepresentants =`,
+              doc.sendToRepresentants,
+            );
+            return doc.sendToRepresentants !== true;
+
+          case 'Référents validés':
+            console.log(
+              `🧪 ${logLabel} ➜ representantValide =`,
+              doc.representantValide,
+            );
+            return doc.representantValide === true;
+
+          case 'Non validé par les référents':
+            console.log(
+              `🧪 ${logLabel} ➜ representantValide =`,
+              doc.representantValide,
+            );
+            return doc.representantValide !== true;
+
+          default:
+            console.log(`🧪 ${logLabel} ➜ PAS DE FILTRE`);
+            return true;
+        }
+      });
+
+      if (filtered.length === 0) {
+        return res
+          .status(404)
+          .json({ message: 'Aucun doctorant filtré trouvé.' });
+      }
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=doctorants_filtres_${new Date()
+          .toISOString()
+          .slice(0, 10)}.csv`,
+      );
+
+      const headers = [
+        '_id',
+        'prenom',
+        'nom',
+        'email',
+        'ID_DOCTORANT',
+        'importDate',
+        'departementDoctorant',
+        'datePremiereInscription',
+        'anneeThese',
+        'typeFinancement',
+        'typeThesis',
+        'missions',
+        'titreThese',
+        'intituleUR',
+        'directeurUR',
+        'nomPrenomHDR',
+        'email_HDR',
+        'intituleEquipe',
+        'directeurEquipe',
+        'directeurThese',
+        'coDirecteurThese',
+        'prenomMembre1',
+        'nomMembre1',
+        'emailMembre1',
+        'univesityMembre1',
+        'prenomMembre2',
+        'nomMembre2',
+        'emailMembre2',
+        'univesityMembre2',
+        'prenomAdditionalMembre',
+        'nomAdditionalMembre',
+        'emailAdditionalMembre',
+        'universityAdditionalMembre',
+        'nbHoursScientificModules',
+        'nbHoursCrossDisciplinaryModules',
+        'nbHoursProfessionalIntegrationModules',
+        'totalNbHours',
+        'posters',
+        'conferencePapers',
+        'publications',
+        'publicCommunication',
+        'dateValidation',
+        'additionalInformation',
+        ...Array.from({ length: 17 }).flatMap((_, i) => [
+          `Q${i + 1}`,
+          `Q${i + 1}_comment`,
+        ]),
+        'conclusion',
+        'recommendation',
+        'recommendation_comment',
+        'sendToDoctorant',
+        'doctorantValide',
+        'NbSendToDoctorant',
+        'sendToRepresentants',
+        'representantValide',
+        'NbSendToRepresentants',
+        'gestionnaireDirecteurValide',
+        'finalSend',
+        'NbFinalSend',
+        'rapport_nomOriginal',
+        'rapport_cheminStockage',
+        'rapport_url',
+        'dateEntretien',
+      ];
+
+      const csvStream = format({ headers });
+      csvStream.pipe(res);
+
+      filtered.forEach((doc) => {
+        const rapportUrl = doc.rapport?.cheminStockage
+          ? `${config.FRONTEND_URL}/${doc.rapport.cheminStockage}`
+          : '';
+
+        const row: Record<string, any> = {};
+
+        headers.forEach((header) => {
+          if (header === 'rapport_url') {
+            row[header] = rapportUrl;
+          } else if (header === 'rapport_nomOriginal') {
+            row[header] = doc.rapport?.nomOriginal ?? '';
+          } else if (header === 'rapport_cheminStockage') {
+            row[header] = doc.rapport?.cheminStockage ?? '';
+          } else {
+            row[header] = doc[header] ?? '';
+          }
+        });
+
+        csvStream.write(row);
+      });
+
+      csvStream.end();
+    } catch (error) {
+      console.error('❌ Erreur CSV filtré :', error);
+      res
+        .status(500)
+        .json({ message: 'Erreur interne lors de l’export CSV filtré.' });
     }
   }
 

@@ -150,8 +150,10 @@ export class DoctorantService {
   }
 
   async findAll(): Promise<Doctorant[]> {
-    const doctorants = await this.doctorantModel.find().exec();
-    console.log('[SERVICE] 📌 Doctorants récupérés par findAll():', doctorants);
+    const doctorants = await this.doctorantModel
+      .find()
+      .select('+formulaire')
+      .lean();
     return doctorants;
   }
 
