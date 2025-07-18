@@ -96,6 +96,8 @@ export class DoctorantService {
             return doc.representantValide;
           case 'Non validé par les référents':
             return !doc.representantValide;
+          case 'Rapport final envoyé':
+            return doc.finalSend;
           default:
             return true;
         }
@@ -174,6 +176,8 @@ export class DoctorantService {
           return doc.representantValide === true;
         case 'Non validé par les référents':
           return doc.representantValide !== true;
+        case 'Rapport final envoyé':
+          return doc.finalSend === true;
         default:
           return true;
       }
@@ -190,6 +194,7 @@ export class DoctorantService {
       'datePremiereInscription',
       'anneeThese',
       'typeFinancement',
+      'typeThesis',
       'missions',
       'titreThese',
       'intituleUR',
@@ -198,6 +203,7 @@ export class DoctorantService {
       'email_HDR',
       'intituleEquipe',
       'directeurEquipe',
+      'directeurThese',
       'coDirecteurThese',
       'prenomMembre1',
       'nomMembre1',

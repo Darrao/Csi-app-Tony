@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
-import * as XLSX from 'xlsx';
 
 type Doctorant = {
     _id: string;
@@ -357,7 +356,8 @@ const ListeDoctorants: React.FC = () => {
             (filterStatus === 'Envoyé aux référents' && doc.sendToRepresentants) ||
             (filterStatus === 'Non envoyé aux référents' && !doc.sendToRepresentants) ||
             (filterStatus === 'Référents validés' && doc.representantValide) ||
-            (filterStatus === 'Non validé par les référents' && !doc.representantValide))
+            (filterStatus === 'Non validé par les référents' && !doc.representantValide) ||
+            (filterStatus === 'Rapport final envoyé' && doc.finalSend))
     );
 
     // 🔢 STATISTIQUES GLOBALES
@@ -618,6 +618,7 @@ const ListeDoctorants: React.FC = () => {
                     <option value="Non envoyé aux référents">Non envoyé aux référents</option>
                     <option value="Référents validés">Validation par les référents</option>
                     <option value="Non validé par les référents">Non validé par les référents</option>
+                    <option value="Rapport final envoyé">Rapport final envoyé au Doctorant et au Directeur UR</option>
                 </select>
             </div>
 

@@ -500,6 +500,10 @@ export class DoctorantController {
             );
             return doc.representantValide !== true;
 
+          case 'Rapport final envoyé':
+            console.log(`🧪 ${logLabel} ➜ representantValide =`, doc.finalSend);
+            return doc.finalSend === true;
+
           default:
             console.log(`🧪 ${logLabel} ➜ PAS DE FILTRE`);
             return true;
