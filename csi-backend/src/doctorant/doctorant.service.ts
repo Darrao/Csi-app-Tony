@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Doctorant } from './schemas/doctorant.schema';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts, PDFPage } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csvParser from 'csv-parser';
@@ -466,11 +466,32 @@ export class DoctorantService {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage([600, 800]);
 
+    const bandeauPath = path.join(
+      __dirname,
+      '../../assets/images/BandeauBioSPC.jpeg',
+    );
+    const bandeauBytes = fs.readFileSync(bandeauPath);
+    const bandeauImage = await pdfDoc.embedJpg(bandeauBytes); // ou embedPng si nécessaire
+    const bandeauDims = bandeauImage.scale(0.5); // Ajuste la taille si besoin
+
+    // 🔽 Déclare la fonction d'abord
+    const drawHeader = (pageToEdit: PDFPage) => {
+      pageToEdit.drawImage(bandeauImage, {
+        x: (600 - bandeauDims.width) / 2,
+        y: 800 - bandeauDims.height - 10,
+        width: bandeauDims.width,
+        height: bandeauDims.height,
+      });
+    };
+
+    // 🔽 Et maintenant tu peux l’utiliser
+    drawHeader(page);
+
     // 🔥 Importation des polices standard
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    let y = 770; // 📌 Position initiale
+    let y = 730; // 📌 Position initiale
     const marginLeft = 50;
     const marginRight = 550;
     const marginBottom = 50;
@@ -876,12 +897,22 @@ export class DoctorantService {
         try {
           const fileBytes = fs.readFileSync(filePath);
           const embeddedPdf = await PDFDocument.load(fileBytes);
-          const copiedPages = await pdfDoc.copyPages(
-            embeddedPdf,
-            embeddedPdf.getPageIndices(),
-          );
 
-          copiedPages.forEach((copiedPage) => pdfDoc.addPage(copiedPage));
+          const copiedPages = await pdfDoc.embedPages(embeddedPdf.getPages());
+
+          copiedPages.forEach((embeddedPage) => {
+            const { width, height } = embeddedPage;
+
+            const newPage = pdfDoc.addPage([width, height]);
+
+            newPage.drawPage(embeddedPage, {
+              x: 0,
+              y: 0,
+              width,
+              height,
+            });
+          });
+
           console.log(`✅ Fichier ajouté: ${fichier.nomOriginal}`);
         } catch (error) {
           console.error(
