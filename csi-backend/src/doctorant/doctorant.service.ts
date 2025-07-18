@@ -15,6 +15,9 @@ import { ObjectId } from 'mongodb';
 import 'dotenv/config';
 import * as archiver from 'archiver';
 import { Readable } from 'stream';
+import * as XLSX from 'xlsx';
+import { FastifyReply } from 'fastify';
+import { Workbook } from 'exceljs';
 
 @Injectable()
 export class DoctorantService {
@@ -129,6 +132,160 @@ export class DoctorantService {
 
     await archive.finalize();
     return Buffer.concat(outputBuffers);
+  }
+
+  async exportFilteredXLSX(
+    res: FastifyReply,
+    searchTerm?: string,
+    filterStatus?: string,
+    filterYear?: string,
+  ) {
+    const query: any = {};
+
+    if (searchTerm) {
+      const regex = new RegExp(searchTerm, 'i');
+      query.$or = [
+        { nom: { $regex: regex } },
+        { ID_DOCTORANT: { $regex: regex } },
+      ];
+    }
+
+    if (filterYear && filterYear !== 'Tous') {
+      query.importDate = Number(filterYear);
+    }
+
+    const doctorants = await this.doctorantModel.find(query).lean();
+
+    const filtered = doctorants.filter((doc) => {
+      switch (filterStatus) {
+        case 'Non envoyé au doctorant':
+          return !doc.sendToDoctorant;
+        case 'Envoyé au doctorant':
+          return doc.sendToDoctorant;
+        case 'Doctorant validé':
+          return doc.doctorantValide === true;
+        case 'Non validé par le doctorant':
+          return doc.doctorantValide !== true;
+        case 'Envoyé aux référents':
+          return doc.sendToRepresentants === true;
+        case 'Non envoyé aux référents':
+          return doc.sendToRepresentants !== true;
+        case 'Référents validés':
+          return doc.representantValide === true;
+        case 'Non validé par les référents':
+          return doc.representantValide !== true;
+        default:
+          return true;
+      }
+    });
+
+    const headers = [
+      '_id',
+      'prenom',
+      'nom',
+      'email',
+      'ID_DOCTORANT',
+      'importDate',
+      'departementDoctorant',
+      'datePremiereInscription',
+      'anneeThese',
+      'typeFinancement',
+      'missions',
+      'titreThese',
+      'intituleUR',
+      'directeurUR',
+      'nomPrenomHDR',
+      'email_HDR',
+      'intituleEquipe',
+      'directeurEquipe',
+      'coDirecteurThese',
+      'prenomMembre1',
+      'nomMembre1',
+      'emailMembre1',
+      'univesityMembre1',
+      'prenomMembre2',
+      'nomMembre2',
+      'emailMembre2',
+      'univesityMembre2',
+      'prenomAdditionalMembre',
+      'nomAdditionalMembre',
+      'emailAdditionalMembre',
+      'universityAdditionalMembre',
+      'nbHoursScientificModules',
+      'nbHoursCrossDisciplinaryModules',
+      'nbHoursProfessionalIntegrationModules',
+      'totalNbHours',
+      'posters',
+      'conferencePapers',
+      'publications',
+      'publicCommunication',
+      'dateValidation',
+      'additionalInformation',
+      ...Array.from({ length: 17 }).flatMap((_, i) => [
+        `Q${i + 1}`,
+        `Q${i + 1}_comment`,
+      ]),
+      'conclusion',
+      'recommendation',
+      'recommendation_comment',
+      'sendToDoctorant',
+      'doctorantValide',
+      'NbSendToDoctorant',
+      'sendToRepresentants',
+      'representantValide',
+      'NbSendToRepresentants',
+      'gestionnaireDirecteurValide',
+      'finalSend',
+      'NbFinalSend',
+      'rapport_nomOriginal',
+      'rapport_cheminStockage',
+      'rapport_url',
+      'dateEntretien',
+    ];
+
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Doctorants');
+    sheet.addRow(headers);
+
+    filtered.forEach((doc: Record<string, any>, index: number) => {
+      const rapportUrl = doc.rapport?.cheminStockage
+        ? `https://csi.edbiospc.fr/${doc.rapport.cheminStockage}`
+        : '';
+
+      const row = headers.map((key) => {
+        if (key === 'rapport_nomOriginal')
+          return doc.rapport?.nomOriginal ?? '';
+        if (key === 'rapport_cheminStockage')
+          return doc.rapport?.cheminStockage ?? '';
+        if (key === 'rapport_url') return rapportUrl;
+
+        const value = doc[key];
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === 'object' && value !== null)
+          return JSON.stringify(value);
+
+        return value ?? '';
+      });
+
+      console.log(`🟢 [${index + 1}] ${doc.nom} ${doc.prenom} ➜`, row);
+      console.log(
+        `✅ Vérification Q1: ${doc.Q1} | conclusion: ${doc.conclusion}`,
+      );
+      sheet.addRow(row);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res
+      .header(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      )
+      .header(
+        'Content-Disposition',
+        `attachment; filename=doctorants_filtres_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      )
+      .send(buffer);
   }
 
   async getDoctorant(id: string) {

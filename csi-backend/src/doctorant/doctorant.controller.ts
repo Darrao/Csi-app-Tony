@@ -32,6 +32,7 @@ import * as path from 'path';
 import { format } from 'fast-csv';
 import { EmailConfigService } from '../emailConfig/email-config.service';
 import { config } from '../config';
+import { FastifyReply } from 'fastify';
 
 @Controller('doctorant')
 export class DoctorantController {
@@ -619,6 +620,21 @@ export class DoctorantController {
     }
   }
 
+  @Get('export/filtered-xlsx')
+  async exportFilteredXLSX(
+    @Res() res: FastifyReply,
+    @Query('searchTerm') searchTerm: string,
+    @Query('filterStatus') filterStatus: string,
+    @Query('filterYear') filterYear: string,
+  ) {
+    return this.doctorantService.exportFilteredXLSX(
+      res,
+      searchTerm,
+      filterStatus,
+      filterYear,
+    );
+  }
+
   @Get('export/pdf')
   async exportDoctorantsPDF(@Res() res: Response) {
     try {
@@ -677,6 +693,7 @@ export class DoctorantController {
       });
     }
   }
+
   @Post('import-csv')
   @UseInterceptors(
     FileInterceptor('file', {
