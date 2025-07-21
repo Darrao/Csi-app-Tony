@@ -1177,6 +1177,14 @@ export class DoctorantService {
       }
     }
 
+    // 📅 Ajout de la date d'entretien ou date de validation
+    const interviewDate = doctorant.dateEntretien || doctorant.dateValidation;
+
+    if (interviewDate) {
+      const formattedDate = new Date(interviewDate).toISOString().split('T')[0];
+      addWrappedText('Date of interview :', formattedDate);
+    }
+
     const recommendationLabels: Record<string, string> = {
       approve: 'The committee approves the re-registration',
       disapprove: 'The committee disapproves of the re-registration',
