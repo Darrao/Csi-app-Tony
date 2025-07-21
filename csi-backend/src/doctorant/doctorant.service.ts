@@ -690,7 +690,7 @@ export class DoctorantService {
     // Ajout de texte avec mise en page
     const addWrappedText = (label: string, value: string | null) => {
       if (y <= marginBottom) newPage();
-      if (!value) return;
+      if (value === null || value === undefined || value === '') return;
 
       const cleanedValue = cleanText(value).replace(/\n/g, ' ');
       const labelWidth = boldFont.widthOfTextAtSize(label, 10);
@@ -723,6 +723,7 @@ export class DoctorantService {
         page.drawText(line, { x: xPosition, y, size: 10, font });
         y -= 10; // 🔥 Espacement augmenté
       });
+      console.log('✍️ Writing:', label, value, 'at y =', y);
 
       y -= 5; // 🔥 Ajoute un espace entre chaque champ
     };
@@ -931,13 +932,22 @@ export class DoctorantService {
       doctorant.departementDoctorant,
     );
 
-    // 📅 Date of interview
-    addWrappedText(
-      'Date of interview :',
-      doctorant.dateEntretien
-        ? new Date(doctorant.dateEntretien).toISOString().split('T')[0]
-        : 'N/A',
-    );
+    // 📅 Ajout de la date d'entretien ou date de validation
+    let interviewDate: Date | null = null;
+
+    if (
+      doctorant.dateEntretien instanceof Date &&
+      !isNaN(doctorant.dateEntretien.getTime())
+    ) {
+      interviewDate = doctorant.dateEntretien;
+    } else if (doctorant.dateEntretien === null) {
+      interviewDate = doctorant.dateValidation;
+    }
+
+    if (interviewDate) {
+      const formattedDate = interviewDate.toISOString().split('T')[0];
+      addWrappedText('Date of interview :', formattedDate);
+    }
 
     // 📝 Thesis information & supervision
     addSectionTitle('Thesis information & supervision');
@@ -1175,14 +1185,6 @@ export class DoctorantService {
           addWrappedTextContent(commentValue);
         }
       }
-    }
-
-    // 📅 Ajout de la date d'entretien ou date de validation
-    const interviewDate = doctorant.dateEntretien || doctorant.dateValidation;
-
-    if (interviewDate) {
-      const formattedDate = new Date(interviewDate).toISOString().split('T')[0];
-      addWrappedText('Date of interview :', formattedDate);
     }
 
     const recommendationLabels: Record<string, string> = {
