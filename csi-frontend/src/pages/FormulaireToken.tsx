@@ -272,7 +272,12 @@ const FormulaireToken: React.FC = () => {
                                 </div>
 
                                 <Field as="textarea" name={`Q${i + 1}_comment`} placeholder="Commentaire" className="comment-box" />
+                                <div>
+                                    <ErrorMessage name={`Q${i + 1}`} component="div" className="warning-message" />
+                                    <ErrorMessage name={`Q${i + 1}_comment`} component="div" className="warning-message" />
+                                </div>
                             </div>
+                            
                         ))}
                     </div>
 
@@ -305,6 +310,10 @@ const FormulaireToken: React.FC = () => {
                                 </div>
 
                                 <Field as="textarea" name={`Q${i + 4}_comment`} placeholder="Commentaire" className="comment-box" />
+                                <div>
+                                <ErrorMessage name={`Q${i + 4}`} component="div" className="warning-message" />
+                                <ErrorMessage name={`Q${i + 4}_comment`} component="div" className="warning-message" />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -336,6 +345,10 @@ const FormulaireToken: React.FC = () => {
                                 </div>
 
                                 <Field as="textarea" name={`Q${i + 12}_comment`} placeholder="Commentaire" className="comment-box" />
+                                <div>
+                                <ErrorMessage name={`Q${i + 12}`} component="div" className="warning-message" />
+                                <ErrorMessage name={`Q${i + 12}_comment`} component="div" className="warning-message" />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -383,3 +396,4 @@ const FormulaireToken: React.FC = () => {
 };
 
 export default FormulaireToken;
+
