@@ -4,13 +4,13 @@ import {
   generateToken,
   sendMailWithCC,
   sendMailDynamic,
+  verifyTokenAndFindDoctorant,
+  generateReferentToken,
+  generateDoctorantToken,
+  verifyTokenAndFindDoctorantById,
 } from './email.service';
 import { TokenService } from '../token/token.service';
 import { DoctorantService } from '../doctorant/doctorant.service'; // ➕ Import du service
-import {
-  generateReferentToken,
-  verifyTokenAndFindDoctorant,
-} from './email.service';
 import { EmailConfigService } from '../emailConfig/email-config.service';
 import { config } from '../config';
 
@@ -70,12 +70,14 @@ export class EmailController {
         console.log(`Traitement de l'email : ${email}`);
 
         // 🏷 Génération du token
-        const token = await generateToken(
-          email,
-          this.doctorantService,
-          doctorantEmail,
-        );
-        await this.tokenService.saveToken(token, email, 'doctorant');
+        // const token = await generateToken(
+        //   email,
+        //   this.doctorantService,
+        //   doctorantEmail,
+        // );
+        const token = generateReferentToken(doctorant._id.toString(), email);
+
+        await this.tokenService.saveToken(token, email, 'referent'); // ✅ rôle correct
 
         const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
 
@@ -119,11 +121,16 @@ export class EmailController {
       }
 
       // 🏷 Génération du token pour le doctorant
-      const doctorantToken = await generateToken(
-        doctorantEmail,
-        this.doctorantService,
+      // const doctorantToken = await generateToken(
+      //   doctorantEmail,
+      //   this.doctorantService,
+      //   doctorantEmail,
+      // );
+      const doctorantToken = generateDoctorantToken(
+        doctorant._id.toString(),
         doctorantEmail,
       );
+
       await this.tokenService.saveToken(
         doctorantToken,
         doctorantEmail,
@@ -184,17 +191,30 @@ export class EmailController {
     console.log(`🔍 Validation du token JWT : ${token}`);
 
     // 🔥 Récupération correcte du doctorant via le token
-    const doctorant = await verifyTokenAndFindDoctorant(
+    // const doctorant = await verifyTokenAndFindDoctorant(
+    //   token,
+    //   this.doctorantService,
+    // );
+
+    // if (!doctorant) {
+    //   throw new NotFoundException('Aucun doctorant trouvé avec cet email.');
+    // }
+
+    // console.log(`✅ Doctorant trouvé : ${doctorant.email}`);
+    // return { message: 'Token valide', doctorant };
+    const result = await verifyTokenAndFindDoctorantById(
       token,
       this.doctorantService,
     );
-
-    if (!doctorant) {
-      throw new NotFoundException('Aucun doctorant trouvé avec cet email.');
-    }
-
-    console.log(`✅ Doctorant trouvé : ${doctorant.email}`);
-    return { message: 'Token valide', doctorant };
+    if (!result?.doctorant)
+      throw new NotFoundException('Doctorant introuvable pour ce token.');
+    const { doctorant, payload } = result;
+    return {
+      message: 'Token valide',
+      doctorant,
+      recipientEmail: payload.recipientEmail,
+      role: payload.role,
+    };
   }
 
   // Il va falloirt rajouter cc attendre les instructions de Tony
@@ -248,11 +268,16 @@ export class EmailController {
       console.log(`📬 En copie (CC) : ${ccEmails.join(', ')}`);
 
       // 🏷️ Génération du token pour le formulaire
-      const token = await generateToken(
-        doctorantEmail,
-        this.doctorantService,
+      // const token = await generateToken(
+      //   doctorantEmail,
+      //   this.doctorantService,
+      //   doctorantEmail,
+      // );
+      const token = generateDoctorantToken(
+        doctorant._id.toString(),
         doctorantEmail,
       );
+
       const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
 
       // 📄 Génération du PDF
