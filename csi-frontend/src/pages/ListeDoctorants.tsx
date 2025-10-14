@@ -266,10 +266,145 @@ const ListeDoctorants: React.FC = () => {
     fetchDoctorants();
   };
 
+  // 👉 échappe le XML pour l'export .xls
+  const xmlEscape = (s: string) =>
+    s.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  // 👉 récupère la valeur par colonne (comme dans ton CSV)
+  const valueForHeader = (doc: any, h: string) => {
+    if (h.startsWith('rapport_')) {
+      const key = h.replace('rapport_', '');
+      return (doc.rapport?.[key] ?? '');
+    }
+    if (
+      ['missions','titreThese','conclusion','recommendation','recommendation_comment'].includes(h)
+      || h.startsWith('Q')
+    ) {
+      return (doc.formulaire?.[h] ?? '');
+    }
+    return (doc[h] ?? '');
+  };
+
+  // Est-ce qu'au moins 1 filtre est actif ?
+  const areWeFiltering = () =>
+    searchTerm.trim() !== '' ||
+    filterYear !== 'Tous' ||
+    filterStatus !== 'Tous' ||
+    Object.values(statusFilters).some(f => f.yes !== f.no);
+
+    // ✅ UNIQUEMENT les filtres avancés Oui/Non
+  const hasActiveAdvancedFilters = () =>
+    Object.values(statusFilters).some(f => f.yes !== f.no);
+
+  // Construit les params "classiques"
+  const buildExportParams = () => {
+    const params: Record<string, any> = {
+      filterStatus,
+      filterYear,
+      searchTerm,
+      statusFilters: JSON.stringify(statusFilters),
+    };
+    Object.entries(statusFilters).forEach(([k, v]) => {
+      if (v.yes || v.no) {
+        params[`${k}Yes`] = v.yes ? 1 : 0;
+        params[`${k}No`]  = v.no ? 1 : 0;
+      }
+    });
+    return params;
+  };
+
+  // Sérialise en URLSearchParams en répétant ids[] pour le GET
+  const toUrlParams = (obj: Record<string, any>) => {
+    const p = new URLSearchParams();
+    Object.entries(obj).forEach(([k, v]) => {
+      if (Array.isArray(v)) {
+        v.forEach(val => p.append(`${k}[]`, String(val)));
+      } else if (v !== undefined && v !== null) {
+        p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      }
+    });
+    return p;
+  };
+
+  // Téléchargement d'un blob
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Affichage des erreurs blob du backend (utile quand il renvoie du JSON d'erreur)
+  const showBlobError = async (err: any, fallbackMsg: string) => {
+    try {
+      const blob = err?.response?.data;
+      if (blob && blob instanceof Blob) {
+        const text = await blob.text();
+        console.error('Backend error payload:', text);
+        alert(text || fallbackMsg);
+        return;
+      }
+    } catch {}
+    console.error(err);
+    alert(fallbackMsg);
+  };
+
   const handleExportFilteredCSV = async () => {
     try {
+      // ✅ si filtres avancés actifs → export client immédiat sur filteredDoctorants
+      if (hasActiveAdvancedFilters()) {
+        const headers = [
+          '_id','prenom','nom','email','ID_DOCTORANT','importDate','departementDoctorant',
+          'datePremiereInscription','anneeThese','typeFinancement','typeThesis',
+          'missions','titreThese','intituleUR','directeurUR','nomPrenomHDR','email_HDR',
+          'intituleEquipe','directeurEquipe','directeurThese','coDirecteurThese',
+          'prenomMembre1','nomMembre1','emailMembre1','univesityMembre1',
+          'prenomMembre2','nomMembre2','emailMembre2','univesityMembre2',
+          'prenomAdditionalMembre','nomAdditionalMembre','emailAdditionalMembre','universityAdditionalMembre',
+          'nbHoursScientificModules','nbHoursCrossDisciplinaryModules','nbHoursProfessionalIntegrationModules',
+          'totalNbHours','posters','conferencePapers','publications','publicCommunication',
+          'dateValidation','additionalInformation',
+          ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i + 1}`, `Q${i + 1}_comment`]),
+          'conclusion','recommendation','recommendation_comment',
+          'sendToDoctorant','doctorantValide','NbSendToDoctorant','sendToRepresentants','representantValide','NbSendToRepresentants',
+          'gestionnaireDirecteurValide','finalSend','NbFinalSend',
+          'rapport_nomOriginal','rapport_cheminStockage','rapport_url','dateEntretien'
+        ];
+
+        const rows = [
+          headers.join(';'),
+          ...filteredDoctorants.map((doc: any) =>
+            headers.map((h) => {
+              if (h.startsWith('rapport_')) {
+                const key = h.replace('rapport_', '');
+                return (doc.rapport?.[key] ?? '').toString().replace(/\n/g, ' ');
+              }
+              if (['missions','titreThese','conclusion','recommendation','recommendation_comment'].includes(h) || h.startsWith('Q')) {
+                return (doc.formulaire?.[h] ?? '').toString().replace(/\n/g, ' ');
+              }
+              return (doc[h] ?? '').toString().replace(/\n/g, ' ');
+            }).join(';')
+          ),
+        ];
+
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Doctorants_Filtres_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // 🔁 sinon (aucun filtre avancé) → on garde ton export backend
       const response = await api.get('/doctorant/export/filtered-csv', {
-        params: { filterStatus, filterYear, searchTerm },
+        params: buildExportParams(),
         responseType: 'blob',
       });
 
@@ -277,7 +412,7 @@ const ListeDoctorants: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Doctorants_Complet_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `Doctorants_Filtres_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -287,57 +422,178 @@ const ListeDoctorants: React.FC = () => {
   };
 
   const handleExportFilteredXLSX = async () => {
-    try {
-      const response = await api.get('/doctorant/export/filtered-xlsx', {
-        params: { filterStatus, filterYear, searchTerm },
-        responseType: 'blob',
-      });
+    const headers = [
+      '_id','prenom','nom','email','ID_DOCTORANT','importDate','departementDoctorant',
+      'datePremiereInscription','anneeThese','typeFinancement','typeThesis',
+      'missions','titreThese','intituleUR','directeurUR','nomPrenomHDR','email_HDR',
+      'intituleEquipe','directeurEquipe','directeurThese','coDirecteurThese',
+      'prenomMembre1','nomMembre1','emailMembre1','univesityMembre1',
+      'prenomMembre2','nomMembre2','emailMembre2','univesityMembre2',
+      'prenomAdditionalMembre','nomAdditionalMembre','emailAdditionalMembre','universityAdditionalMembre',
+      'nbHoursScientificModules','nbHoursCrossDisciplinaryModules','nbHoursProfessionalIntegrationModules',
+      'totalNbHours','posters','conferencePapers','publications','publicCommunication',
+      'dateValidation','additionalInformation',
+      ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i + 1}`, `Q${i + 1}_comment`]),
+      'conclusion','recommendation','recommendation_comment',
+      'sendToDoctorant','doctorantValide','NbSendToDoctorant','sendToRepresentants','representantValide','NbSendToRepresentants',
+      'gestionnaireDirecteurValide','finalSend','NbFinalSend',
+      'rapport_nomOriginal','rapport_cheminStockage','rapport_url','dateEntretien'
+    ];
 
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
+    // ligne d'entête
+    const headerRow = `<Row>` + headers.map(h => `<Cell><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`).join('') + `</Row>`;
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Doctorants_Filtres_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('❌ Erreur lors de l’export XLSX :', error);
-      alert("Erreur lors de l'export XLSX.");
-    }
+    // lignes de données (uniquement les filtrés)
+    const dataRows = filteredDoctorants.map((doc: any) => {
+      const cells = headers.map(h => {
+        const raw = String(valueForHeader(doc, h) ?? '').replace(/\r?\n/g, ' ');
+        return `<Cell><Data ss:Type="String">${xmlEscape(raw)}</Data></Cell>`;
+      }).join('');
+      return `<Row>${cells}</Row>`;
+    }).join('');
+
+    // Excel 2003 XML
+    const xml =
+      `<?xml version="1.0"?>
+  <?mso-application progid="Excel.Sheet"?>
+  <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+            xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:x="urn:schemas-microsoft-com:office:excel"
+            xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+    <Worksheet ss:Name="Doctorants">
+      <Table>
+        ${headerRow}
+        ${dataRows}
+      </Table>
+    </Worksheet>
+  </Workbook>`;
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+    const filename = `Doctorants_Filtres_${new Date().toISOString().slice(0,10)}.xls`;
+    saveBlob(blob, filename);
   };
 
   const handleExportAllPDFsAsZip = async () => {
-    if (filteredDoctorants.length === 0) {
+    const ids = filteredDoctorants.map((d: any) => d._id);
+    if (!ids.length) {
       alert('Aucun doctorant correspondant aux filtres.');
       return;
     }
 
     setLoadingButton('zip');
+    const filename = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
+
     try {
-      const response = await api.get('/doctorant/export/zip', {
-        params: { searchTerm, filterStatus, filterYear },
+      const baseParams = buildExportParams();
+      const paramsWithIds = { ...baseParams, ids }; // toujours lister exactement ceux affichés
+
+      // 1) POST JSON
+      try {
+        const resPost = await api.post('/doctorant/export/zip', paramsWithIds, {
+          responseType: 'blob',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        saveBlob(new Blob([resPost.data], { type: 'application/zip' }), filename);
+        return;
+      } catch (e: any) {
+        if (![404, 405].includes(e?.response?.status)) throw e;
+      }
+
+      // 2) GET avec ids[] répétés
+      const resGet = await api.get('/doctorant/export/zip', {
+        params: toUrlParams({ ...baseParams, ids }),
         responseType: 'blob',
       });
-
-      const zipBlob = new Blob([response.data], { type: 'application/zip' });
-      const zipUrl = URL.createObjectURL(zipBlob);
-
-      const a = document.createElement('a');
-      a.href = zipUrl;
-      a.download = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
-      a.click();
-
-      URL.revokeObjectURL(zipUrl);
+      saveBlob(new Blob([resGet.data], { type: 'application/zip' }), filename);
     } catch (err) {
-      console.error('❌ Erreur lors du téléchargement du ZIP :', err);
-      alert('Erreur lors du téléchargement du ZIP.');
+      await showBlobError(err, 'Erreur lors du téléchargement du ZIP.');
+    } finally {
+      setLoadingButton(null);
     }
-    setLoadingButton(null);
   };
 
+  const handleDownloadFilteredPDFsOneByOne = async () => {
+    if (!filteredDoctorants.length) {
+      alert('Aucun doctorant correspondant aux filtres.');
+      return;
+    }
+
+    setLoadingButton('zip'); // on réutilise l'état pour spinner
+    try {
+      // Détecte l'API File System Access (Chrome/Edge)
+      const hasFS = typeof (window as any).showDirectoryPicker === 'function';
+      let rootDir: any = null;
+
+      if (hasFS) {
+        try {
+          // Ouvre un sélecteur de dossier où écrire tous les sous-dossiers/fichiers
+          rootDir = await (window as any).showDirectoryPicker({
+            id: 'rapports-doctorants',
+            mode: 'readwrite',
+            startIn: 'downloads',
+          });
+        } catch {
+          // utilisateur a annulé → on repassera en fallback (téléchargements classiques)
+          rootDir = null;
+        }
+      }
+
+      const safe = (s: string) =>
+        (s || '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // supprime accents
+          .replace(/[\\/:"*?<>|]+/g, '_')                   // caractères interdits
+          .replace(/\s+/g, '_')                             // espaces → _
+          .slice(0, 120);                                   // protège noms trop longs
+
+      // Chemin de dossier pour chaque doc : <annee>/<NOM_PRENOM>
+      const getFolderParts = (d: any) => {
+        const year = d.importDate ? String(d.importDate) : 'Sans_annee';
+        const person = `${safe(d.nom)}_${safe(d.prenom)}`;
+        return [year, person];
+      };
+
+      // Helpers FS Access
+      const ensureSubDir = async (dirHandle: any, name: string) =>
+        await dirHandle.getDirectoryHandle(name, { create: true });
+
+      for (const d of filteredDoctorants) {
+        try {
+          const res = await api.get(`/doctorant/export/pdf/${d._id}`, { responseType: 'blob' });
+          const pdfBlob = new Blob([res.data], { type: 'application/pdf' });
+          const baseName = `Rapport_${safe(d.nom)}_${safe(d.prenom)}.pdf`;
+          const folderParts = getFolderParts(d);
+
+          if (rootDir) {
+            // Écrit le fichier physiquement dans <racine>/<annee>/<NOM_PRENOM>/<fichier>
+            let dir = rootDir;
+            for (const part of folderParts) {
+              dir = await ensureSubDir(dir, part);
+            }
+            const fileHandle = await dir.getFileHandle(baseName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(pdfBlob);
+            await writable.close();
+          } else {
+            // Fallback multi-téléchargements : encode le “chemin” dans le nom du fichier
+            const prefix = folderParts.join('__') + '__';
+            saveBlob(pdfBlob, `${prefix}${baseName}`);
+          }
+
+          // petit délai pour éviter de saturer (200–400ms)
+          await new Promise((r) => setTimeout(r, 250 + Math.random() * 150));
+        } catch (e) {
+          console.error(`PDF raté pour ${d.prenom} ${d.nom}`, e);
+        }
+      }
+
+      if (rootDir) {
+        alert('✅ Tous les PDFs ont été enregistrés dans le dossier choisi (avec sous-dossiers).');
+      }
+    } finally {
+      setLoadingButton(null);
+    }
+  };
+  
   // 🧠 helpers pour les filtres
   const matchesYesNo = (value: any, f: YesNo) => {
     // rien coché → ignore
@@ -742,7 +998,9 @@ const ListeDoctorants: React.FC = () => {
         <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
         <button
           className="btn btn-export-pdf"
-          onClick={handleExportAllPDFsAsZip}
+          // onClick={handleExportAllPDFsAsZip}
+          // modify temporally
+          onClick={handleDownloadFilteredPDFsOneByOne}
           disabled={loadingButton === 'zip'}
         >
           {loadingButton === 'zip' ? '⏳ Export en cours...' : '📑 Exporter les rapports filtrés en ZIP'}
