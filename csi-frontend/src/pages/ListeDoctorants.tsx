@@ -473,44 +473,166 @@ const ListeDoctorants: React.FC = () => {
     saveBlob(blob, filename);
   };
 
-  const handleExportAllPDFsAsZip = async () => {
-    const ids = filteredDoctorants.map((d: any) => d._id);
-    if (!ids.length) {
-      alert('Aucun doctorant correspondant aux filtres.');
-      return;
+  // --- ZIP utils (pur navigateur, sans lib) ---
+  const te = new TextEncoder();
+
+  // Table CRC32
+  const crcTable = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
     }
+    return t;
+  })();
 
-    setLoadingButton('zip');
-    const filename = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
-
-    try {
-      const baseParams = buildExportParams();
-      const paramsWithIds = { ...baseParams, ids }; // toujours lister exactement ceux affichés
-
-      // 1) POST JSON
-      try {
-        const resPost = await api.post('/doctorant/export/zip', paramsWithIds, {
-          responseType: 'blob',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        saveBlob(new Blob([resPost.data], { type: 'application/zip' }), filename);
-        return;
-      } catch (e: any) {
-        if (![404, 405].includes(e?.response?.status)) throw e;
-      }
-
-      // 2) GET avec ids[] répétés
-      const resGet = await api.get('/doctorant/export/zip', {
-        params: toUrlParams({ ...baseParams, ids }),
-        responseType: 'blob',
-      });
-      saveBlob(new Blob([resGet.data], { type: 'application/zip' }), filename);
-    } catch (err) {
-      await showBlobError(err, 'Erreur lors du téléchargement du ZIP.');
-    } finally {
-      setLoadingButton(null);
+  // ✅ CRC32 correct (IEEE) : décalage de 8 bits à chaque octet
+  const crc32 = (u8: Uint8Array) => {
+    let c = 0xFFFFFFFF >>> 0;
+    for (let i = 0; i < u8.length; i++) {
+      c = (c >>> 8) ^ crcTable[(c ^ u8[i]) & 0xFF];
     }
+    return (c ^ 0xFFFFFFFF) >>> 0;
   };
+
+  // DOS time/date
+  const toDOSDateTime = (d = new Date()) => {
+    const time =
+      ((d.getHours() & 0x1f) << 11) |
+      ((d.getMinutes() & 0x3f) << 5) |
+      ((Math.floor(d.getSeconds() / 2)) & 0x1f);
+    const date =
+      ((((d.getFullYear() - 1980) & 0x7f) << 9) |
+      (((d.getMonth() + 1) & 0xf) << 5) |   // petite parenthèse en plus
+      (d.getDate() & 0x1f));
+    return { time, date };
+  };
+
+  const u16 = (n: number) => new Uint8Array([n & 0xFF, (n >> 8) & 0xFF]);
+  const u32 = (n: number) => new Uint8Array([n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]);
+
+  // Fabrique un ZIP (méthode 0 = store)
+  async function makeZip(files: { name: string; data: Uint8Array; mtime?: Date }[]) {
+    const localParts: Uint8Array[] = [];
+    const centralParts: Uint8Array[] = [];
+    let offset = 0;
+
+    for (const f of files) {
+      const nameBytes = te.encode(f.name.replace(/\\/g, '/'));
+      const c32 = crc32(f.data);
+      const size = f.data.length >>> 0;
+      const { time, date } = toDOSDateTime(f.mtime ?? new Date());
+
+      // Local file header
+      const lh = new Uint8Array(30 + nameBytes.length);
+      let p = 0;
+      lh.set(u32(0x04034b50), p); p += 4;          // signature
+      lh.set(u16(20), p); p += 2;                  // version needed (2.0)
+      lh.set(u16(0), p); p += 2;                   // flags
+      lh.set(u16(0), p); p += 2;                   // method = store
+      lh.set(u16(time), p); p += 2;
+      lh.set(u16(date), p); p += 2;
+      lh.set(u32(c32), p); p += 4;                 // crc32
+      lh.set(u32(size), p); p += 4;                // comp size
+      lh.set(u32(size), p); p += 4;                // uncomp size
+      lh.set(u16(nameBytes.length), p); p += 2;    // name len
+      lh.set(u16(0), p); p += 2;                   // extra len
+      lh.set(nameBytes, p);
+
+      localParts.push(lh, f.data);
+
+      // Central directory header
+      const ch = new Uint8Array(46 + nameBytes.length);
+      p = 0;
+      ch.set(u32(0x02014b50), p); p += 4;          // signature
+      ch.set(u16(0x0314), p); p += 2;              // version made by (Unix + v2.0) — toléré par macOS
+      ch.set(u16(20), p); p += 2;                  // version needed
+      ch.set(u16(0), p); p += 2;                   // flags
+      ch.set(u16(0), p); p += 2;                   // method
+      ch.set(u16(time), p); p += 2;
+      ch.set(u16(date), p); p += 2;
+      ch.set(u32(c32), p); p += 4;
+      ch.set(u32(size), p); p += 4;
+      ch.set(u32(size), p); p += 4;
+      ch.set(u16(nameBytes.length), p); p += 2;
+      ch.set(u16(0), p); p += 2;                   // extra len
+      ch.set(u16(0), p); p += 2;                   // comment len
+      ch.set(u16(0), p); p += 2;                   // disk start
+      ch.set(u16(0), p); p += 2;                   // internal attrs
+      ch.set(u32(0), p); p += 4;                   // external attrs
+      ch.set(u32(offset), p); p += 4;              // local header offset
+      ch.set(nameBytes, p);
+      centralParts.push(ch);
+
+      offset += lh.length + f.data.length;
+    }
+
+    const centralSize = centralParts.reduce((n, u) => n + u.length, 0);
+    const centralOffset = offset;
+
+    // EOCD
+    const eocd = new Uint8Array(22);
+    let q = 0;
+    eocd.set(u32(0x06054b50), q); q += 4;
+    eocd.set(u16(0), q); q += 2;
+    eocd.set(u16(0), q); q += 2;
+    eocd.set(u16(files.length), q); q += 2;
+    eocd.set(u16(files.length), q); q += 2;
+    eocd.set(u32(centralSize), q); q += 4;
+    eocd.set(u32(centralOffset), q); q += 4;
+    eocd.set(u16(0), q);
+
+    return new Blob([...localParts, ...centralParts, eocd], { type: 'application/zip' });
+  }
+
+// Utilise exactement les doctorants filtrés, crée une arborescence <Année>/<NOM_Prenom>/Rapport_*.pdf dans un ZIP
+const handleExportAllPDFsAsZip = async () => {
+  if (!filteredDoctorants.length) {
+    alert('Aucun doctorant correspondant aux filtres.');
+    return;
+  }
+
+  setLoadingButton('zip');
+  try {
+    const safe = (s: string) =>
+      (s || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\\/:"*?<>|]+/g, '_')
+        .replace(/\s+/g, '_')
+        .slice(0, 120);
+
+    const files: { name: string; data: Uint8Array }[] = [];
+
+    for (const d of filteredDoctorants) {
+      const year   = d.importDate ? String(d.importDate) : 'Sans_annee';
+      const idPart = safe(d.ID_DOCTORANT || d._id || 'Sans_ID');
+      const person = `${safe(d.nom)}_${safe(d.prenom)}`;
+
+      // dossier = <Année>/<ID_DOCTORANT>__<NOM_PRENOM>/
+      const folder = `${year}/${idPart}`;
+
+      // fichier = Rapport_<NOM_PRENOM>.pdf  (tu peux mettre l'ID aussi si tu veux)
+      const path = `${folder}/Rapport_${person}.pdf`;
+
+      const res = await api.get(`/doctorant/export/pdf/${d._id}`, { responseType: 'blob' });
+      const buf = new Uint8Array(await res.data.arrayBuffer());
+      files.push({ name: path, data: buf });
+
+      // petit délai pour rester courtois avec le backend
+      await new Promise(r => setTimeout(r, 200 + Math.random() * 150));
+    }
+
+    const zip = await makeZip(files);
+    const filename = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
+    saveBlob(zip, filename);
+  } catch (err) {
+    console.error('ZIP client error', err);
+    alert('❌ Erreur lors de la création du ZIP (client).');
+  } finally {
+    setLoadingButton(null);
+  }
+};
 
   const handleDownloadFilteredPDFsOneByOne = async () => {
     if (!filteredDoctorants.length) {
@@ -998,9 +1120,9 @@ const ListeDoctorants: React.FC = () => {
         <button className="btn btn-export-filtered" onClick={handleExportFilteredCSV}>📊 Exporter les doctorants filtrés en CSV</button>
         <button
           className="btn btn-export-pdf"
-          // onClick={handleExportAllPDFsAsZip}
+          onClick={handleExportAllPDFsAsZip}
           // modify temporally
-          onClick={handleDownloadFilteredPDFsOneByOne}
+          // onClick={handleDownloadFilteredPDFsOneByOne}
           disabled={loadingButton === 'zip'}
         >
           {loadingButton === 'zip' ? '⏳ Export en cours...' : '📑 Exporter les rapports filtrés en ZIP'}
