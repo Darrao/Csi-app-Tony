@@ -127,6 +127,7 @@ export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST, // Remplace par le serveur SMTP que tu as reçu
   port: parseInt(process.env.SMTP_PORT || '465', 10), // Convertit en nombre
   secure: process.env.SMTP_SECURE === 'true', // false pour TLS explicite
+  requireTLS: process.env.SMTP_REQUIRE_TLS === 'true', // true
   auth: {
     user: process.env.SMTP_USER, // Ton nom d'utilisateur
     pass: process.env.SMTP_PASS, // Le mot de passe associé à l'email
