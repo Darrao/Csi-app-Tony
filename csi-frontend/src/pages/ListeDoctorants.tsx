@@ -277,15 +277,18 @@ const ListeDoctorants: React.FC = () => {
   const valueForHeader = (doc: any, h: string) => {
     if (h.startsWith('rapport_')) {
       const key = h.replace('rapport_', '');
-      return (doc.rapport?.[key] ?? '');
+      return doc.rapport?.[key] ?? '';
     }
+
     if (
-      ['missions','titreThese','conclusion','recommendation','recommendation_comment'].includes(h)
-      || h.startsWith('Q')
+      ['missions', 'titreThese', 'conclusion', 'recommendation', 'recommendation_comment'].includes(h) ||
+      h.startsWith('Q')
     ) {
-      return (doc.formulaire?.[h] ?? '');
+      // données désormais stockées à la racine du document (et fallback éventuel sur formulaire pour anciens enregistrements)
+      return doc[h] ?? doc.formulaire?.[h] ?? '';
     }
-    return (doc[h] ?? '');
+
+    return doc[h] ?? '';
   };
 
   // Est-ce qu'au moins 1 filtre est actif ?
@@ -384,9 +387,15 @@ const ListeDoctorants: React.FC = () => {
                 const key = h.replace('rapport_', '');
                 return (doc.rapport?.[key] ?? '').toString().replace(/\n/g, ' ');
               }
-              if (['missions','titreThese','conclusion','recommendation','recommendation_comment'].includes(h) || h.startsWith('Q')) {
-                return (doc.formulaire?.[h] ?? '').toString().replace(/\n/g, ' ');
+
+              if (
+                ['missions', 'titreThese', 'conclusion', 'recommendation', 'recommendation_comment'].includes(h) ||
+                h.startsWith('Q')
+              ) {
+                const val = doc[h] ?? doc.formulaire?.[h] ?? '';
+                return val.toString().replace(/\n/g, ' ');
               }
+
               return (doc[h] ?? '').toString().replace(/\n/g, ' ');
             }).join(';')
           ),
@@ -913,13 +922,14 @@ const handleExportAllPDFsAsZip = async () => {
               const key = header.replace('rapport_', '');
               return doc.rapport?.[key] ?? '';
             }
+
             if (
-              ['missions', 'titreThese', 'conclusion', 'recommendation', 'recommendation_comment'].includes(
-                header
-              ) || header.startsWith('Q')
+              ['missions', 'titreThese', 'conclusion', 'recommendation', 'recommendation_comment'].includes(header) ||
+              header.startsWith('Q')
             ) {
-              return doc.formulaire?.[header] ?? '';
+              return doc[header] ?? doc.formulaire?.[header] ?? '';
             }
+
             return doc[header] ?? '';
           })
           .join(';')
