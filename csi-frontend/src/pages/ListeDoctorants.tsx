@@ -288,6 +288,11 @@ const ListeDoctorants: React.FC = () => {
       return doc[h] ?? doc.formulaire?.[h] ?? '';
     }
 
+    // Dates (Date, DateString, ISO)
+    if (h.toLowerCase().includes('date')) {
+      return formatDate(doc[h]) ?? '';
+    }
+
     return doc[h] ?? '';
   };
 
@@ -396,7 +401,13 @@ const ListeDoctorants: React.FC = () => {
                 return val.toString().replace(/\n/g, ' ');
               }
 
-              return (doc[h] ?? '').toString().replace(/\n/g, ' ');
+              let val = doc[h] ?? doc.formulaire?.[h] ?? '';
+
+              if (h.toLowerCase().includes('date')) {
+                val = formatDate(val);
+              }
+
+              return val.toString().replace(/\n/g, ' ');
             }).join(';')
           ),
         ];
@@ -971,6 +982,18 @@ const handleExportAllPDFsAsZip = async () => {
       console.error("❌ Erreur lors de l'envoi du rapport final :", error);
       alert("❌ Échec de l'envoi du rapport final.");
     }
+  };
+
+  const formatDate = (v: any) => {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    return `${day}-${month}-${year}`;
   };
 
   const handleSendFinalReportsToFiltered = async () => {
