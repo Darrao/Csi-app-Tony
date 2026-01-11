@@ -1,0 +1,8 @@
+node_modules
+.DS_Store
+users.json
+dist
+build
+*.log
+.env
+csi-frontend/public/logo512.png

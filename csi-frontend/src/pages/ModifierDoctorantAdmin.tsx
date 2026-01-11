@@ -98,14 +98,48 @@ const ModifierDoctorant: React.FC = () => {
     const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         const updatedDoctorant = { ...doctorant, [name]: Number(value) || 0 };
-    
+
         // Recalcule le nombre total d'heures automatiquement
         updatedDoctorant.totalNbHours =
             (updatedDoctorant.nbHoursScientificModules || 0) +
             (updatedDoctorant.nbHoursCrossDisciplinaryModules || 0) +
             (updatedDoctorant.nbHoursProfessionalIntegrationModules || 0);
-    
+
         setDoctorant(updatedDoctorant);
+    };
+
+    const toggleStatus = async (field: string) => {
+        const currentValue = doctorant[field];
+        const action = currentValue ? "DÉSACTIVER (Passer à NON)" : "ACTIVER (Passer à OUI)";
+        const message = `⚠️ ATTENTION : MODIFICATION MANUELLE DE STATUT ⚠️\n\nVous êtes sur le point de ${action} le statut "${field}".\n\nCela peut impacter le workflow automatique et l'envoi des emails.\n\nÊtes-vous SÛR de vouloir faire cela ?`;
+
+        if (!window.confirm(message)) return;
+
+        // Deuxième confirmation pour sécurité
+        if (!window.confirm(`Vraiment sûr de vouloir forcer "${field}" à ${!currentValue} ?`)) return;
+
+        try {
+            const newValue = !doctorant[field];
+            await api.put(`/doctorant/${doctorant._id}`, { [field]: newValue });
+            setDoctorant({ ...doctorant, [field]: newValue });
+            alert(`✅ Statut "${field}" mis à jour avec succès : ${newValue ? 'OUI' : 'NON'}`);
+        } catch (err) {
+            console.error(err);
+            alert("❌ Erreur lors de la mise à jour du statut.");
+        }
+    };
+
+    const handleRegeneratePDF = async () => {
+        const message = "⚠️ ATTENTION : RÉGÉNÉRATION DU PDF ⚠️\n\nCette action va :\n1. Écraser l'ancien PDF du rapport.\n2. Mettre à jour les informations avec les données actuelles de la base de données.\n\nCela est irréversible. Voulez-vous continuer ?";
+        if (!window.confirm(message)) return;
+
+        try {
+            await api.post(`/doctorant/regenerate-pdf/${doctorant._id}`);
+            alert("✅ Le PDF a été régénéré et sauvegardé avec succès !");
+        } catch (err) {
+            console.error(err);
+            alert("❌ Erreur lors de la régénération du PDF.");
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -132,11 +166,11 @@ const ModifierDoctorant: React.FC = () => {
         // ✅ Confirmation avant soumission
         const confirmation = window.confirm("Êtes-vous sûr de vouloir valider ?\nAvez-vous bien tout vérifié ?");
         if (!confirmation) return;
-    
+
         setSubmitting(true);
 
         const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
-    
+
         // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {
             console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
@@ -155,12 +189,13 @@ const ModifierDoctorant: React.FC = () => {
         // 📅 Ajoute automatiquement la date de validation si elle est vide
         if (!dateValidation) {
             sanitizedDoctorant.dateValidation = new Date().toISOString().split('T')[0];
-        }        
+        }
 
-        sanitizedDoctorant.doctorantValide = true; // Marque le doctorant comme validé
-    
+        // on ne force plus le statut isValid qui écrase tout
+        // sanitizedDoctorant.doctorantValide = true;
+
         console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
-    
+
         try {
             let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
 
@@ -169,17 +204,17 @@ const ModifierDoctorant: React.FC = () => {
                 const formData = new FormData();
                 if (scientificReport) formData.append("fichiersExternes", scientificReport);
                 if (selfAssessment) formData.append("fichiersExternes", selfAssessment);
-    
+
                 console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
-    
+
                 const uploadResponse = await api.post(`/doctorant/upload/${id}`, formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
-    
+
                 console.log("✅ Fichiers uploadés :", uploadResponse.data);
                 uploadedFiles = uploadResponse.data.fichiersExternes;
             }
-    
+
             // Étape 2 : Mise à jour du doctorant avec les fichiers stockés dans fichiersExternes
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
@@ -187,11 +222,11 @@ const ModifierDoctorant: React.FC = () => {
             const response = await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
             console.log("✅ Réponse API :", response.data);
             setMessage("Modifications enregistrées avec succès !");
-    
+
             // 📩 Envoi d'un email aux référents s'ils existent
             const referentsEmails = [
-                doctorant.emailMembre1, 
-                doctorant.emailMembre2, 
+                doctorant.emailMembre1,
+                doctorant.emailMembre2,
                 doctorant.emailAdditionalMembre
             ].filter(Boolean);
 
@@ -202,13 +237,13 @@ const ModifierDoctorant: React.FC = () => {
                 console.log('doctorant prenom' + doctorant.prenom);
                 console.log("📧 Emails envoyés aux référents :", referentsEmails);
             }
-            
+
             console.log("✅ Mise à jour réussie !");
             setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
         } catch (err) {
             console.error("❌ Erreur lors de la mise à jour :", err);
             setError("Échec de la mise à jour.");
-        }finally {
+        } finally {
             setSubmitting(false); // Désactive l'animation de chargement
         }
     };
@@ -220,6 +255,52 @@ const ModifierDoctorant: React.FC = () => {
             {loading && <p>Chargement des données...</p>}
             {error && <p style={{ color: 'red' }}>{error}</p>}
             {message && <p style={{ color: 'green' }}>{message}</p>}
+
+            {doctorant && (
+                <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f0f8ff', border: '1px solid #bdd7ee', borderRadius: '8px' }}>
+                    <h2 style={{ marginTop: 0, color: '#0056b3' }}>🔧 Administration</h2>
+
+                    <label style={{ fontWeight: 'bold' }}>Commentaire de suivi (interne) :</label>
+                    <textarea
+                        name="suiviComment"
+                        value={doctorant.suiviComment || ''}
+                        onChange={handleChange}
+                        rows={4}
+                        style={{ width: '100%', marginBottom: '15px' }}
+                    />
+
+                    <h3 style={{ fontSize: '1.1em', color: '#333' }}>Gestion des Status</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px', marginBottom: '15px' }}>
+                        {['sendToDoctorant', 'doctorantValide', 'sendToRepresentants', 'representantValide', 'gestionnaireDirecteurValide', 'finalSend'].map(status => (
+                            <div key={status} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                <span style={{ fontSize: '0.9em' }}>{status}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <strong style={{ color: doctorant[status] ? 'green' : '#d9534f' }}>
+                                        {doctorant[status] ? 'OUI' : 'NON'}
+                                    </strong>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleStatus(status)}
+                                        style={{ padding: '2px 8px', fontSize: '0.8em', cursor: 'pointer' }}
+                                    >
+                                        Inverser
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div>
+                        <button
+                            type="button"
+                            onClick={handleRegeneratePDF}
+                            style={{ backgroundColor: '#ff9800', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            🔄 Régénérer le PDF
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {doctorant && (
                 <form onSubmit={handleSubmit}>
@@ -252,9 +333,9 @@ const ModifierDoctorant: React.FC = () => {
 
                         <div className='flex-item'>
                             <label>Doctoral student's department :</label>
-                            <select 
-                                name="departementDoctorant" 
-                                value={doctorant.departementDoctorant || ''} 
+                            <select
+                                name="departementDoctorant"
+                                value={doctorant.departementDoctorant || ''}
                                 onChange={handleChange}
                             >
                                 <option value="">-- Select a Department --</option>
@@ -270,163 +351,163 @@ const ModifierDoctorant: React.FC = () => {
                     <h2>Thesis information & supervision</h2>
                     <div className="flex-container">
 
-                    <label>Thesis Title :</label>
-                    <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} />
+                        <label>Thesis Title :</label>
+                        <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} />
 
-                    <label>CSI Number :</label>
-                    <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} />
+                        <label>CSI Number :</label>
+                        <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} />
 
-                    <label>Funding :</label>
-                    <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} />
+                        <label>Funding :</label>
+                        <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} />
 
-                    <h2>Research Unit</h2>
-                    <label>Title of the research unit :</label>
-                    <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} />
+                        <h2>Research Unit</h2>
+                        <label>Title of the research unit :</label>
+                        <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} />
 
-                    <label>Director of the research unit :</label>
-                    <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} />
+                        <label>Director of the research unit :</label>
+                        <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} />
 
                     </div>
 
                     <h2>Team</h2>
                     <div className="flex-container">
 
-                    <div className='flex-item'>
-                    <label>Title of the team :</label>
-                    <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} />
-                    </div>
+                        <div className='flex-item'>
+                            <label>Title of the team :</label>
+                            <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} />
+                        </div>
 
-                    <div className='flex-item'>
-                    <label>Team leader :</label>
-                    <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} />
-                    </div>
+                        <div className='flex-item'>
+                            <label>Team leader :</label>
+                            <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} />
+                        </div>
 
-                    <div className='flex-item'>
-                    <label>Thesis supervisor :</label>
-                    <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} />
-                    <input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} placeholder='email'/>
-                    </div>
+                        <div className='flex-item'>
+                            <label>Thesis supervisor :</label>
+                            <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} />
+                            <input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} placeholder='email' />
+                        </div>
 
-                    <div className='flex-item'>
-                    <label>Thesis co-supervisor (optional) :</label>
-                    <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} />
-                    </div>
+                        <div className='flex-item'>
+                            <label>Thesis co-supervisor (optional) :</label>
+                            <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} />
+                        </div>
 
                     </div>
 
                     <h2>Member of the CSI committee</h2>
                     <div className="flex-container">
 
-                    <label>Member #1 :</label>
-                    <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} />
-                    <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='email'/>
+                        <label>Member #1 :</label>
+                        <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} />
+                        <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='email' />
 
-                    <label>Member #2 :</label>
-                    <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} />
-                    <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='email'/>
+                        <label>Member #2 :</label>
+                        <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} />
+                        <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='email' />
 
-                    <label>Additional member :</label>
-                    <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} />
-                    <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} />
+                        <label>Additional member :</label>
+                        <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} />
+                        <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} />
 
                     </div>
 
                     <h2>Scientific activities</h2>
                     <div className="flex-container">
 
-                    <label>Missions :</label>
-                    <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} />
+                        <label>Missions :</label>
+                        <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} />
 
-                    <label>Publications :</label>
-                    <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} />
+                        <label>Publications :</label>
+                        <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} />
 
-                    <label>Conferences :</label>
-                    <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} />
+                        <label>Conferences :</label>
+                        <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} />
 
-                    <label>Posters :</label>
-                    <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} />
+                        <label>Posters :</label>
+                        <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} />
 
-                    <label>Public communications :</label>
-                    <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} />
+                        <label>Public communications :</label>
+                        <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} />
                     </div>
 
                     <h2>Training modules</h2>
                     <div className="flex-container">
 
-                    <label>Scientific modules (cumulated hours) :</label>
-                    <input
-                        type="number"
-                        name="nbHoursScientificModules"
-                        value={doctorant.nbHoursScientificModules || 0}
-                        onChange={handleHoursChange}
-                    />
+                        <label>Scientific modules (cumulated hours) :</label>
+                        <input
+                            type="number"
+                            name="nbHoursScientificModules"
+                            value={doctorant.nbHoursScientificModules || 0}
+                            onChange={handleHoursChange}
+                        />
 
-                    <label>Cross-disciplinary modules (cumulated hours) :</label>
-                    <input
-                        type="number"
-                        name="nbHoursCrossDisciplinaryModules"
-                        value={doctorant.nbHoursCrossDisciplinaryModules || 0}
-                        onChange={handleHoursChange}
-                    />
+                        <label>Cross-disciplinary modules (cumulated hours) :</label>
+                        <input
+                            type="number"
+                            name="nbHoursCrossDisciplinaryModules"
+                            value={doctorant.nbHoursCrossDisciplinaryModules || 0}
+                            onChange={handleHoursChange}
+                        />
 
-                    <label>Professional integration and career development modules (cumulated hours):</label>
-                    <input
-                        type="number"
-                        name="nbHoursProfessionalIntegrationModules"
-                        value={doctorant.nbHoursProfessionalIntegrationModules || 0}
-                        onChange={handleHoursChange}
-                    />
+                        <label>Professional integration and career development modules (cumulated hours):</label>
+                        <input
+                            type="number"
+                            name="nbHoursProfessionalIntegrationModules"
+                            value={doctorant.nbHoursProfessionalIntegrationModules || 0}
+                            onChange={handleHoursChange}
+                        />
 
-                    <label>Total number of hours (all modules) :</label>
-                    <input
-                        type="number"
-                        name="totalNbHours"
-                        value={doctorant.totalNbHours || 0}
-                        disabled
-                    />
+                        <label>Total number of hours (all modules) :</label>
+                        <input
+                            type="number"
+                            name="totalNbHours"
+                            value={doctorant.totalNbHours || 0}
+                            disabled
+                        />
 
                     </div>
 
                     <h2>Documents to upload</h2>
                     <div className="flex-container">
 
-                    {/* Rapport Scientifique */}
-                    <div className="file-upload">
-                        <label>Your annual scientific report :</label>
-                        <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
-                        {scientificReport && (
-                            <div className="file-preview">
-                                <span>{scientificReport.name}</span>
-                                <button type="button" onClick={() => handleRemoveFile("scientificReport")}>🗑</button>
-                            </div>
-                        )}
-                    </div>
+                        {/* Rapport Scientifique */}
+                        <div className="file-upload">
+                            <label>Your annual scientific report :</label>
+                            <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
+                            {scientificReport && (
+                                <div className="file-preview">
+                                    <span>{scientificReport.name}</span>
+                                    <button type="button" onClick={() => handleRemoveFile("scientificReport")}>🗑</button>
+                                </div>
+                            )}
+                        </div>
 
-                    <br />
+                        <br />
 
-                    {/* Auto-évaluation */}
-                    <div className="file-upload">
-                        <label>Self assessment of doctoral students' competency acquisition (optional) :</label>
-                        <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
-                        {selfAssessment && (
-                            <div className="file-preview">
-                                <span>{selfAssessment.name}</span>
-                                <button type="button" onClick={() => handleRemoveFile("selfAssessment")}>🗑</button>
-                            </div>
-                        )}
-                    </div>
+                        {/* Auto-évaluation */}
+                        <div className="file-upload">
+                            <label>Self assessment of doctoral students' competency acquisition (optional) :</label>
+                            <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
+                            {selfAssessment && (
+                                <div className="file-preview">
+                                    <span>{selfAssessment.name}</span>
+                                    <button type="button" onClick={() => handleRemoveFile("selfAssessment")}>🗑</button>
+                                </div>
+                            )}
+                        </div>
 
 
-                    <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here</a>  
-                    
-                    <br />                  
+                        <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here</a>
+
+                        <br />
 
                     </div>
 
                     <h2>Additional information</h2>
                     <div className="flex-container">
-                    <label>You can transmit additional information to your committee here (optional):</label>
-                    <textarea name="additionalInformation" value={doctorant.additionalInformation || ''} onChange={handleChange} />
+                        <label>You can transmit additional information to your committee here (optional):</label>
+                        <textarea name="additionalInformation" value={doctorant.additionalInformation || ''} onChange={handleChange} />
                     </div>
 
 
@@ -447,9 +528,9 @@ const ModifierDoctorant: React.FC = () => {
                         <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
                         <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
 
-                            <button 
-                            type="submit" 
-                            className={`submit-btn ${submitting ? 'loading' : ''}`} 
+                        <button
+                            type="submit"
+                            className={`submit-btn ${submitting ? 'loading' : ''}`}
                             disabled={submitting}
                         >
                             {submitting ? (

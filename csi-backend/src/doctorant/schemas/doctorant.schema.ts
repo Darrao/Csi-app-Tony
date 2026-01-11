@@ -242,6 +242,29 @@ export class Doctorant extends Document {
 
   @Prop({ required: false, default: null })
   dateEntretien?: Date; // ✅ Date de l'entretien ajoutée
+
+  @Prop({ required: false, default: '' })
+  orcid?: string;
+
+  @Prop({ required: false, default: 0 })
+  selfEvaluation?: number;
+
+  @Prop({ required: false, default: 0 })
+  referentRating?: number;
+
+  @Prop({ required: false, default: '' })
+  referentComment?: string;
+
+  @Prop({ required: false, default: '' })
+  suiviComment?: string;
+
+  @Prop({ required: false, default: '' })
+  ID_UNIQUE_IMPORT?: string;
 }
 
 export const DoctorantSchema = SchemaFactory.createForClass(Doctorant);
+
+DoctorantSchema.pre('save', function (next) {
+  this.ID_UNIQUE_IMPORT = `${this._id}_${this.sendToDoctorant}_${this.doctorantValide}_${this.sendToRepresentants}_${this.representantValide}_${this.gestionnaireDirecteurValide}_${this.finalSend}`;
+  next();
+});

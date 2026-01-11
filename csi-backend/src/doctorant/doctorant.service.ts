@@ -23,7 +23,7 @@ import { Workbook } from 'exceljs';
 export class DoctorantService {
   constructor(
     @InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>,
-  ) {}
+  ) { }
 
   async findDoctorantByAnyEmail(email: string): Promise<Doctorant | null> {
     return this.doctorantModel
@@ -317,7 +317,7 @@ export class DoctorantService {
       .find()
       .select('+formulaire')
       .lean();
-    return doctorants;
+    return doctorants as unknown as Doctorant[];
   }
 
   async delete(id: string): Promise<{ message: string }> {
@@ -573,7 +573,7 @@ export class DoctorantService {
               ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
               departementDoctorant:
                 row[
-                  cleanKey('DEPARTEMENT_DOCTORANT DIRECT::Nom Département')
+                cleanKey('DEPARTEMENT_DOCTORANT DIRECT::Nom Département')
                 ] || '',
               datePremiereInscription: this.safeParseDate(
                 row[cleanKey('Date 1ère Inscription')],
@@ -927,10 +927,8 @@ export class DoctorantService {
       doctorant.datePremiereInscription?.toISOString().split('T')[0],
     );
     addWrappedText('Unique ID :', doctorant.ID_DOCTORANT);
-    addWrappedText(
-      "Doctoral student's department :",
-      doctorant.departementDoctorant,
-    );
+    addWrappedText('Doctoral student\'s department :', doctorant.departementDoctorant);
+    addWrappedText('ORCID :', doctorant.orcid); // [NEW] V2 Field
 
     // 📅 Ajout de la date d'entretien ou date de validation
     let interviewDate: Date | null = null;
@@ -1017,13 +1015,28 @@ export class DoctorantService {
       'Professional integration and career development modules (cumulated hours) :',
       `${doctorant.nbHoursProfessionalIntegrationModules || 0}h`,
     );
-    addWrappedText(
-      'Total number of hours (all modules) :',
-      `${doctorant.totalNbHours || 0}h`,
-    );
+    addWrappedText('Total number of hours (all modules) :', `${doctorant.totalNbHours || 0}h`);
+
+    // [NEW] V2 Field: Self Evaluation
+    if (doctorant.selfEvaluation) {
+      addWrappedText('Self-assessment of competency acquisition :', `${doctorant.selfEvaluation} / 5`);
+    }
+
     addWrappedText('Additional information :', doctorant.additionalInformation);
 
     y -= 20;
+
+    // [NEW] V2 Fields: Referent Feedback
+    if (doctorant.referentRating || (doctorant.referentComment && doctorant.referentComment !== 'N/A')) {
+      addSectionTitle("Director's Opinion (Referent)");
+      if (doctorant.referentRating) {
+        addWrappedText('Global Rating :', `${doctorant.referentRating} / 5`);
+      }
+      if (doctorant.referentComment) {
+        addWrappedText('Comment :', doctorant.referentComment);
+      }
+      y -= 20;
+    }
 
     // 🔥 Ajout des fichiers PDF supplémentaires
     if (doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0) {
@@ -1206,7 +1219,7 @@ export class DoctorantService {
       // 🛠️ Transformation de la recommandation en texte lisible
       const readableRecommendation = doctorant.recommendation
         ? recommendationLabels[doctorant.recommendation] ||
-          doctorant.recommendation
+        doctorant.recommendation
         : 'N/A';
 
       addWrappedText('Recommendation :', readableRecommendation);
@@ -1214,6 +1227,13 @@ export class DoctorantService {
         'Comment on the recommandation :',
         doctorant.recommendation_comment,
       );
+    }
+
+    // [NEW] V2 Field: Suivi Comment (Admin)
+    if (doctorant.suiviComment) {
+      if (y <= marginBottom) newPage();
+      addSectionTitle('Administrative Follow-up');
+      addWrappedTextContent(doctorant.suiviComment);
     }
 
     // 📌 Génération des bytes du PDF

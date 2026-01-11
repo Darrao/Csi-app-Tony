@@ -60,3 +60,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /csi-frontend/src/services/api.ts
 /csi-backend/src/config.ts
 csi-backend/uploads/tmp/*.csv
+uploads/
+test-connect.js
+test-net.js

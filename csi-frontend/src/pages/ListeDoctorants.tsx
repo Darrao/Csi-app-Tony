@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
+import { FaUserFriends, FaPaperPlane, FaCheckCircle, FaEnvelopeOpenText, FaHandshake, FaBuilding, FaRocket } from 'react-icons/fa';
+
+// Workaround for React 18/19 type mismatch with react-icons
+const IconUserFriends = FaUserFriends as any;
+const IconPaperPlane = FaPaperPlane as any;
+const IconCheckCircle = FaCheckCircle as any;
+const IconEnvelopeOpenText = FaEnvelopeOpenText as any;
+const IconHandshake = FaHandshake as any;
+const IconBuilding = FaBuilding as any;
+const IconRocket = FaRocket as any;
 
 type Doctorant = {
   _id: string;
@@ -70,7 +80,7 @@ const ListeDoctorants: React.FC = () => {
     { key: 'representantValide', label: 'Validation par les référents' },
     { key: 'gestionnaireDirecteurValide', label: 'Envoyé au directeur de département' },
     { key: 'finalSend', label: 'Rapport final envoyé' },
-    ];
+  ];
 
   const fetchDoctorants = async () => {
     try {
@@ -269,9 +279,9 @@ const ListeDoctorants: React.FC = () => {
   // 👉 échappe le XML pour l'export .xls
   const xmlEscape = (s: string) =>
     s.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
 
   // 👉 récupère la valeur par colonne (comme dans ton CSV)
   const valueForHeader = (doc: any, h: string) => {
@@ -303,7 +313,7 @@ const ListeDoctorants: React.FC = () => {
     filterStatus !== 'Tous' ||
     Object.values(statusFilters).some(f => f.yes !== f.no);
 
-    // ✅ UNIQUEMENT les filtres avancés Oui/Non
+  // ✅ UNIQUEMENT les filtres avancés Oui/Non
   const hasActiveAdvancedFilters = () =>
     Object.values(statusFilters).some(f => f.yes !== f.no);
 
@@ -318,7 +328,7 @@ const ListeDoctorants: React.FC = () => {
     Object.entries(statusFilters).forEach(([k, v]) => {
       if (v.yes || v.no) {
         params[`${k}Yes`] = v.yes ? 1 : 0;
-        params[`${k}No`]  = v.no ? 1 : 0;
+        params[`${k}No`] = v.no ? 1 : 0;
       }
     });
     return params;
@@ -357,7 +367,7 @@ const ListeDoctorants: React.FC = () => {
         alert(text || fallbackMsg);
         return;
       }
-    } catch {}
+    } catch { }
     console.error(err);
     alert(fallbackMsg);
   };
@@ -367,21 +377,21 @@ const ListeDoctorants: React.FC = () => {
       // ✅ si filtres avancés actifs → export client immédiat sur filteredDoctorants
       if (hasActiveAdvancedFilters()) {
         const headers = [
-          '_id','prenom','nom','email','ID_DOCTORANT','importDate','departementDoctorant',
-          'datePremiereInscription','anneeThese','typeFinancement','typeThesis',
-          'missions','titreThese','intituleUR','directeurUR','nomPrenomHDR','email_HDR',
-          'intituleEquipe','directeurEquipe','directeurThese','coDirecteurThese',
-          'prenomMembre1','nomMembre1','emailMembre1','univesityMembre1',
-          'prenomMembre2','nomMembre2','emailMembre2','univesityMembre2',
-          'prenomAdditionalMembre','nomAdditionalMembre','emailAdditionalMembre','universityAdditionalMembre',
-          'nbHoursScientificModules','nbHoursCrossDisciplinaryModules','nbHoursProfessionalIntegrationModules',
-          'totalNbHours','posters','conferencePapers','publications','publicCommunication',
-          'dateValidation','additionalInformation',
+          '_id', 'prenom', 'nom', 'email', 'ID_DOCTORANT', 'importDate', 'departementDoctorant',
+          'datePremiereInscription', 'anneeThese', 'typeFinancement', 'typeThesis',
+          'missions', 'titreThese', 'intituleUR', 'directeurUR', 'nomPrenomHDR', 'email_HDR',
+          'intituleEquipe', 'directeurEquipe', 'directeurThese', 'coDirecteurThese',
+          'prenomMembre1', 'nomMembre1', 'emailMembre1', 'univesityMembre1',
+          'prenomMembre2', 'nomMembre2', 'emailMembre2', 'univesityMembre2',
+          'prenomAdditionalMembre', 'nomAdditionalMembre', 'emailAdditionalMembre', 'universityAdditionalMembre',
+          'nbHoursScientificModules', 'nbHoursCrossDisciplinaryModules', 'nbHoursProfessionalIntegrationModules',
+          'totalNbHours', 'posters', 'conferencePapers', 'publications', 'publicCommunication',
+          'dateValidation', 'additionalInformation',
           ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i + 1}`, `Q${i + 1}_comment`]),
-          'conclusion','recommendation','recommendation_comment',
-          'sendToDoctorant','doctorantValide','NbSendToDoctorant','sendToRepresentants','representantValide','NbSendToRepresentants',
-          'gestionnaireDirecteurValide','finalSend','NbFinalSend',
-          'rapport_nomOriginal','rapport_cheminStockage','rapport_url','dateEntretien'
+          'conclusion', 'recommendation', 'recommendation_comment',
+          'sendToDoctorant', 'doctorantValide', 'NbSendToDoctorant', 'sendToRepresentants', 'representantValide', 'NbSendToRepresentants',
+          'gestionnaireDirecteurValide', 'finalSend', 'NbFinalSend',
+          'rapport_nomOriginal', 'rapport_cheminStockage', 'rapport_url', 'dateEntretien'
         ];
 
         const rows = [
@@ -443,21 +453,21 @@ const ListeDoctorants: React.FC = () => {
 
   const handleExportFilteredXLSX = async () => {
     const headers = [
-      '_id','prenom','nom','email','ID_DOCTORANT','importDate','departementDoctorant',
-      'datePremiereInscription','anneeThese','typeFinancement','typeThesis',
-      'missions','titreThese','intituleUR','directeurUR','nomPrenomHDR','email_HDR',
-      'intituleEquipe','directeurEquipe','directeurThese','coDirecteurThese',
-      'prenomMembre1','nomMembre1','emailMembre1','univesityMembre1',
-      'prenomMembre2','nomMembre2','emailMembre2','univesityMembre2',
-      'prenomAdditionalMembre','nomAdditionalMembre','emailAdditionalMembre','universityAdditionalMembre',
-      'nbHoursScientificModules','nbHoursCrossDisciplinaryModules','nbHoursProfessionalIntegrationModules',
-      'totalNbHours','posters','conferencePapers','publications','publicCommunication',
-      'dateValidation','additionalInformation',
+      '_id', 'prenom', 'nom', 'email', 'ID_DOCTORANT', 'importDate', 'departementDoctorant',
+      'datePremiereInscription', 'anneeThese', 'typeFinancement', 'typeThesis',
+      'missions', 'titreThese', 'intituleUR', 'directeurUR', 'nomPrenomHDR', 'email_HDR',
+      'intituleEquipe', 'directeurEquipe', 'directeurThese', 'coDirecteurThese',
+      'prenomMembre1', 'nomMembre1', 'emailMembre1', 'univesityMembre1',
+      'prenomMembre2', 'nomMembre2', 'emailMembre2', 'univesityMembre2',
+      'prenomAdditionalMembre', 'nomAdditionalMembre', 'emailAdditionalMembre', 'universityAdditionalMembre',
+      'nbHoursScientificModules', 'nbHoursCrossDisciplinaryModules', 'nbHoursProfessionalIntegrationModules',
+      'totalNbHours', 'posters', 'conferencePapers', 'publications', 'publicCommunication',
+      'dateValidation', 'additionalInformation',
       ...Array.from({ length: 17 }).flatMap((_, i) => [`Q${i + 1}`, `Q${i + 1}_comment`]),
-      'conclusion','recommendation','recommendation_comment',
-      'sendToDoctorant','doctorantValide','NbSendToDoctorant','sendToRepresentants','representantValide','NbSendToRepresentants',
-      'gestionnaireDirecteurValide','finalSend','NbFinalSend',
-      'rapport_nomOriginal','rapport_cheminStockage','rapport_url','dateEntretien'
+      'conclusion', 'recommendation', 'recommendation_comment',
+      'sendToDoctorant', 'doctorantValide', 'NbSendToDoctorant', 'sendToRepresentants', 'representantValide', 'NbSendToRepresentants',
+      'gestionnaireDirecteurValide', 'finalSend', 'NbFinalSend',
+      'rapport_nomOriginal', 'rapport_cheminStockage', 'rapport_url', 'dateEntretien'
     ];
 
     // ligne d'entête
@@ -489,7 +499,7 @@ const ListeDoctorants: React.FC = () => {
   </Workbook>`;
 
     const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
-    const filename = `Doctorants_Filtres_${new Date().toISOString().slice(0,10)}.xls`;
+    const filename = `Doctorants_Filtres_${new Date().toISOString().slice(0, 10)}.xls`;
     saveBlob(blob, filename);
   };
 
@@ -524,8 +534,8 @@ const ListeDoctorants: React.FC = () => {
       ((Math.floor(d.getSeconds() / 2)) & 0x1f);
     const date =
       ((((d.getFullYear() - 1980) & 0x7f) << 9) |
-      (((d.getMonth() + 1) & 0xf) << 5) |   // petite parenthèse en plus
-      (d.getDate() & 0x1f));
+        (((d.getMonth() + 1) & 0xf) << 5) |   // petite parenthèse en plus
+        (d.getDate() & 0x1f));
     return { time, date };
   };
 
@@ -606,53 +616,53 @@ const ListeDoctorants: React.FC = () => {
     return new Blob([...localParts, ...centralParts, eocd], { type: 'application/zip' });
   }
 
-// Utilise exactement les doctorants filtrés, crée une arborescence <Année>/<NOM_Prenom>/Rapport_*.pdf dans un ZIP
-const handleExportAllPDFsAsZip = async () => {
-  if (!filteredDoctorants.length) {
-    alert('Aucun doctorant correspondant aux filtres.');
-    return;
-  }
-
-  setLoadingButton('zip');
-  try {
-    const safe = (s: string) =>
-      (s || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[\\/:"*?<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .slice(0, 120);
-
-    const files: { name: string; data: Uint8Array }[] = [];
-
-    for (const d of filteredDoctorants) {
-      const year   = d.importDate ? String(d.importDate) : 'Sans_annee';
-      const idPart = safe(d.ID_DOCTORANT || d._id || 'Sans_ID');
-      const person = `${safe(d.nom)}_${safe(d.prenom)}`;
-
-      // dossier = <Année>/<ID_DOCTORANT>__<NOM_PRENOM>/
-      const folder = `${year}/${idPart}`;
-
-      // fichier = Rapport_<NOM_PRENOM>.pdf  (tu peux mettre l'ID aussi si tu veux)
-      const path = `${folder}/Rapport_${person}.pdf`;
-
-      const res = await api.get(`/doctorant/export/pdf/${d._id}`, { responseType: 'blob' });
-      const buf = new Uint8Array(await res.data.arrayBuffer());
-      files.push({ name: path, data: buf });
-
-      // petit délai pour rester courtois avec le backend
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 150));
+  // Utilise exactement les doctorants filtrés, crée une arborescence <Année>/<NOM_Prenom>/Rapport_*.pdf dans un ZIP
+  const handleExportAllPDFsAsZip = async () => {
+    if (!filteredDoctorants.length) {
+      alert('Aucun doctorant correspondant aux filtres.');
+      return;
     }
 
-    const zip = await makeZip(files);
-    const filename = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
-    saveBlob(zip, filename);
-  } catch (err) {
-    console.error('ZIP client error', err);
-    alert('❌ Erreur lors de la création du ZIP (client).');
-  } finally {
-    setLoadingButton(null);
-  }
-};
+    setLoadingButton('zip');
+    try {
+      const safe = (s: string) =>
+        (s || '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[\\/:"*?<>|]+/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 120);
+
+      const files: { name: string; data: Uint8Array }[] = [];
+
+      for (const d of filteredDoctorants) {
+        const year = d.importDate ? String(d.importDate) : 'Sans_annee';
+        const idPart = safe(d.ID_DOCTORANT || d._id || 'Sans_ID');
+        const person = `${safe(d.nom)}_${safe(d.prenom)}`;
+
+        // dossier = <Année>/<ID_DOCTORANT>__<NOM_PRENOM>/
+        const folder = `${year}/${idPart}`;
+
+        // fichier = Rapport_<NOM_PRENOM>.pdf  (tu peux mettre l'ID aussi si tu veux)
+        const path = `${folder}/Rapport_${person}.pdf`;
+
+        const res = await api.get(`/doctorant/export/pdf/${d._id}`, { responseType: 'blob' });
+        const buf = new Uint8Array(await res.data.arrayBuffer());
+        files.push({ name: path, data: buf });
+
+        // petit délai pour rester courtois avec le backend
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 150));
+      }
+
+      const zip = await makeZip(files);
+      const filename = `Rapports_Doctorants_${new Date().toISOString().slice(0, 10)}.zip`;
+      saveBlob(zip, filename);
+    } catch (err) {
+      console.error('ZIP client error', err);
+      alert('❌ Erreur lors de la création du ZIP (client).');
+    } finally {
+      setLoadingButton(null);
+    }
+  };
 
   const handleDownloadFilteredPDFsOneByOne = async () => {
     if (!filteredDoctorants.length) {
@@ -735,7 +745,7 @@ const handleExportAllPDFsAsZip = async () => {
       setLoadingButton(null);
     }
   };
-  
+
   // 🧠 helpers pour les filtres
   const matchesYesNo = (value: any, f: YesNo) => {
     // rien coché → ignore
@@ -1044,7 +1054,9 @@ const handleExportAllPDFsAsZip = async () => {
 
   return (
     <div className="liste-doctorants-container">
-      <h1 className="liste-doctorants-title">Liste des Doctorants</h1>
+      <h1 className="liste-doctorants-title">
+        Liste des Doctorants <span style={{ fontSize: '0.6em', color: '#666' }}>({filteredDoctorants.length} / {totalDoctorants})</span>
+      </h1>
 
       {/* 🔍 Barre de recherche + filtres simples */}
       <div className="search-container">
@@ -1092,60 +1104,60 @@ const handleExportAllPDFsAsZip = async () => {
       </div>
 
       {/* 🆕 Filtres avancés Oui/Non (mise en page tableau) */}
-<div className="advanced-filters">
-  <div className="advanced-filters-header">
-    <strong>Filtres avancés (Oui / Non)</strong>
-    <button
-      className="btn btn-reset"
-      onClick={resetAdvancedFilters}
-      title="Réinitialiser les filtres avancés"
-    >
-      ♻️ Réinitialiser
-    </button>
-  </div>
+      <div className="advanced-filters">
+        <div className="advanced-filters-header">
+          <strong>Filtres avancés (Oui / Non)</strong>
+          <button
+            className="btn btn-reset"
+            onClick={resetAdvancedFilters}
+            title="Réinitialiser les filtres avancés"
+          >
+            ♻️ Réinitialiser
+          </button>
+        </div>
 
-  <table className="advanced-filters-table" role="grid" aria-label="Filtres avancés">
-    <thead>
-      <tr>
-        <th>Critère</th>
-        <th>Oui</th>
-        <th>Non</th>
-      </tr>
-    </thead>
-    <tbody>
-      {statusFilterDefs.map(({ key, label }) => (
-        <tr key={key}>
-          <td className="critere">{label}</td>
-          <td className="cell-yes">
-            <label className="yn">
-              <input
-                type="checkbox"
-                checked={statusFilters[key].yes}
-                onChange={() => toggleStatusFilter(key, 'yes')}
-              />
-              <span className="chip">Oui</span>
-            </label>
-          </td>
-          <td className="cell-no">
-            <label className="yn">
-              <input
-                type="checkbox"
-                checked={statusFilters[key].no}
-                onChange={() => toggleStatusFilter(key, 'no')}
-              />
-              <span className="chip">Non</span>
-            </label>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
+        <table className="advanced-filters-table" role="grid" aria-label="Filtres avancés">
+          <thead>
+            <tr>
+              <th>Critère</th>
+              <th>Oui</th>
+              <th>Non</th>
+            </tr>
+          </thead>
+          <tbody>
+            {statusFilterDefs.map(({ key, label }) => (
+              <tr key={key}>
+                <td className="critere">{label}</td>
+                <td className="cell-yes">
+                  <label className="yn">
+                    <input
+                      type="checkbox"
+                      checked={statusFilters[key].yes}
+                      onChange={() => toggleStatusFilter(key, 'yes')}
+                    />
+                    <span className="chip">Oui</span>
+                  </label>
+                </td>
+                <td className="cell-no">
+                  <label className="yn">
+                    <input
+                      type="checkbox"
+                      checked={statusFilters[key].no}
+                      onChange={() => toggleStatusFilter(key, 'no')}
+                    />
+                    <span className="chip">Non</span>
+                  </label>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-  <p className="advanced-filters-hint">
-    Astuce : pour lister “doctorants qui ont soumis <em>(validation doctorant = Oui)</em> mais dont les référents n’ont pas validé
-    <em>(validation référents = Non)</em>”, coche “Validation par le doctorant → Oui” et “Validation par les référents → Non”.
-  </p>
-</div>
+        <p className="advanced-filters-hint">
+          Astuce : pour lister “doctorants qui ont soumis <em>(validation doctorant = Oui)</em> mais dont les référents n’ont pas validé
+          <em>(validation référents = Non)</em>”, coche “Validation par le doctorant → Oui” et “Validation par les référents → Non”.
+        </p>
+      </div>
 
       <div className="actions-container">
         <button className="btn btn-refresh" onClick={fetchDoctorants}>🔄 Rafraîchir</button>
@@ -1202,36 +1214,73 @@ const handleExportAllPDFsAsZip = async () => {
       </div>
 
       {/* 📊 Bloc Statistiques Globales */}
+      {/* 📊 Bloc Statistiques Globales : Clickable Dashboard */}
+      {/* 📊 Bloc Statistiques Globales : Clickable Dashboard */}
       <div className="stats-globales-container">
-        <h2>📊 Statistiques globales</h2>
-        <div className="stats-table">
-          <div className="stats-row">
-            <span className="stat-label">Total doctorants :</span>
-            <span className="stat-value">{totalDoctorants}</span>
+        <h2>📊 Tableau de Bord</h2>
+        <div className="stats-grid">
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Tous'); setFilterYear('Tous'); setStatusFilters(emptyStatusFilters); setSearchTerm(''); }}
+            title="Réinitialiser tous les filtres"
+          >
+            <div className="stat-icon"><IconUserFriends /></div>
+            <div className="stat-value">{totalDoctorants}</div>
+            <div className="stat-label">Total Doctorants</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Envoyé au doctorant :</span>
-            <span className="stat-value">{totalEnvoyesDoctorant}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Envoyé au doctorant'); }}
+          >
+            <div className="stat-icon"><IconPaperPlane /></div>
+            <div className="stat-value">{totalEnvoyesDoctorant}</div>
+            <div className="stat-label">Invités (Doc)</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Validation par le doctorant :</span>
-            <span className="stat-value">{totalValidDoctorant}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Doctorant validé'); }}
+          >
+            <div className="stat-icon" style={{ background: '#dcfce7', color: '#166534' }}><IconCheckCircle /></div>
+            <div className="stat-value">{totalValidDoctorant}</div>
+            <div className="stat-label">Validés (Doc)</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Envoyé aux référents :</span>
-            <span className="stat-value">{totalEnvoyesReferents}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Envoyé aux référents'); }}
+          >
+            <div className="stat-icon"><IconEnvelopeOpenText /></div>
+            <div className="stat-value">{totalEnvoyesReferents}</div>
+            <div className="stat-label">Invités (Réf)</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Validation par les référents :</span>
-            <span className="stat-value">{totalValidReferents}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Référents validés'); }}
+          >
+            <div className="stat-icon" style={{ background: '#dcfce7', color: '#166534' }}><IconHandshake /></div>
+            <div className="stat-value">{totalValidReferents}</div>
+            <div className="stat-label">Validés (Réf)</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Envoyé au directeur de département :</span>
-            <span className="stat-value">{totalEnvoyesDirecteurDept}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Envoyé au directeur de département'); }}
+          >
+            <div className="stat-icon"><IconBuilding /></div>
+            <div className="stat-value">{totalEnvoyesDirecteurDept}</div>
+            <div className="stat-label">Directeur Dpt.</div>
           </div>
-          <div className="stats-row">
-            <span className="stat-label">Rapport final envoyé au Doctorant et au Directeur UR :</span>
-            <span className="stat-value">{totalRapportFinal}</span>
+
+          <div
+            className="stats-card clickable"
+            onClick={() => { setFilterStatus('Rapport final envoyé'); }}
+          >
+            <div className="stat-icon" style={{ background: '#ede9fe', color: '#5b21b6' }}><IconRocket /></div>
+            <div className="stat-value">{totalRapportFinal}</div>
+            <div className="stat-label">Rapports Finaux</div>
           </div>
         </div>
       </div>
@@ -1241,150 +1290,176 @@ const handleExportAllPDFsAsZip = async () => {
         <ul className="doctorants-list">
           {paginatedDoctorants.map((doc: any) => {
             return (
-              <li key={doc._id} className="doctorant-item">
-                <div className="doctorant-info">
-                  <strong>
-                    {doc.nom} {doc.prenom}
-                  </strong>
-                  <br />
-                  <span style={{ fontSize: '0.9em', color: '#666' }}>ID: {doc.ID_DOCTORANT}</span>
-                  <br />
-                  <span style={{ color: doc.statut === 'complet' ? 'green' : 'red' }}>{doc.statut}</span>
+              <li key={doc._id} className="doctorant-card">
+                {/* 1. HEADER: Name, ID, Dept, Global Status */}
+                <div className="card-header">
+                  <div className="header-main">
+                    <h3 className="doctorant-name">
+                      {doc.nom} {doc.prenom}
+                    </h3>
+                    <div className="doctorant-id-badge">ID: {doc.ID_DOCTORANT}</div>
+                    <span className="dept-badge">DIRECT::{doc.departementDoctorant || "Non défini"}</span>
+                  </div>
+                  <div className="header-status">
+                    <span className={`status-badge ${doc.statut === 'complet' ? 'status-complete' : 'status-pending'}`}>
+                      {doc.statut}
+                    </span>
+                  </div>
+                </div>
 
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <div className="status">
-                      <span>Envoyé au doctorant :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.sendToDoctorant ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status">
-                      <span>Validation par le doctorant :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.doctorantValide ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status">
-                      <span>Envoyé aux référents :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.sendToRepresentants ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status">
-                      <span>Validation par les référents :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.representantValide ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status">
-                      <span>Envoyé au directeur de département :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.gestionnaireDirecteurValide ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status">
-                      <span>Rapport final envoyé au Doctorant et au Directeur UR :</span>
-                      <div
-                        style={{
-                          width: '15px',
-                          height: '15px',
-                          borderRadius: '50%',
-                          backgroundColor: doc.finalSend ? 'green' : 'red',
-                        }}
-                      ></div>
-                    </div>
-                    <div className="status-envois">
-                      <div className="envois up">
-                        <span>Nb envois au doctorant :</span> <strong>{doc.NbSendToDoctorant}</strong>
+                {/* 2. BODY: Email, Director, Referents */}
+                <div className="card-body">
+                  <div className="info-grid">
+                    {/* Column 1: Contact & Director */}
+                    <div className="info-column">
+                      <div className="info-item">
+                        <span className="info-label">Doctorant Email</span>
+                        <a href={`mailto:${doc.email}`} className="info-value email-link">{doc.email}</a>
                       </div>
-                      <div className="envois">
-                        <span>Nb envois aux référents :</span> <strong>{doc.NbSendToRepresentants}</strong>
+                      <div className="info-item">
+                        <span className="info-label">Directeur de Thèse</span>
+                        <span className="info-value font-bold">{doc.nomPrenomHDR || 'N/A'}</span>
+                        {doc.email_HDR && (
+                          <a href={`mailto:${doc.email_HDR}`} className="email-link-small">
+                            &lt;{doc.email_HDR}&gt;
+                          </a>
+                        )}
                       </div>
-                      <div className="envois">
-                        <span>Nb envois rapport final :</span> <strong>{doc.NbFinalSend || 0}</strong>
+                    </div>
+
+                    {/* Column 2: Referents */}
+                    <div className="info-column full-width-mobile">
+                      <span className="info-label">Référents</span>
+                      <div className="referents-list">
+                        {(doc.prenomMembre1 || doc.nomMembre1) && (
+                          <div className="referent-chip">
+                            <strong>#1 {doc.prenomMembre1} {doc.nomMembre1}</strong>
+                            <br />
+                            <a href={`mailto:${doc.emailMembre1}`} className="text-muted small">{doc.emailMembre1}</a>
+                          </div>
+                        )}
+                        {(doc.prenomMembre2 || doc.nomMembre2) && (
+                          <div className="referent-chip">
+                            <strong>#2 {doc.prenomMembre2} {doc.nomMembre2}</strong>
+                            <br />
+                            <a href={`mailto:${doc.emailMembre2}`} className="text-muted small">{doc.emailMembre2}</a>
+                          </div>
+                        )}
+                        {(!doc.prenomMembre1 && !doc.nomMembre1 && !doc.prenomMembre2 && !doc.nomMembre2) && (
+                          <div className="referent-empty">
+                            <span className="text-warning">⚠️ Référents non encore saisis par le doctorant</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="action-buttons" style={{ marginTop: '10px' }}>
-                  <div className="btn-group">
+                {/* 2.5 STATS: Explicit Counters (Requested by User) */}
+                <div className="card-stats">
+                  <div className="stat-item">
+                    <span>📨 Envois Doctorant :</span>
+                    <span className="stat-value">{doc.NbSendToDoctorant || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span>📨 Envois Référents :</span>
+                    <span className="stat-value">{doc.NbSendToRepresentants || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span>📨 Envois Final :</span>
+                    <span className="stat-value">{doc.NbFinalSend || 0}</span>
+                  </div>
+                </div>
+
+                {/* 3. STEPPER: 6 Steps with Red/Green logic */}
+                <div className="card-stepper">
+                  {/* Step 1: Sent to Doc */}
+                  <div className={`step-item ${doc.sendToDoctorant ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">1</div>
+                    <span className="step-label">Envoyé Doc.</span>
+                  </div>
+                  <div className="step-line"></div>
+
+                  {/* Step 2: Validated by Doc */}
+                  <div className={`step-item ${doc.doctorantValide ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">2</div>
+                    <span className="step-label">Validation Doc.</span>
+                  </div>
+                  <div className="step-line"></div>
+
+                  {/* Step 3: Sent to Refs */}
+                  <div className={`step-item ${doc.sendToRepresentants ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">3</div>
+                    <span className="step-label">Envoyé Réf.</span>
+                  </div>
+                  <div className="step-line"></div>
+
+                  {/* Step 4: Validated by Refs */}
+                  <div className={`step-item ${doc.representantValide ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">4</div>
+                    <span className="step-label">Validation Réf.</span>
+                  </div>
+                  <div className="step-line"></div>
+
+                  {/* Step 5: Sent to Director Dept */}
+                  <div className={`step-item ${doc.gestionnaireDirecteurValide ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">5</div>
+                    <span className="step-label">Directeur Dpt.</span>
+                  </div>
+                  <div className="step-line"></div>
+
+                  {/* Step 6: Final Report */}
+                  <div className={`step-item ${doc.finalSend ? 'completed' : 'pending'}`}>
+                    <div className="step-circle">6</div>
+                    <span className="step-label">Rapport Final</span>
+                  </div>
+                </div>
+
+                {/* 4. ACTIONS: All buttons with Descriptive Labels */}
+                <div className="card-actions">
+                  <div className="primary-actions">
                     <button
-                      className="btn btn-primary btn-doctorant"
+                      className="btn btn-outline-primary btn-sm"
                       onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom, doc.nom)}
+                      title="Renvoyer mail d'invitation au doctorant"
                     >
-                      Renvoyer mail d'invitation au doctorant
+                      📩 Invit. Doc
                     </button>
 
-                    <button className="btn btn-primary btn-doctorant" onClick={() => handleResendReferentEmails(doc._id)}>
-                      Renvoyer mail avec rapport du doctorant aux référents
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleResendReferentEmails(doc._id)}
+                      title="Renvoyer mail avec rapport du doctorant aux référents"
+                    >
+                      📩 Invit. Réf
                     </button>
 
-                    <button className="btn btn-primary btn-doctorant" onClick={() => handleExportPDF(doc._id)}>
-                      Afficher PDF en fonction de l'état d'avancement du process
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleExportPDF(doc._id)}
+                      title="Afficher PDF en fonction de l'avancement"
+                    >
+                      📄 Voir PDF
                     </button>
 
-                    <Link to={`/doctorant/modifier/${doc._id}`}>
-                      <button className="btn btn-primary btn-doctorant">Modifier contenu du rapport du doctorant</button>
+                    <Link to={`/doctorant/modifier/${doc._id}`} className="btn-link">
+                      <button className="btn btn-secondary btn-sm" title="Modifier contenu du rapport">
+                        ✏️ Modifier
+                      </button>
                     </Link>
-                    <button className="btn btn-secondary btn-doctorant" onClick={() => handleSendFinalReport(doc._id)}>
-                      Envoyer rapport final au doctorant + directeur
+
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={() => handleSendFinalReport(doc._id)}
+                      title="Envoyer rapport final au doctorant + directeur"
+                    >
+                      🚀 Envoi Final
                     </button>
                   </div>
 
-                  <div className="delete-and-referents">
-                    <div className="referents-names">
-                      <strong>Référents :</strong>
-                      {doc.prenomMembre1 || doc.nomMembre1 || doc.prenomMembre2 || doc.nomMembre2 ? (
-                        <>
-                          {doc.prenomMembre1 || doc.nomMembre1 ? (
-                            <div className="referents-names referent-card">
-                              <span>
-                                #1 {doc.prenomMembre1} {doc.nomMembre1}
-                              </span>
-                              <span className="referents-emails">{doc.emailMembre1}</span>
-                            </div>
-                          ) : null}
-                          {doc.prenomMembre2 || doc.nomMembre2 ? (
-                            <div className="referents-names referent-card">
-                              <span>
-                                #2 {doc.prenomMembre2} {doc.nomMembre2}
-                              </span>
-                              <span className="referents-emails">{doc.emailMembre2}</span>
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className="referent-non-saisis">Référents non encore saisis par le doctorant</span>
-                      )}
-                    </div>
-                    <button onClick={() => handleDelete(doc._id)} className="btn btn-danger btn-card">
-                      Supprimer Doctorant
+                  <div className="danger-actions">
+                    <button onClick={() => handleDelete(doc._id)} className="btn btn-danger btn-sm">
+                      🗑️ Supprimer
                     </button>
                   </div>
                 </div>
@@ -1410,8 +1485,9 @@ const handleExportAllPDFsAsZip = async () => {
           Supprimer tous les doctorants
         </button>
       </div>
-    </div>
+    </div >
   );
 };
 
+// End of component
 export default ListeDoctorants;

@@ -39,6 +39,10 @@ export class CreateDoctorantDto {
   ID_DOCTORANT: string;
 
   @IsOptional()
+  @IsString()
+  ID_UNIQUE_IMPORT?: string;
+
+  @IsOptional()
   @IsNumber()
   importDate: number;
 
@@ -170,18 +174,6 @@ export class CreateDoctorantDto {
   @IsNumber()
   totalNbHours: number;
 
-  // @IsOptional()
-  // @IsString()
-  // listScientificModules: string;
-
-  // @IsOptional()
-  // @IsString()
-  // listCrossDisciplinaryModules: string;
-
-  // @IsOptional()
-  // @IsString()
-  // listProfessionalIntegrationModules: string;
-
   @IsOptional()
   @IsString()
   posters?: string;
@@ -263,7 +255,6 @@ export class CreateDoctorantDto {
   @IsString()
   conclusion?: string;
 
-  // Remplacement de R1-R5 par un champ unique pour la recommandation et le commentaire associé
   @IsOptional()
   @IsString()
   recommendation?: string;
@@ -320,4 +311,24 @@ export class CreateDoctorantDto {
   @IsOptional()
   @IsDateString()
   dateEntretien?: Date;
+
+  @IsOptional()
+  @IsString()
+  orcid?: string;
+
+  @IsOptional()
+  @IsNumber()
+  selfEvaluation?: number;
+
+  @IsOptional()
+  @IsNumber()
+  referentRating?: number;
+
+  @IsOptional()
+  @IsString()
+  referentComment?: string;
+
+  @IsOptional()
+  @IsString()
+  suiviComment?: string;
 }

@@ -13,6 +13,9 @@ import {
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
+  Headers,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { DoctorantService } from './doctorant.service';
@@ -21,7 +24,7 @@ import { sendMail } from '../email/email.service';
 import { generateToken } from '../email/email.service';
 import { TokenService } from '../token/token.service';
 import { Doctorant } from './schemas/doctorant.schema';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import PDFDocument = require('pdfkit');
 import * as fs from 'fs';
 import { InjectModel } from '@nestjs/mongoose';
@@ -42,7 +45,7 @@ export class DoctorantController {
     private readonly emailConfigService: EmailConfigService,
     @InjectModel(Doctorant.name)
     private readonly doctorantModel: Model<Doctorant>,
-  ) {}
+  ) { }
 
   @Get('refresh-statuses')
   async refreshStatuses(): Promise<any> {
@@ -71,6 +74,36 @@ export class DoctorantController {
         error: error.message,
       };
     }
+  }
+
+  @Get('claris-export')
+  async exportForClaris(
+    @Headers('x-api-key') apiKey: string,
+    @Req() req: Request,
+  ) {
+    if (apiKey !== config.CLARIS_API_KEY) {
+      throw new UnauthorizedException('Clé API invalide');
+    }
+    console.log('✅ Export Claris demandé');
+    const doctorants = await this.doctorantService.findAll();
+
+    // On transforme la liste pour ajouter l'URL du PDF
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    return doctorants.map((doc: any) => {
+      // Calculer ID_UNIQUE_IMPORT à la volée s'il n'existe pas encore en base
+      const computedUniqueId =
+        doc.ID_UNIQUE_IMPORT ||
+        `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
+
+      return {
+        ...doc, // Garde toutes les propriétés existantes
+        ID_UNIQUE_IMPORT: computedUniqueId,
+        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}`,
+      };
+    });
   }
 
   @Get('/export/zip')
@@ -698,6 +731,24 @@ export class DoctorantController {
     }
   }
 
+  @Post('regenerate-pdf/:id')
+  async regeneratePDF(@Param('id') id: string, @Res() res: Response) {
+    try {
+      console.log(`♻️ Régénération du PDF pour l'ID : ${id}`);
+      const doctorant = await this.doctorantService.findOne(id);
+      if (!doctorant) {
+        return res.status(404).json({ message: 'Doctorant introuvable' });
+      }
+
+      // Force l'utilisation d'une méthode publique qui génère et sauvegarde
+      await this.doctorantService.generateNewPDF(doctorant);
+      return res.status(200).json({ message: 'PDF régénéré avec succès.' });
+    } catch (error) {
+      console.error('❌ Erreur lors de la régénération du PDF :', error);
+      return res.status(500).json({ message: 'Erreur lors de la régénération.', error: error.message });
+    }
+  }
+
   @Post('import-csv')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -727,7 +778,7 @@ export class DoctorantController {
         .status(500)
         .json({ message: 'Erreur interne', error: error.message });
     } finally {
-      fs.unlink(file.path, () => {}); // 🔁 Supprime le fichier temporaire
+      fs.unlink(file.path, () => { }); // 🔁 Supprime le fichier temporaire
     }
   }
 

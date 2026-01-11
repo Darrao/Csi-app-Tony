@@ -96,6 +96,9 @@ const FormulaireToken: React.FC = () => {
         conclusion: '',
         recommendation: '',
         recommendation_comment: '',
+        referentValidation: '',
+        referentRating: '', // Initialized as string to avoid 0 pre-selection
+        referentComment: '',
     };
 
     const validationSchema = Yup.object({
@@ -108,7 +111,18 @@ const FormulaireToken: React.FC = () => {
             schema[`Q${questionNum}`] = Yup.string().required(`La réponse à la question ${questionNum} est obligatoire`);
             schema[`Q${questionNum}_comment`] = Yup.string().required(`Le commentaire de la question ${questionNum} est obligatoire`);
             return schema;
-        }, {} as Record<string, Yup.StringSchema<string>>)
+        }, {} as Record<string, Yup.StringSchema<string>>),
+        referentValidation: Yup.string().required("Veuillez valider ou non l'auto-évaluation"),
+        referentRating: Yup.number().when('referentValidation', {
+            is: 'false',
+            then: (schema) => schema.required("Veuillez attribuer une note").min(1).max(5),
+            otherwise: (schema) => schema.notRequired(),
+        }),
+        referentComment: Yup.string().when('referentValidation', {
+            is: 'false',
+            then: (schema) => schema.required("Veuillez expliquer votre désaccord"),
+            otherwise: (schema) => schema.notRequired(),
+        }),
     });
 
     const onSubmit = async (values: any) => {
@@ -163,7 +177,10 @@ const FormulaireToken: React.FC = () => {
                     rapport: {
                         nomOriginal: `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`,
                         cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`
-                    }
+                    },
+                    referentValidation: values.referentValidation === 'true',
+                    referentRating: values.referentValidation === 'false' ? Number(values.referentRating) : undefined,
+                    referentComment: values.referentValidation === 'false' ? values.referentComment : undefined,
                 };
             };
 
@@ -233,11 +250,53 @@ const FormulaireToken: React.FC = () => {
                 validationSchema={validationSchema}
                 onSubmit={onSubmit}
             >
-                {({ errors }) => {
+                {({ errors, values }) => {
                     const errorEntries = Object.entries(errors as Record<string, any>);
 
                     return (
                         <Form>
+                            {/* SELF EVALUATION SECTION */}
+                            <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+                                <h2>Student Self-Evaluation</h2>
+                                <p style={{ fontSize: '1.1em', marginBottom: '15px' }}>
+                                    The student rated their progress as: <strong>{doctorant.selfEvaluation ? `${doctorant.selfEvaluation}/5` : "Not provided"}</strong>
+                                </p>
+
+                                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Do you agree with this evaluation? <span style={{ color: "red" }}>*</span></label>
+                                <div role="group" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                                    <label>
+                                        <Field type="radio" name="referentValidation" value="true" /> Yes
+                                    </label>
+                                    <label>
+                                        <Field type="radio" name="referentValidation" value="false" /> No
+                                    </label>
+                                </div>
+                                <ErrorMessage name="referentValidation" component="div" className="error-message" />
+
+                                {values.referentValidation === 'false' && (
+                                    <div style={{ marginTop: '15px', paddingLeft: '15px', borderLeft: '3px solid #d9534f' }}>
+                                        <label style={{ display: 'block', marginBottom: '8px' }}>Your Rating (1-5) <span style={{ color: "red" }}>*</span></label>
+                                        <div role="group" style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
+                                            {[1, 2, 3, 4, 5].map((score) => (
+                                                <label key={score}>
+                                                    <Field type="radio" name="referentRating" value={String(score)} /> {score}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <ErrorMessage name="referentRating" component="div" className="error-message" />
+
+                                        <label style={{ display: 'block', marginBottom: '8px', marginTop: '10px' }}>Explanation <span style={{ color: "red" }}>*</span></label>
+                                        <Field
+                                            as="textarea"
+                                            name="referentComment"
+                                            placeholder="Please explain why you disagree and justify your rating..."
+                                            className="comment-box"
+                                        />
+                                        <ErrorMessage name="referentComment" component="div" className="error-message" />
+                                    </div>
+                                )}
+                            </div>
+
                             <h2>Date of interview <span style={{ color: "red" }}>*</span></h2>
                             <Field
                                 type="date"
