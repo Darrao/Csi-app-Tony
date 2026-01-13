@@ -71,6 +71,7 @@ jobs:
               -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
               -e FRONTEND_URL="${{ secrets.FRONTEND_URL }}" \
               -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+              -e ADMIN_SECRET_KEY="${{ secrets.ADMIN_SECRET_KEY }}" \
               -e SMTP_USER="${{ secrets.SMTP_USER }}" \
               -e SMTP_PASS="${{ secrets.SMTP_PASS }}" \
               -e SMTP_HOST="${{ secrets.SMTP_HOST }}" \
