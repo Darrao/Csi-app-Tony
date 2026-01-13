@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import '../styles/ListeDoctorants.css';
-import { FaUserFriends, FaPaperPlane, FaCheckCircle, FaEnvelopeOpenText, FaHandshake, FaBuilding, FaRocket } from 'react-icons/fa';
+import { FaUserFriends, FaPaperPlane, FaCheckCircle, FaEnvelopeOpenText, FaHandshake, FaBuilding, FaRocket, FaSpinner } from 'react-icons/fa';
 
 // Workaround for React 18/19 type mismatch with react-icons
 const IconUserFriends = FaUserFriends as any;
@@ -12,6 +12,7 @@ const IconEnvelopeOpenText = FaEnvelopeOpenText as any;
 const IconHandshake = FaHandshake as any;
 const IconBuilding = FaBuilding as any;
 const IconRocket = FaRocket as any;
+const IconSpinner = FaSpinner as any;
 
 type Doctorant = {
   _id: string;
@@ -69,6 +70,11 @@ const ListeDoctorants: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+
+  const toggleLoading = (id: string, action: string, isLoading: boolean) => {
+    setLoadingMap((prev) => ({ ...prev, [`${id}-${action}`]: isLoading }));
+  };
 
   // 🆕 Filtres avancés Oui/Non
   const [statusFilters, setStatusFilters] = useState<StatusFilters>(emptyStatusFilters);
@@ -119,15 +125,25 @@ const ListeDoctorants: React.FC = () => {
       alert("Cet utilisateur n'a pas d'email défini.");
       return;
     }
+    toggleLoading(id, 'invite-doc', true);
     try {
-      await api.post(`/doctorant/send-link/${id}`, { email, prenom, nom });
-    } catch (error) {
+      const response = await api.post(`/doctorant/send-link/${id}`, { email, prenom, nom });
+
+      if (response.data?.error) {
+        throw new Error(response.data.message || "Erreur inconnue");
+      }
+
+      alert(response.data.message || 'Email envoyé avec succès !');
+    } catch (error: any) {
       console.error("Erreur lors de l'envoi de l'email :", error);
-      alert("Erreur lors de l'envoi de l'email.");
+      alert(error.message || "Erreur lors de l'envoi de l'email.");
+    } finally {
+      toggleLoading(id, 'invite-doc', false);
     }
   };
 
   const handleExportPDF = async (id: string) => {
+    toggleLoading(id, 'pdf', true);
     try {
       const response = await api.get(`/doctorant/export/pdf/${id}`, { responseType: 'blob' });
       const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
@@ -136,6 +152,8 @@ const ListeDoctorants: React.FC = () => {
     } catch (error) {
       console.error("❌ Erreur lors de l'export du PDF :", error);
       alert("Échec de l'export du PDF.");
+    } finally {
+      toggleLoading(id, 'pdf', false);
     }
   };
 
@@ -157,6 +175,7 @@ const ListeDoctorants: React.FC = () => {
       return;
     }
 
+    toggleLoading(id, 'invite-ref', true);
     try {
       const response = await api.post('/email/send', {
         emails: emailsReferents,
@@ -184,6 +203,8 @@ const ListeDoctorants: React.FC = () => {
       alert(
         `❌ Erreur lors de l'envoi des emails aux référents de ${doctorant.prenom} ${doctorant.nom} :\n\n${backendMessage} (check file size)`
       );
+    } finally {
+      toggleLoading(id, 'invite-ref', false);
     }
   };
 
@@ -978,6 +999,7 @@ const ListeDoctorants: React.FC = () => {
       return;
     }
 
+    toggleLoading(id, 'final', true);
     try {
       const response = await api.post(`/email/send-final`, {
         doctorantId: doctorant._id,
@@ -991,6 +1013,8 @@ const ListeDoctorants: React.FC = () => {
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi du rapport final :", error);
       alert("❌ Échec de l'envoi du rapport final.");
+    } finally {
+      toggleLoading(id, 'final', false);
     }
   };
 
@@ -1004,6 +1028,30 @@ const ListeDoctorants: React.FC = () => {
     const year = d.getFullYear();
 
     return `${day}-${month}-${year}`;
+  };
+
+  const handleSendDepartmentEmail = async (id: string, department: string, email: string, prenom: string, nom: string) => {
+    if (!department) {
+      alert("Ce doctorant n'a pas de département défini.");
+      return;
+    }
+    toggleLoading(id, 'invite-dir', true);
+    try {
+      const response = await api.post('/email/send-department', {
+        doctorantId: id,
+        doctorantEmail: email,
+        doctorantPrenom: prenom,
+        doctorantNom: nom,
+        department: department
+      });
+      alert(response.data.message || `Email envoyé au directeur du département ${department}`);
+      fetchDoctorants();
+    } catch (error: any) {
+      console.error("Erreur envoi directeur dept:", error);
+      alert(error.response?.data?.message || "Erreur lors de l'envoi au directeur de département.");
+    } finally {
+      toggleLoading(id, 'invite-dir', false);
+    }
   };
 
   const handleSendFinalReportsToFiltered = async () => {
@@ -1422,24 +1470,27 @@ const ListeDoctorants: React.FC = () => {
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => handleSendEmail(doc._id, doc.email, doc.prenom, doc.nom)}
                       title="Renvoyer mail d'invitation au doctorant"
+                      disabled={loadingMap[`${doc._id}-invite-doc`]}
                     >
-                      📩 Invit. Doc
+                      {loadingMap[`${doc._id}-invite-doc`] ? <IconSpinner className="icon-spin" /> : '📩'} Invit. Doc
                     </button>
 
                     <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => handleResendReferentEmails(doc._id)}
                       title="Renvoyer mail avec rapport du doctorant aux référents"
+                      disabled={loadingMap[`${doc._id}-invite-ref`]}
                     >
-                      📩 Invit. Réf
+                      {loadingMap[`${doc._id}-invite-ref`] ? <IconSpinner className="icon-spin" /> : '📩'} Invit. Réf
                     </button>
 
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => handleExportPDF(doc._id)}
                       title="Afficher PDF en fonction de l'avancement"
+                      disabled={loadingMap[`${doc._id}-pdf`]}
                     >
-                      📄 Voir PDF
+                      {loadingMap[`${doc._id}-pdf`] ? <IconSpinner className="icon-spin" /> : '📄'} Voir PDF
                     </button>
 
                     <Link to={`/doctorant/modifier/${doc._id}`} className="btn-link">
@@ -1449,11 +1500,22 @@ const ListeDoctorants: React.FC = () => {
                     </Link>
 
                     <button
+                      className="btn btn-outline-dark btn-sm"
+                      onClick={() => handleSendDepartmentEmail(doc._id, doc.departementDoctorant, doc.email, doc.prenom, doc.nom)}
+                      title="Envoyer mail au directeur de département"
+                      disabled={loadingMap[`${doc._id}-invite-dir`]}
+                      style={{ borderColor: '#666', color: '#666' }}
+                    >
+                      {loadingMap[`${doc._id}-invite-dir`] ? <IconSpinner className="icon-spin" /> : '🏛️'} Invit. Dir
+                    </button>
+
+                    <button
                       className="btn btn-success btn-sm"
                       onClick={() => handleSendFinalReport(doc._id)}
                       title="Envoyer rapport final au doctorant + directeur"
+                      disabled={loadingMap[`${doc._id}-final`]}
                     >
-                      🚀 Envoi Final
+                      {loadingMap[`${doc._id}-final`] ? <IconSpinner className="icon-spin" /> : '🚀'} Envoi Final
                     </button>
                   </div>
 

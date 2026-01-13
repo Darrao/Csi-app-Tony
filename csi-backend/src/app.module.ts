@@ -1,3 +1,4 @@
+
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DoctorantModule } from './doctorant/doctorant.module';
@@ -7,6 +8,7 @@ import { AuthModule } from './admin/auth/auth.module';
 import { EmailConfigModule } from './emailConfig/email-config.module';
 import { ConfigModule } from '@nestjs/config';
 import { config } from './config';
+import { QuestionModule } from './question/question.module';
 
 @Module({
     imports: [
@@ -16,8 +18,9 @@ import { config } from './config';
         TokenModule,
         AuthModule,
         EmailConfigModule,
+        QuestionModule,
     ],
     controllers: [EmailController],
     providers: [],
 })
-export class AppModule {}
+export class AppModule { }

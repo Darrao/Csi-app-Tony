@@ -1,117 +1,145 @@
+
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
+import { Formik, Form, Field, ErrorMessage, useFormikContext } from 'formik';
 import * as Yup from 'yup';
 import '../styles/FormulaireToken.css';
-import { useNavigate } from 'react-router-dom';
+
+interface Question {
+    _id: string;
+    target: string;
+    section: string;
+    type: string;
+    content: string;
+    order: number;
+    active: boolean;
+    required?: boolean;
+    helpText?: string;
+    placeholder?: string;
+    systemId?: string;
+    visibleToReferent?: boolean;
+}
+
+const FormAutoScroll = () => {
+    const { submitCount, isValid } = useFormikContext();
+    useEffect(() => {
+        if (submitCount > 0 && !isValid) {
+            const firstError = document.querySelector('.input-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = firstError.querySelector('input, select, textarea');
+                if (input) (input as HTMLElement).focus();
+            }
+        }
+    }, [submitCount, isValid]);
+    return null;
+};
 
 const FormulaireToken: React.FC = () => {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
-    const [email, setEmail] = useState<string | null>(null);
-    const [doctorant, setDoctorant] = useState<any>(null);
+    const navigate = useNavigate();
+
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
-    const navigate = useNavigate();
     const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
+    const [doctorant, setDoctorant] = useState<any>(null);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [sharedQuestions, setSharedQuestions] = useState<Question[]>([]);
+    const [showSharedQuestions, setShowSharedQuestions] = useState(false); // Toggle for the section
+
+    // Group questions by section
+    const sections: { [key: string]: Question[] } = {};
+    questions.forEach(q => {
+        if (!sections[q.section]) sections[q.section] = [];
+        sections[q.section].push(q);
+    });
 
     useEffect(() => {
-        const validateToken = async () => {
+        const init = async () => {
+            if (!token) {
+                console.warn("⚠️ Aucun token présent dans l'URL");
+                setLoading(false);
+                return;
+            }
+
             try {
-                console.log("🔄 Validation du token en cours avec :", token);
-                const response = await api.post('/email/validate-token', { token });
+                // 1. Validate Token & Get Doctorant
+                const authResponse = await api.post('/email/validate-token', { token });
+                if (authResponse.data) {
+                    const doc = authResponse.data.doctorant;
+                    setDoctorant(doc);
 
-                console.log("✅ Réponse de l'API :", response.data);
-                if (response.data) {
-                    setEmail(response.data.email);
-                    setDoctorant(response.data.doctorant);
-
-                    console.log("📌 Doctorant stocké :", response.data.doctorant);
-                    console.log("📌 Email stocké :", response.data.email);
-
-                    console.log('redirect-check', {
-                        id: response.data?.doctorant?._id,
-                        rep: response.data?.doctorant?.representantValide,
-                        type: typeof response.data?.doctorant?.representantValide
-                    });
-
-                    if (response.data.doctorant?.representantValide) {
-                        console.log(response.data.doctorant.representantValide);
+                    if (doc?.representantValide) {
                         navigate('/merci');
+                        return;
                     }
 
-                    setLoading(false);
-                } else {
-                    console.warn("⚠️ Token invalide ou expiré :", response.data);
-                    setLoading(false);
-                }
-            } catch (error: any) {
-                console.error("❌ Erreur lors de la validation du token :", {
-                    message: error.message,
-                    code: error.code,
-                    config: error.config,
-                    response: error.response,
-                    url: error.config?.url,
-                    dataSent: error.config?.data,
-                });
+                    // 2. Fetch Questions (Referent)
+                    const qResponse = await api.get<Question[]>('/questions?target=referent');
+                    const sortedReferent = qResponse.data.sort((a: Question, b: Question) => a.order - b.order);
+                    setQuestions(sortedReferent);
 
-                alert('Erreur lors de la validation du lien.');
+                    // 3. Fetch Questions (Doctorant - for shared view)
+                    const docQResponse = await api.get<Question[]>('/questions?target=doctorant');
+                    const sortedShared = docQResponse.data
+                        .filter((q: Question) => q.visibleToReferent)
+                        .sort((a: Question, b: Question) => a.order - b.order);
+                    setSharedQuestions(sortedShared);
+                } else {
+                    alert('Lien invalide ou expiré.');
+                }
+            } catch (error) {
+                console.error("Erreur chargement:", error);
+                alert('Erreur lors du chargement.');
+            } finally {
                 setLoading(false);
             }
         };
 
-        if (token) {
-            validateToken();
-        } else {
-            console.warn("⚠️ Aucun token présent dans l'URL");
-        }
+        init();
     }, [token, navigate]);
 
-    console.log("🕵️‍♂️ État final", { loading, doctorant });
+    if (loading) return <p>Chargement...</p>;
+    if (!doctorant) return <p>Erreur: Impossible de charger les données.</p>;
 
-    if (loading) {
-        return <p>Chargement...</p>;
-    }
-
-    const initialValues = {
+    // Build Dynamic Initial Values
+    const initialValues: any = {
         dateEntretien: '',
-        Q1: '', Q1_comment: '',
-        Q2: '', Q2_comment: '',
-        Q3: '', Q3_comment: '',
-        Q4: '', Q4_comment: '',
-        Q5: '', Q5_comment: '',
-        Q6: '', Q6_comment: '',
-        Q7: '', Q7_comment: '',
-        Q8: '', Q8_comment: '',
-        Q9: '', Q9_comment: '',
-        Q10: '', Q10_comment: '',
-        Q11: '', Q11_comment: '',
-        Q12: '', Q12_comment: '',
-        Q13: '', Q13_comment: '',
-        Q14: '', Q14_comment: '',
-        Q15: '', Q15_comment: '',
-        Q16: '', Q16_comment: '',
-        Q17: '', Q17_comment: '',
         conclusion: '',
         recommendation: '',
         recommendation_comment: '',
         referentValidation: '',
-        referentRating: '', // Initialized as string to avoid 0 pre-selection
+        referentRating: '',
         referentComment: '',
+        responses: {} // Store answers by Question ID
     };
 
-    const validationSchema = Yup.object({
-        dateEntretien: Yup.date()
-            .required('La date de l’entretien est obligatoire'),
+    questions.forEach(q => {
+        initialValues.responses[q._id] = {
+            value: '',
+            comment: ''
+        };
+    });
+
+    // Initialize Shared Questions Fields
+    if (sharedQuestions) {
+        sharedQuestions.forEach(q => {
+            // We use a specific structure for the review logic
+            // validation: 'true' | 'false' (agree or disagree)
+            // corrected: { value: '', comment: '' }
+            initialValues.responses[`${q._id}_validation`] = 'true';
+            initialValues.responses[`${q._id}_corrected`] = { value: '', comment: '' };
+        });
+    }
+
+    // Build Dynamic Validation Schema
+    const validationShape: any = {
+        dateEntretien: Yup.date().required('La date de l’entretien est obligatoire'),
         conclusion: Yup.string().required('La conclusion est obligatoire'),
         recommendation: Yup.string().required('Veuillez choisir une recommandation'),
         recommendation_comment: Yup.string().required('Veuillez ajouter un commentaire'),
-        ...Array.from({ length: 17 }, (_, i) => i + 1).reduce((schema, questionNum) => {
-            schema[`Q${questionNum}`] = Yup.string().required(`La réponse à la question ${questionNum} est obligatoire`);
-            schema[`Q${questionNum}_comment`] = Yup.string().required(`Le commentaire de la question ${questionNum} est obligatoire`);
-            return schema;
-        }, {} as Record<string, Yup.StringSchema<string>>),
         referentValidation: Yup.string().required("Veuillez valider ou non l'auto-évaluation"),
         referentRating: Yup.number().when('referentValidation', {
             is: 'false',
@@ -123,429 +151,428 @@ const FormulaireToken: React.FC = () => {
             then: (schema) => schema.required("Veuillez expliquer votre désaccord"),
             otherwise: (schema) => schema.notRequired(),
         }),
-    });
+        responses: Yup.object().shape({
+            ...questions.reduce((acc, q) => {
+                const valueSchema = q.required
+                    ? Yup.string().required('Réponse obligatoire')
+                    : Yup.string();
+
+                acc[q._id] = Yup.object().shape({
+                    value: valueSchema,
+                    comment: Yup.string()
+                });
+                return acc;
+            }, {} as any),
+            ...sharedQuestions.reduce((acc, q) => {
+                acc[`${q._id}_validation`] = Yup.string().required();
+                acc[`${q._id}_corrected`] = Yup.object().when(`${q._id}_validation`, {
+                    is: 'false',
+                    then: (schema) => schema.shape({
+                        value: Yup.string().required("Correction requise"),
+                        comment: Yup.string()
+                    }),
+                    otherwise: (schema) => schema.shape({
+                        value: Yup.string(),
+                        comment: Yup.string()
+                    })
+                });
+                return acc;
+            }, {} as any)
+        })
+    };
+    const validationSchema = Yup.object(validationShape);
 
     const onSubmit = async (values: any) => {
-        const confirmation = window.confirm(
-            "⚠️ Only one member of the committee must submit this form!\n\nPlease make sure this hasn't been done yet before proceeding."
-        );
+        const confirmation = window.confirm("⚠️ Only one member of the committee must submit this form! Proceed?");
         if (!confirmation) return;
 
-        console.log("🚀 Soumission du formulaire en cours...", values);
         setSubmitting(true);
         try {
-            if (!doctorant) {
-                alert("❌ Erreur : Les données du doctorant sont absentes !");
-                setSubmitting(false);
-                return;
-            }
+            // Transform form values to backend expected format
+            // Transform form values to backend expected format
+            const formattedResponses: any[] = [];
 
-            const cleanedValues = { ...values };
-            delete cleanedValues.recommendationComment;
+            Object.keys(values.responses).forEach(key => {
+                const responseData = values.responses[key];
 
-            const normalizeData = (doctorant: any, values: any) => {
-                return {
-                    ...values,
-                    email: doctorant.email || "",
-                    prenom: doctorant.prenom || "",
-                    nom: doctorant.nom || "",
-                    datePremiereInscription: doctorant.datePremiereInscription || null,
-                    anneeThese: doctorant.anneeThese || "",
-                    typeThesis: doctorant.typeThesis || "",
-                    titreThese: doctorant.titreThese || "",
-                    intituleUR: doctorant.intituleUR || "",
-                    directeurUR: doctorant.directeurUR || "",
-                    intituleEquipe: doctorant.intituleEquipe || "",
-                    directeurEquipe: doctorant.directeurEquipe || "",
-                    directeurThese: doctorant.directeurThese || "",
-                    prenomMembre1: doctorant.prenomMembre1 || "",
-                    nomMembre1: doctorant.nomMembre1 || "",
-                    emailMembre1: doctorant.emailMembre1 || "",
-                    univesityMembre1: doctorant.univesityMembre1 || "",
-                    prenomMembre2: doctorant.prenomMembre2 || "",
-                    nomMembre2: doctorant.nomMembre2 || "",
-                    emailMembre2: doctorant.emailMembre2 || "",
-                    univesityMembre2: doctorant.univesityMembre2 || "",
-                    universityAdditionalMembre: doctorant.universityAdditionalMembre || "",
-                    report: doctorant.report || "",
-                    nbHoursScientificModules: doctorant.nbHoursScientificModules ?? 0,
-                    nbHoursCrossDisciplinaryModules: doctorant.nbHoursCrossDisciplinaryModules ?? 0,
-                    nbHoursProfessionalIntegrationModules: doctorant.nbHoursProfessionalIntegrationModules ?? 0,
-                    totalNbHours: doctorant.totalNbHours ?? 0,
-                    dateValidation: doctorant.dateValidation || null,
-                    representantValide: true,
-                    rapport: {
-                        nomOriginal: `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`,
-                        cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`
-                    },
-                    referentValidation: values.referentValidation === 'true',
-                    referentRating: values.referentValidation === 'false' ? Number(values.referentRating) : undefined,
-                    referentComment: values.referentValidation === 'false' ? values.referentComment : undefined,
-                };
+                // Case 1: Standard Response (Object with value/comment)
+                // We check if it's NOT a validation flag or a corrected object wrapper
+                if (key.endsWith('_validation')) return; // Skip validation flags, or store them if needed? Let's skip layout flags.
+
+                if (key.endsWith('_corrected')) {
+                    // This is a correction object { value: '', comment: '' }
+                    // We only save it if the corresponding validation was FALSE (disagreement)
+                    // The key is like "QID_corrected"
+                    const originalId = key.replace('_corrected', '');
+                    const isValid = values.responses[`${originalId}_validation`] === 'true';
+
+                    if (!isValid) {
+                        // User disagreed, save correction
+                        // We append "_referent" to name as requested? user said "Q1_corrected_referent"
+                        // My key is "QID_corrected". Let's use that as questionId.
+                        formattedResponses.push({
+                            questionId: `${originalId}_corrected_referent`, // As requested
+                            value: responseData.value,
+                            comment: responseData.comment
+                        });
+                    }
+                } else {
+                    // Standard Question Response
+                    // It should be an object { value, comment }
+                    // But wait, initialValues initialized it as such.
+                    // Just double check it's not a string (legacy)
+                    if (typeof responseData === 'object' && responseData !== null) {
+                        formattedResponses.push({
+                            questionId: key,
+                            value: responseData.value,
+                            comment: responseData.comment
+                        });
+                    }
+                }
+            });
+
+            const payload = {
+                ...doctorant, // Keep existing doctorant data
+                emailAdditionalMembre: doctorant.emailAdditionalMembre || undefined, // Fix for validation error on empty string
+                emailMembre2: doctorant.emailMembre2 || undefined,
+                email_HDR: doctorant.email_HDR || undefined,
+
+                // Update with Form Data
+                dateEntretien: values.dateEntretien,
+                conclusion: values.conclusion,
+                recommendation: values.recommendation,
+                recommendation_comment: values.recommendation_comment,
+                referentValidation: values.referentValidation === 'true',
+                referentRating: values.referentValidation === 'false' ? Number(values.referentRating) : undefined,
+                referentComment: values.referentValidation === 'false' ? values.referentComment : undefined,
+
+                // New Responses Field
+                responses: formattedResponses,
+
+                // Validate Flags
+                representantValide: true,
+
+                rapport: {
+                    nomOriginal: `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`,
+                    cheminStockage: `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`
+                }
             };
 
-            console.log("🔍 Doctorant avant envoi :", doctorant);
-            const payload = normalizeData(doctorant, cleanedValues);
-            console.log("📤 Données envoyées à l'API :", payload);
+            await api.put(`/doctorant/${doctorant._id}`, payload);
 
-            if (doctorant._id) {
-                console.log(doctorant._id);
+            // Trigger Emails
+            await api.post('/email/send-department', {
+                doctorantId: doctorant._id,
+                doctorantEmail: doctorant.email,
+                doctorantPrenom: doctorant.prenom,
+                doctorantNom: doctorant.nom,
+                department: doctorant.departementDoctorant,
+            });
 
-                const response = await api.put(`/doctorant/${doctorant._id}`, payload);
-                console.log("✅ Mise à jour réussie :", response.data);
+            await api.post('/email/send-referent-confirmation', {
+                doctorantId: doctorant._id,
+                doctorantEmail: doctorant.email,
+                doctorantPrenom: doctorant.prenom,
+                doctorantNom: doctorant.nom,
+            });
 
-                await api.post('/email/send-department', {
-                    doctorantId: doctorant._id,
-                    doctorantEmail: doctorant.email,
-                    doctorantPrenom: doctorant.prenom,
-                    doctorantNom: doctorant.nom,
-                    department: doctorant.departementDoctorant,
-                });
-                console.log("✅ Email envoyé au directeur et gestionnaire");
+            navigate('/merci');
 
-                await api.post('/email/send-referent-confirmation', {
-                    doctorantId: doctorant._id,
-                    doctorantEmail: doctorant.email,
-                    doctorantPrenom: doctorant.prenom,
-                    doctorantNom: doctorant.nom,
-                });
-                console.log("✅ Email de confirmation envoyé aux référents");
-
-                alert('Mise à jour effectuée avec succès !');
-                navigate('/merci');
-            }
         } catch (error: any) {
-            console.error('❌ Erreur lors de la soumission du formulaire :', error);
-
-            if (error.response) {
-                console.error("📥 Réponse de l'API :", error.response.data);
-                alert(`Erreur lors de la soumission. ${error.response.data.message}`);
-            }
+            console.error("Error submitting:", error);
+            alert(`Erreur: ${error.response?.data?.message || 'Soumission échouée'}`);
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div className="container">
-            <h1>CSI form</h1>
+        <div className="form-token-container">
+            <div className="form-header">
+                <h1>CSI Evaluation Form</h1>
+                <p>Confidential evaluation by the referent member</p>
+            </div>
 
-            {doctorant ? (
-                console.log("📌 Doctorant dans le return :", doctorant),
-                <div>
-                    <h2>Doctoral student</h2>
-                    <p><strong>Family name :</strong> {doctorant.nom || "Non renseigné"}</p>
-                    <p><strong>First name :</strong> {doctorant.prenom || "Non renseigné"}</p>
-                    <p><strong>Email :</strong> {doctorant.email || "Non renseigné"}</p>
-                    <p><strong>Title Thesis :</strong> {doctorant.titreThese || "Non renseigné"}</p>
-                    <p><strong>PhD supervisor :</strong> {doctorant.nomPrenomHDR || "Non renseigné"}</p>
-                    <p><strong>Thesis year :</strong> {doctorant.anneeThese || "Non renseigné"}</p>
+            <div className="form-section">
+                <h2>Doctoral Student Information</h2>
+                <div className="info-grid">
+                    <div className="info-item">
+                        <label>Family Name</label>
+                        <span>{doctorant.nom}</span>
+                    </div>
+                    <div className="info-item">
+                        <label>First Name</label>
+                        <span>{doctorant.prenom}</span>
+                    </div>
+                    <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                        <label>Thesis Title</label>
+                        <span>{doctorant.titreThese}</span>
+                    </div>
                 </div>
-            ) : (
-                <p>⚠️ Impossible de récupérer les informations du doctorant.</p>
-            )}
+            </div>
 
             <Formik
                 initialValues={initialValues}
                 validationSchema={validationSchema}
                 onSubmit={onSubmit}
             >
-                {({ errors, values }) => {
-                    const errorEntries = Object.entries(errors as Record<string, any>);
-
+                {({ errors, touched, submitCount, isValid }) => {
                     return (
                         <Form>
-                            {/* SELF EVALUATION SECTION */}
-                            <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+                            <FormAutoScroll />
+                            {/* SELF EVALUATION */}
+                            <div className="form-section">
                                 <h2>Student Self-Evaluation</h2>
-                                <p style={{ fontSize: '1.1em', marginBottom: '15px' }}>
-                                    The student rated their progress as: <strong>{doctorant.selfEvaluation ? `${doctorant.selfEvaluation}/5` : "Not provided"}</strong>
-                                </p>
+                                <p style={{ marginBottom: '20px' }}>The student rated their progress as: <strong style={{ color: '#007bff', fontSize: '1.2em' }}>{doctorant.selfEvaluation ? `${doctorant.selfEvaluation}/5` : "Not provided"}</strong></p>
 
-                                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Do you agree with this evaluation? <span style={{ color: "red" }}>*</span></label>
-                                <div role="group" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-                                    <label>
-                                        <Field type="radio" name="referentValidation" value="true" /> Yes
-                                    </label>
-                                    <label>
-                                        <Field type="radio" name="referentValidation" value="false" /> No
-                                    </label>
+                                <div className={`input-group ${errors.referentValidation && touched.referentValidation ? 'input-error' : ''}`} style={{ padding: '10px', borderRadius: '4px' }}>
+                                    <label className="question-text">Do you agree with this evaluation? <span className="red">*</span></label>
+                                    <div className="radio-options">
+                                        <label><Field type="radio" name="referentValidation" value="true" /> Yes</label>
+                                        <label><Field type="radio" name="referentValidation" value="false" /> No</label>
+                                    </div>
+                                    <ErrorMessage name="referentValidation" component="div" className="error-msg" />
                                 </div>
-                                <ErrorMessage name="referentValidation" component="div" className="error-message" />
 
-                                {values.referentValidation === 'false' && (
-                                    <div style={{ marginTop: '15px', paddingLeft: '15px', borderLeft: '3px solid #d9534f' }}>
-                                        <label style={{ display: 'block', marginBottom: '8px' }}>Your Rating (1-5) <span style={{ color: "red" }}>*</span></label>
-                                        <div role="group" style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
-                                            {[1, 2, 3, 4, 5].map((score) => (
-                                                <label key={score}>
-                                                    <Field type="radio" name="referentRating" value={String(score)} /> {score}
+                                <Field name="referentValidation">
+                                    {({ field }: any) => field.value === 'false' && (
+                                        <div className="question-block" style={{ marginTop: '20px', backgroundColor: '#fff3cd', borderLeftColor: '#ffc107' }}>
+                                            <label className="question-text">Your Rating (1-5) <span className="red">*</span></label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+                                                <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
+                                                <div style={{ flex: 1, position: 'relative' }}>
+                                                    <Field
+                                                        type="range"
+                                                        name="referentRating"
+                                                        min="1"
+                                                        max="5"
+                                                        step="1"
+                                                        style={{ width: '100%', cursor: 'pointer', accentColor: '#ffc107' }}
+                                                    />
+                                                    <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
+                                                        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                                    </div>
+                                                </div>
+                                                <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
+                                            </div>
+                                            <ErrorMessage name="referentRating" component="div" className="error-msg" />
+
+                                            <label className="question-text" style={{ marginTop: '15px' }}>Explanation <span className="red">*</span></label>
+                                            <Field as="textarea" name="referentComment" className="comment-box" placeholder="Please explain why you disagree..." />
+                                            <ErrorMessage name="referentComment" component="div" className="error-msg" />
+                                        </div>
+                                    )}
+                                </Field>
+                            </div>
+
+                            <div className="form-section">
+                                <h2>Interview Details</h2>
+                                <div className="input-group">
+                                    <label className="question-text">Date of interview <span className="red">*</span></label>
+                                    <Field type="date" name="dateEntretien" className="select-input" />
+                                    <ErrorMessage name="dateEntretien" component="div" className="error-msg" />
+                                </div>
+                            </div>
+
+                            {/* DYNAMIC QUESTIONS RENDERED BY SECTION */}
+                            {Object.keys(sections).map(section => (
+                                <div key={section} className="form-section">
+                                    <h2>{section}</h2>
+                                    {sections[section].filter(q => !q.systemId).map(q => {
+                                        const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
+                                        return (
+                                            <div className="question-block" key={q._id}>
+                                                <label className="question-text">
+                                                    {q.content}
+                                                    {q.required && <span className="red"> *</span>}
                                                 </label>
-                                            ))}
-                                        </div>
-                                        <ErrorMessage name="referentRating" component="div" className="error-message" />
 
-                                        <label style={{ display: 'block', marginBottom: '8px', marginTop: '10px' }}>Explanation <span style={{ color: "red" }}>*</span></label>
-                                        <Field
-                                            as="textarea"
-                                            name="referentComment"
-                                            placeholder="Please explain why you disagree and justify your rating..."
-                                            className="comment-box"
-                                        />
-                                        <ErrorMessage name="referentComment" component="div" className="error-message" />
-                                    </div>
-                                )}
-                            </div>
+                                                {q.helpText && (
+                                                    <p style={{ fontSize: '0.85em', color: '#666', marginTop: '-5px', marginBottom: '10px' }}>
+                                                        ℹ️ {q.helpText}
+                                                    </p>
+                                                )}
 
-                            <h2>Date of interview <span style={{ color: "red" }}>*</span></h2>
-                            <Field
-                                type="date"
-                                name="dateEntretien"
-                                id="dateEntretien"
-                                className="comment-box"
-                            />
-                            <ErrorMessage name="dateEntretien" component="div" className="error-message" />
+                                                <div className={`input-group ${hasError ? 'input-error' : ''}`} style={{ padding: hasError ? '10px' : '0', borderRadius: '4px' }}>
+                                                    {q.type === 'plus_minus_comment' ? (
+                                                        <Field as="select" name={`responses.${q._id}.value`} className="select-input">
+                                                            <option value="">{q.placeholder || "Choose an option..."}</option>
+                                                            <option value="+">+ (Strong/Yes)</option>
+                                                            <option value="-">- (Weak/No)</option>
+                                                            <option value="±">± (Moderate/Mixed)</option>
+                                                            <option value="NotAddressed">Not Addressed</option>
+                                                        </Field>
+                                                    ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                            <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
+                                                            <div style={{ flex: 1, position: 'relative' }}>
+                                                                <Field
+                                                                    type="range"
+                                                                    name={`responses.${q._id}.value`}
+                                                                    min="1"
+                                                                    max="5"
+                                                                    step="1"
+                                                                    style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
+                                                                />
+                                                                <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
+                                                                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                                                </div>
+                                                            </div>
+                                                            <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
+                                                        </div>
+                                                    ) : q.type === 'select' ? (
+                                                        <Field as="select" name={`responses.${q._id}.value`} className="select-input">
+                                                            <option value="">{q.placeholder || "Choose..."}</option>
+                                                            <option value="Yes">Yes</option>
+                                                            <option value="No">No</option>
+                                                        </Field>
+                                                    ) : (
+                                                        <Field
+                                                            type="text"
+                                                            name={`responses.${q._id}.value`}
+                                                            className="comment-box"
+                                                            placeholder={q.placeholder || "Your answer..."}
+                                                            style={{ minHeight: '45px' }}
+                                                        />
+                                                    )}
+                                                </div>
+                                                <ErrorMessage name={`responses.${q._id}.value`} component="div" className="error-msg" />
 
-                            <h2>Advances in research</h2>
-                            <div className="grid-container">
-                                {Array.from({ length: 3 }, (_, i) => (
-                                    <div className="grid-row" key={`Q${i + 1}`}>
-                                        <label className="question">
-                                            {[
-                                                "Has the research question been clearly and adequately defined?",
-                                                "Does the doctoral student have a comprehensive understanding of the research process and the tasks to be completed prior to the defense?",
-                                                "Is the research progressing as expected? If not, would an extension of the thesis preparation period allow for a successful defense?"
-                                            ][i]}
-                                        </label>
-                                        <div className='select-container'>
-                                            <Field
-                                                as="select"
-                                                name={`Q${i + 1}`}
-                                                id={`Q${i + 1}`}
-                                                className="comment-select"
-                                            >
-                                                <option value="">Choisir</option>
-                                                <option value="-">-</option>
-                                                <option value="±">±</option>
-                                                <option value="+">+</option>
-                                                <option value="NotAddressed">Not addressed</option>
-                                            </Field>
-                                            <span style={{ color: "red" }}>*</span>
-                                        </div>
+                                                <div className="input-group" style={{ marginTop: '15px' }}>
+                                                    <Field
+                                                        as="textarea"
+                                                        name={`responses.${q._id}.comment`}
+                                                        className="comment-box"
+                                                        placeholder="Additional comments (optional)..."
+                                                    />
+                                                    <ErrorMessage name={`responses.${q._id}.comment`} component="div" className="error-msg" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ))}
 
-                                        <Field
-                                            as="textarea"
-                                            name={`Q${i + 1}_comment`}
-                                            id={`Q${i + 1}_comment`}
-                                            placeholder="Commentaire"
-                                            className="comment-box"
-                                        />
-                                        <div>
-                                            <ErrorMessage name={`Q${i + 1}`} component="div" className="warning-message" />
-                                            <ErrorMessage name={`Q${i + 1}_comment`} component="div" className="warning-message" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <div className="form-section">
+                                <h2>Conclusion & Recommendations</h2>
 
-                            <h2>Training conditions</h2>
-                            <div className="grid-container">
-                                {Array.from({ length: 8 }, (_, i) => (
-                                    <div className="grid-row" key={`Q${i + 4}`}>
-                                        <label className="question">
-                                            {[
-                                                "Have all the scientific, material, and financial requirements necessary for the doctoral project been fulfilled?",
-                                                "If the doctoral student is preparing his/her thesis within a collaborative framework, are the conditions satisfactory?",
-                                                "How effectively are the thesis director or co-directors managing the supervision?",
-                                                "Is the communication between the doctoral students and supervisors satisfactory?",
-                                                "Is the doctoral student well-integrated into the research team or unit? Does he/she feel isolated?",
-                                                "How motivated and determined is the doctoral student to progress with his/her work?",
-                                                "Are there any signs of demotivation or discouragement?",
-                                                "Is the doctoral student at risk of psychosocial stress?"
-                                            ][i]}
-                                        </label>
+                                <div className={`input-group ${errors.conclusion && touched.conclusion ? 'input-error' : ''}`} style={{ padding: '5px', borderRadius: '4px' }}>
+                                    <label className="question-text">General Conclusion <span className="red">*</span></label>
+                                    <Field as="textarea" name="conclusion" className="comment-box" style={{ minHeight: '120px' }} placeholder="Summarize the interview..." />
+                                    <ErrorMessage name="conclusion" component="div" className="error-msg" />
+                                </div>
 
-                                        <div className='select-container'>
-                                            <Field
-                                                as="select"
-                                                name={`Q${i + 4}`}
-                                                id={`Q${i + 4}`}
-                                                className="comment-select"
-                                            >
-                                                <option value="">Choisir</option>
-                                                <option value="-">-</option>
-                                                <option value="±">±</option>
-                                                <option value="+">+</option>
-                                                <option value="NotAddressed">Not addressed</option>
-                                            </Field>
-                                            <span style={{ color: "red" }}>*</span>
-                                        </div>
-
-                                        <Field
-                                            as="textarea"
-                                            name={`Q${i + 4}_comment`}
-                                            id={`Q${i + 4}_comment`}
-                                            placeholder="Commentaire"
-                                            className="comment-box"
-                                        />
-                                        <div>
-                                            <ErrorMessage name={`Q${i + 4}`} component="div" className="warning-message" />
-                                            <ErrorMessage name={`Q${i + 4}_comment`} component="div" className="warning-message" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <h2>Skill development and future preparation</h2>
-                            <div className="grid-container">
-                                {Array.from({ length: 6 }, (_, i) => (
-                                    <div className="grid-row" key={`Q${i + 12}`}>
-                                        <label className="question">
-                                            {[
-                                                "Written output (progress report, bibliography re-view, article, conference abstract)?",
-                                                "Has the doctoral student been educated on research ethics and scientific integrity, in terms of both conducting experiments and handling issues related to publication, authorship, and copyright of scientific works?",
-                                                "Are the doctoral student’s presentation skills up to par? Consider factors such as clarity, ability to synthesize information, quality of supporting materials, oral fluency, and teaching skills.",
-                                                "Do the doctoral student has opportunities to broaden his.her scientific culture in his.her field of research and international perspective (seminars, thematic schools, congresses, ED forum)?",
-                                                "How is the training portfolio progressing?",
-                                                "How is the preparation for the doctoral student’s future career progressing?",
-                                            ][i]}
-                                        </label>
-
-                                        <div className='select-container'>
-                                            <Field
-                                                as="select"
-                                                name={`Q${i + 12}`}
-                                                id={`Q${i + 12}`}
-                                                className="comment-select"
-                                            >
-                                                <option value="">Choisir</option>
-                                                <option value="-">-</option>
-                                                <option value="±">±</option>
-                                                <option value="+">+</option>
-                                                <option value="NotAddressed">Not addressed</option>
-                                            </Field>
-                                            <span style={{ color: "red" }}>*</span>
-                                        </div>
-
-                                        <Field
-                                            as="textarea"
-                                            name={`Q${i + 12}_comment`}
-                                            id={`Q${i + 12}_comment`}
-                                            placeholder="Commentaire"
-                                            className="comment-box"
-                                        />
-                                        <div>
-                                            <ErrorMessage name={`Q${i + 12}`} component="div" className="warning-message" />
-                                            <ErrorMessage name={`Q${i + 12}_comment`} component="div" className="warning-message" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <h2>Conclusion <span style={{ color: "red" }}>*</span></h2>
-                            <Field
-                                as="textarea"
-                                name="conclusion"
-                                id="conclusion"
-                                className="conclusion-box"
-                            />
-                            <ErrorMessage name="conclusion" component="div" />
-
-                            <h2>Recommandations <span style={{ color: "red" }}>*</span></h2>
-                            <div className="recommendation-container" id="recommendation">
-                                {["approve", "disapprove", "exemption", "unfavourable", "new_meeting"].map((value, i) => (
-                                    <label key={value}>
-                                        <Field
-                                            type="radio"
-                                            name="recommendation"
-                                            value={value}
-                                        />
+                                <div className={`input-group ${errors.recommendation && touched.recommendation ? 'input-error' : ''}`} style={{ marginTop: '25px', padding: '5px', borderRadius: '4px' }}>
+                                    <label className="question-text" style={{ marginBottom: '15px', display: 'block' }}>Committee Recommendation <span className="red">*</span></label>
+                                    <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {[
-                                            "The committee approves the re-registration",
-                                            "The committee disapproves of the re-registration",
-                                            "The committee supports the request for an exemption for an additional registration",
-                                            "The committee issues an unfavourable opinion on the request for a derogation for additional registration",
-                                            "The committee advises scheduling a new meeting with the CSI"
-                                        ][i]}
-                                    </label>
-                                ))}
+                                            { val: "approve", label: "The committee approves the re-registration" },
+                                            { val: "disapprove", label: "The committee disapproves of the re-registration" },
+                                            { val: "exemption", label: "The committee supports the request for an exemption for an additional registration" },
+                                            { val: "unfavourable", label: "The committee issues an unfavourable opinion on the request for a derogation for additional registration" },
+                                            { val: "new_meeting", label: "The committee advises scheduling a new meeting with the CSI" }
+                                        ].map(opt => (
+                                            <label key={opt.val} style={{ display: 'flex', alignItems: 'center' }}>
+                                                <Field type="radio" name="recommendation" value={opt.val} style={{ marginRight: '10px' }} />
+                                                {opt.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <ErrorMessage name="recommendation" component="div" className="error-msg" />
+                                </div>
+
+                                <div className="input-group" style={{ marginTop: '25px' }}>
+                                    <label className="question-text">Specific Comments on Recommendation <span className="red">*</span></label>
+                                    <Field as="textarea" name="recommendation_comment" className="comment-box" placeholder="Any specific reasons or advice..." />
+                                    <ErrorMessage name="recommendation_comment" component="div" className="error-msg" />
+                                </div>
                             </div>
-                            <ErrorMessage name="recommendation" component="div" />
 
-                            <h2>Comment on the recommandation <span style={{ color: "red" }}>*</span></h2>
-                            <Field
-                                as="textarea"
-                                name="recommendation_comment"
-                                id="recommendation_comment"
-                                className="comment-box"
-                            />
-                            <ErrorMessage name="recommendation_comment" component="div" />
+                            {/* REVIEW SHARED ANSWERS */}
+                            {sharedQuestions.length > 0 && (
+                                <div className="form-section" style={{ border: '2px dashed #6f42c1', backgroundColor: '#f8f4ff' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowSharedQuestions(!showSharedQuestions)}>
+                                        <h2 style={{ color: '#6f42c1', margin: 0 }}>Review Student Answers</h2>
+                                        <button type="button" className="btn" style={{ background: 'transparent', color: '#6f42c1', border: '1px solid #6f42c1' }}>
+                                            {showSharedQuestions ? "Hide" : "Show"}
+                                        </button>
+                                    </div>
 
-                            <p style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
-                                ⚠️ <u>Only one member of the committee must submit this form!</u>
-                            </p>
+                                    {showSharedQuestions && (
+                                        <div style={{ marginTop: '20px' }}>
+                                            <p>Please review the student's answers below. If you disagree, provide a corrected answer.</p>
+                                            {sharedQuestions.map(q => {
+                                                const originalResponse = doctorant.responses.find((r: any) => r.questionId === q._id);
+                                                const originalValue = originalResponse ? originalResponse.value : "Not answered";
 
-                            <div className="submit-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    onClick={() => setFormSubmitted(true)}
-                                >
-                                    {submitting ? "Submitting..." : "Submit"}
+                                                return (
+                                                    <div key={q._id} className="question-block" style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                                                        <h4 style={{ margin: '0 0 10px 0' }}>{q.content}</h4>
+                                                        <div style={{ backgroundColor: '#e9ecef', padding: '10px', borderRadius: '4px', fontStyle: 'italic', marginBottom: '15px' }}>
+                                                            <strong>Student's Answer:</strong> {originalValue}
+                                                        </div>
+
+                                                        <div className="input-group">
+                                                            <label className="question-text">Do you agree with this answer?</label>
+                                                            <div className="radio-options">
+                                                                <label><Field type="radio" name={`responses.${q._id}_validation`} value="true" /> Yes</label>
+                                                                <label><Field type="radio" name={`responses.${q._id}_validation`} value="false" /> No (Propose Correction)</label>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Conditional Render for Correction */}
+                                                        <Field name={`responses.${q._id}_validation`}>
+                                                            {({ field }: any) => field.value === 'false' && (
+                                                                <div
+                                                                    style={{ marginTop: '15px', padding: '10px', borderLeft: '3px solid #dc3545', backgroundColor: '#fff8f8' }}
+                                                                    className={(errors.responses as any)?.[`${q._id}_corrected`]?.value && (touched.responses as any)?.[`${q._id}_corrected`]?.value ? 'input-error' : ''}
+                                                                >
+                                                                    <label className="question-text" style={{ color: '#dc3545' }}>Corrected Answer</label>
+                                                                    {q.type === 'select' || q.type === 'plus_minus_comment' ? (
+                                                                        // Simplified for now, just text for correction is usually safest unless we map types fully
+                                                                        // But let's try to match type?
+                                                                        <Field as="select" name={`responses.${q._id}_corrected.value`} className="select-input">
+                                                                            <option value="">Choose...</option>
+                                                                            {q.type === 'plus_minus_comment' && <>
+                                                                                <option value="+">+ (Strong/Yes)</option>
+                                                                                <option value="-">- (Weak/No)</option>
+                                                                                <option value="±">± (Moderate/Mixed)</option>
+                                                                                <option value="NotAddressed">Not Addressed</option>
+                                                                            </>}
+                                                                            {q.type === 'select' && <>
+                                                                                <option value="Yes">Yes</option>
+                                                                                <option value="No">No</option>
+                                                                            </>}
+                                                                        </Field>
+                                                                    ) : (
+                                                                        <Field type="text" name={`responses.${q._id}_corrected.value`} className="select-input" placeholder="Your corrected answer..." />
+                                                                    )}
+
+                                                                    <label className="question-text" style={{ marginTop: '10px' }}>Comment (Optional)</label>
+                                                                    <Field type="text" name={`responses.${q._id}_corrected.comment`} className="select-input" placeholder="Why this correction?" />
+                                                                </div>
+                                                            )}
+                                                        </Field>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="submit-row" style={{ marginTop: '40px', paddingBottom: '40px' }}>
+                                <button type="submit" disabled={submitting} onClick={() => setFormSubmitted(true)} className="submit-btn" style={{ opacity: submitting ? 0.7 : 1 }}>
+                                    {submitting ? "Submitting..." : "Submit Evaluation"}
                                 </button>
-
-                                {formSubmitted && errorEntries.length > 0 && (
-                                    <div
-                                        className="missing-fields"
-                                        style={{
-                                            fontSize: '0.8rem',
-                                            maxWidth: '380px',
-                                            lineHeight: 1.3
-                                        }}
-                                    >
-                                        <p
-                                            style={{
-                                                color: 'red',
-                                                fontWeight: 'bold',
-                                                marginBottom: '4px'
-                                            }}
-                                        >
-                                            Champs manquants / à corriger (cliquer pour être redirigé vers le champ concerné) :
-                                        </p>
-                                        <ul style={{ paddingLeft: '18px', margin: 0 }}>
-                                            {errorEntries.map(([field, message]) => (
-                                                <li key={field} style={{ marginBottom: '2px' }}>
-                                                    <a
-                                                        href={`#${field}`}
-                                                        style={{
-                                                            textDecoration: 'underline',
-                                                            cursor: 'pointer',
-                                                            color: 'black'   // texte noir, souligné
-                                                        }}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            const el = document.getElementById(field);
-                                                            if (el) {
-                                                                el.scrollIntoView({
-                                                                    behavior: 'smooth',
-                                                                    block: 'center'
-                                                                });
-                                                                (el as HTMLElement).focus?.();
-                                                            }
-                                                        }}
-                                                    >
-                                                        {typeof message === 'string'
-                                                            ? message
-                                                            : `Erreur sur le champ ${field}`}
-                                                    </a>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                {formSubmitted && Object.keys(errors).length > 0 && (
+                                    <div className="missing-fields">
+                                        <p className="red">Please correct errors above.</p>
                                     </div>
                                 )}
                             </div>
                         </Form>
-                    );
+                    )
                 }}
             </Formik>
         </div>

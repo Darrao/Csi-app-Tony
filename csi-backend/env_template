@@ -1,0 +1,10 @@
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=darraotv@gmail.com
+SMTP_PASS=votre_mot_de_passe_application_ici
+SMTP_SECURE=true
+SMTP_REQUIRE_TLS=true
+SECRET_KEY=supersecretkey123
+FRONTEND_URL=http://localhost:3001
+MONGODB_URI=mongodb://127.0.0.1:27017/csi
+CLARIS_API_KEY=my-secure-claris-key

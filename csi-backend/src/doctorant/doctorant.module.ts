@@ -7,11 +7,16 @@ import { TokenModule } from '../token/token.module';
 import { EmailConfigModule } from '../emailConfig/email-config.module';
 import { DoctorantMiddleware } from './doctorant.middleware';
 
+import { Question, QuestionSchema } from '../question/schemas/question.schema';
+
 @Module({
     imports: [
-        MongooseModule.forFeature([{ name: Doctorant.name, schema: DoctorantSchema }]),
+        MongooseModule.forFeature([
+            { name: Doctorant.name, schema: DoctorantSchema },
+            { name: Question.name, schema: QuestionSchema }
+        ]),
         forwardRef(() => TokenModule),
-        EmailConfigModule, // ✅ Ajout du module ici
+        EmailConfigModule,
     ],
     controllers: [DoctorantController],
     providers: [DoctorantService],

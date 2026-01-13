@@ -259,6 +259,7 @@ export class DoctorantController {
 
       return { message: 'Email envoyé avec succès.' };
     } catch (error) {
+      console.error('❌ Erreur lors de l’envoi de l’email avec sendLink :', error);
       return { message: "Erreur lors de l'envoi de l'email.", error };
     }
   }

@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef} from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import '../styles/FormulaireToken.css';
+import { SystemBlockRenderer } from '../components/form-blocks/SystemBlockRenderer';
 // ajouter container et class pour le css
 
 const ModifierDoctorant: React.FC = () => {
@@ -22,6 +23,49 @@ const ModifierDoctorant: React.FC = () => {
     const scientificReportInputRef = useRef<HTMLInputElement>(null);
     const selfAssessmentInputRef = useRef<HTMLInputElement>(null);
 
+    // Dynamic Questions State
+    const [questions, setQuestions] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchQuestions = async () => {
+            try {
+                const res = await api.get('/questions?target=doctorant');
+                // Sort
+                const sorted = res.data.sort((a: any, b: any) => a.order - b.order);
+                setQuestions(sorted);
+            } catch (err) {
+                console.error("Error fetching questions:", err);
+            }
+        };
+        fetchQuestions();
+    }, []);
+
+    const handleResponseChange = (questionId: string, field: 'value' | 'comment', newValue: string) => {
+        setDoctorant((prev: any) => {
+            const responses = prev.responses ? [...prev.responses] : [];
+            const existingIndex = responses.findIndex((r: any) => r.questionId === questionId);
+
+            if (existingIndex >= 0) {
+                const updatedResponse = { ...responses[existingIndex], [field]: newValue };
+                responses[existingIndex] = updatedResponse;
+            } else {
+                responses.push({
+                    questionId,
+                    value: field === 'value' ? newValue : '',
+                    comment: field === 'comment' ? newValue : ''
+                });
+            }
+            return { ...prev, responses };
+        });
+    };
+
+    const getResponseValue = (questionId: string, field: 'value' | 'comment') => {
+        if (!doctorant?.responses) return '';
+        const response = doctorant.responses.find((r: any) => r.questionId === questionId);
+        return response ? response[field] : '';
+    };
+
+
 
 
     useEffect(() => {
@@ -39,6 +83,23 @@ const ModifierDoctorant: React.FC = () => {
 
         fetchDoctorant();
     }, [id]);
+
+    // Auto-scroll to error
+    useEffect(() => {
+        if (missingFields.length > 0) {
+            // Find first element with class 'input-error'
+            // We need to wait slightly for render? Usually useEffect runs after render.
+            // Using a small timeout to ensure DOM update
+            const timer = setTimeout(() => {
+                const firstError = document.querySelector('.input-error');
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    (firstError as HTMLElement).focus?.();
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [missingFields]);
 
     if (loading) return <p>Chargement des données...</p>;
     if (error) return <p style={{ color: 'red' }}>{error}</p>;
@@ -83,7 +144,7 @@ const ModifierDoctorant: React.FC = () => {
             setScientificReport(null);
             if (scientificReportInputRef.current) {
                 scientificReportInputRef.current.value = "";
-            }        
+            }
         } else if (fileType === "selfAssessment") {
             setSelfAssessment(null);
             if (selfAssessmentInputRef.current) {
@@ -116,13 +177,13 @@ const ModifierDoctorant: React.FC = () => {
     const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         const updatedDoctorant = { ...doctorant, [name]: Number(value) || 0 };
-    
+
         // Recalcule le nombre total d'heures automatiquement
         updatedDoctorant.totalNbHours =
             (updatedDoctorant.nbHoursScientificModules || 0) +
             (updatedDoctorant.nbHoursCrossDisciplinaryModules || 0) +
             (updatedDoctorant.nbHoursProfessionalIntegrationModules || 0);
-    
+
         setDoctorant(updatedDoctorant);
     };
 
@@ -147,22 +208,38 @@ const ModifierDoctorant: React.FC = () => {
             missing.push("scientificReport");
         }
 
-        if (missing.length > 0) {
-            setMissingFields(missing); // Stocker les champs manquants sans affecter l'affichage
+        // 🔴 Vérifier les questions dynamiques obligatoires
+
+        const missingQuestions: string[] = [];
+        const missingQuestionIds: string[] = [];
+        questions.forEach(q => {
+            if (q.required) {
+                const val = getResponseValue(q._id, 'value');
+                if (!val || val.trim() === '') {
+                    missingQuestions.push(q.content);
+                    missingQuestionIds.push(q._id);
+                }
+            }
+        });
+
+        if (missing.length > 0 || missingQuestions.length > 0) {
+            const allMissing = [...missing, ...missingQuestionIds];
+            setMissingFields(allMissing); // Stocker les IDs des champs manquants
+            // Removed alert
             return;
         }
 
         // ✅ Confirmation avant soumission
         const confirmation = window.confirm("Êtes-vous sûr de vouloir valider ?\nAvez-vous bien tout vérifié ?");
         if (!confirmation) return;
-    
+
         setSubmitting(true);
 
         const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
-    
+
         // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {
-            console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
+            // console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
             if (sanitizedDoctorant[key] === "" || sanitizedDoctorant[key] === null) {
                 delete sanitizedDoctorant[key];
             }
@@ -178,12 +255,12 @@ const ModifierDoctorant: React.FC = () => {
         // 📅 Ajoute automatiquement la date de validation si elle est vide
         if (!dateValidation) {
             sanitizedDoctorant.dateValidation = new Date().toISOString().split('T')[0];
-        }        
+        }
 
         sanitizedDoctorant.doctorantValide = true; // Marque le doctorant comme validé
-    
+
         console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
-    
+
         try {
             let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
 
@@ -192,17 +269,17 @@ const ModifierDoctorant: React.FC = () => {
                 const formData = new FormData();
                 if (scientificReport) formData.append("fichiersExternes", scientificReport);
                 if (selfAssessment) formData.append("fichiersExternes", selfAssessment);
-    
+
                 console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
-    
+
                 const uploadResponse = await api.post(`/doctorant/upload/${id}`, formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
-    
+
                 console.log("✅ Fichiers uploadés :", uploadResponse.data);
                 uploadedFiles = uploadResponse.data.fichiersExternes;
             }
-    
+
             // Étape 2 : Mise à jour du doctorant avec les fichiers stockés dans fichiersExternes
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
@@ -210,11 +287,11 @@ const ModifierDoctorant: React.FC = () => {
             const response = await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
             console.log("✅ Réponse API :", response.data);
             setMessage("Modifications enregistrées avec succès !");
-    
+
             // 📩 Envoi d'un email aux référents s'ils existent
             const referentsEmails = [
-                doctorant.emailMembre1, 
-                doctorant.emailMembre2, 
+                doctorant.emailMembre1,
+                doctorant.emailMembre2,
                 doctorant.emailAdditionalMembre
             ].filter(Boolean);
 
@@ -225,268 +302,286 @@ const ModifierDoctorant: React.FC = () => {
                 console.log('doctorant prenom' + doctorant.prenom);
                 console.log("📧 Emails envoyés aux référents :", referentsEmails);
             }
-            
+
             console.log("✅ Mise à jour réussie !");
             setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
         } catch (err) {
             console.error("❌ Erreur lors de la mise à jour :", err);
             setError("Échec de la mise à jour.");
-        }finally {
+        } finally {
             setSubmitting(false); // Désactive l'animation de chargement
         }
     };
 
+
+
+    // Helper to group questions
+    const groupQuestionsBySection = (qs: any[]) => {
+        const groups: { section: string, questions: any[] }[] = [];
+        let currentGroup: { section: string, questions: any[] } | null = null;
+
+        qs.forEach(q => {
+            if (!currentGroup || currentGroup.section !== q.section) {
+                if (currentGroup) groups.push(currentGroup);
+                currentGroup = { section: q.section, questions: [] };
+            }
+            currentGroup.questions.push(q);
+        });
+        if (currentGroup) groups.push(currentGroup);
+        return groups;
+    };
+
+    // Special Renderer for Documents (Local because it uses local state)
+    const DocumentsUploadBlock = () => (
+        <>
+            {/* Rapport Scientifique */}
+            <div className={`question-block ${missingFields.includes("scientificReport") ? 'input-error-block' : ''}`} style={{ marginBottom: '20px' }}>
+                <label className="question-text">Your annual scientific report <span className="red">*</span></label>
+                <p className="warning-message" style={{ color: '#856404', backgroundColor: '#fff3cd', padding: '10px', borderRadius: '5px', border: '1px solid #ffeeba', fontSize: '0.9em' }}>
+                    ⚠️ Do not reuse last year’s CSI form. All required information is now entered directly into the online form. Please upload only your current scientific report as a separate PDF.
+                </p>
+                <span style={{ fontSize: '0.8em', color: '#666' }}>(Max: 5 MB, format PDF)</span>
+                <br />
+                <input
+                    className={missingFields.includes("scientificReport") ? 'input-error' : ''}
+                    ref={scientificReportInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => handleFileChange(e, "scientificReport")}
+                    style={{ marginTop: '10px' }}
+                />
+                {scientificReport && (
+                    <div className="file-preview" style={{ marginTop: '10px', padding: '5px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: 'fit-content' }}>
+                        <span style={{ marginRight: '10px' }}>📄 {scientificReport.name}</span>
+                        <button type="button" onClick={() => handleRemoveFile("scientificReport")} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'red' }}>🗑</button>
+                    </div>
+                )}
+                {missingFields.includes("scientificReport") && (
+                    <p style={{ color: "red", fontWeight: "bold", marginTop: '5px' }}>⚠️ You must upload your annual scientific report.</p>
+                )}
+            </div>
+
+            {/* Auto-évaluation */}
+            <div className="question-block">
+                <label className="question-text">Self assessment of doctoral students' competency (optional)</label>
+                <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '10px' }}>
+                    <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank" rel="noopener noreferrer">You can fill a self-assessment form here.</a> If you do so, you will receive a PDF file that you can drop here.
+                </p>
+                <input
+                    ref={selfAssessmentInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => handleFileChange(e, "selfAssessment")}
+                />
+                {selfAssessment && (
+                    <div className="file-preview" style={{ marginTop: '10px', padding: '5px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: 'fit-content' }}>
+                        <span style={{ marginRight: '10px' }}>📄 {selfAssessment.name}</span>
+                        <button type="button" onClick={() => handleRemoveFile("selfAssessment")} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'red' }}>🗑</button>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+
+    const renderDynamicQuestion = (q: any) => {
+        const isMissing = missingFields.includes(q._id);
+        return (
+            <div key={q._id} className={`question-block ${isMissing ? 'input-error-block' : ''}`} style={{ gridColumn: '1 / -1', marginBottom: '20px', padding: '15px', border: isMissing ? '2px solid #dc3545' : '1px solid #eee', borderRadius: '8px', backgroundColor: isMissing ? '#fff8f8' : 'white' }}>
+                <label className="question-text" style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px', color: isMissing ? '#dc3545' : 'inherit' }}>
+                    {q.content}
+                    {q.required && <span className="red"> *</span>}
+                </label>
+
+                {q.helpText && (
+                    <p style={{ fontSize: '0.85em', color: '#666', marginTop: '-5px', marginBottom: '10px' }}>
+                        ℹ️ {q.helpText}
+                    </p>
+                )}
+
+                <div className="input-group">
+                    {q.type === 'plus_minus_comment' ? (
+                        <select
+                            className={`select-input ${isMissing ? 'input-error' : ''}`}
+                            value={getResponseValue(q._id, 'value')}
+                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                        >
+                            <option value="">{q.placeholder || "Choose an option..."}</option>
+                            <option value="+">+ (Strong/Yes)</option>
+                            <option value="-">- (Weak/No)</option>
+                            <option value="±">± (Moderate/Mixed)</option>
+                            <option value="NotAddressed">Not Addressed</option>
+                        </select>
+                    ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <span style={{ fontSize: '0.9em', color: '#666' }}>Low (1)</span>
+                            <div style={{ flex: 1 }}>
+                                <input
+                                    className={isMissing ? 'input-error' : ''}
+                                    type="range"
+                                    min="1"
+                                    max="5"
+                                    step="1"
+                                    value={getResponseValue(q._id, 'value') || 3}
+                                    onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                    style={{ width: '100%', cursor: 'pointer' }}
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '0.9em', color: '#666' }}>High (5)</span>
+                            <span style={{ fontWeight: 'bold', marginLeft: '10px' }}>{getResponseValue(q._id, 'value') || '?'}</span>
+                        </div>
+                    ) : q.type === 'select' ? (
+                        <select
+                            className={`select-input ${isMissing ? 'input-error' : ''}`}
+                            value={getResponseValue(q._id, 'value')}
+                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                        >
+                            <option value="">{q.placeholder || "Choose..."}</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    ) : (
+                        <input
+                            type="text"
+                            className={`select-input ${isMissing ? 'input-error' : ''}`}
+                            placeholder={q.placeholder || "Your answer..."}
+                            value={getResponseValue(q._id, 'value')}
+                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                        />
+                    )}
+                </div>
+
+                <div className="input-group" style={{ marginTop: '10px' }}>
+                    <textarea
+                        className="comment-box"
+                        placeholder="Additional comments (optional)..."
+                        value={getResponseValue(q._id, 'comment')}
+                        onChange={(e) => handleResponseChange(q._id, 'comment', e.target.value)}
+                        style={{ height: '60px', minHeight: '60px' }}
+                    />
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div className="container">
-            <h1>CSI annual report</h1>
+        <div className="form-token-container">
+            <style>{`
+                .input-error {
+                    border: 2px solid #dc3545 !important;
+                    background-color: #fff8f8;
+                }
+                .input-error-block {
+                    border-color: #dc3545 !important;
+                    background-color: #fff8f8 !important;
+                }
+            `}</style>
+            <div className="form-header">
+                <h1>CSI Annual Report</h1>
+                <p>Edit your doctoral student information</p>
+            </div>
 
             {loading && <p>Chargement des données...</p>}
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {message && <p style={{ color: 'green' }}>{message}</p>}
+            {error && <p className="error-msg">{error}</p>}
+            {message && <p style={{ color: 'green', textAlign: 'center' }}>{message}</p>}
 
             {doctorant && (
                 <form onSubmit={handleSubmit}>
-                    <h2>Personal information</h2>
-                    <div className="flex-container">
-                        <div className='flex-item'>
-                            <label>First Name <span style={{ color: "red" }}>*</span></label>
-                            <input type="text" name="prenom" value={doctorant.prenom || ''} onChange={handleChange} />
-                        </div>
 
-                        <div className='flex-item'>
-                            <label>Family Name <span style={{ color: "red" }}>*</span></label>
-                            <input type="text" name="nom" value={doctorant.nom || ''} onChange={handleChange} />
-                        </div>
+                    {/* Dynamic Rendering Loop */}
+                    {groupQuestionsBySection(questions).map((group, idx) => (
+                        <div key={idx} className="form-section">
+                            <h2>{group.section}</h2>
 
-                        <div className='flex-item'>
-                            <label>Email <span style={{ color: "red" }}>*</span></label>
-                            <input type="email" name="email" value={doctorant.email || ''} onChange={handleChange} />
-                        </div>
+                            {/* If section uses grid layout (usually yes), unless it's only one big item? Keep grid. */}
+                            <div className="info-grid">
+                                {group.questions.map(q => {
+                                    if (q.systemId) {
+                                        // Special case for Documents which needs local state
+                                        if (q.systemId === 'documents_upload') {
+                                            return <div key={q._id} style={{ gridColumn: '1 / -1' }}><DocumentsUploadBlock /></div>;
+                                        }
+                                        // Render standard System Block
+                                        // We need to inject validation props or wrap it?
+                                        // SystemBlockRenderer needs to support 'error' highlighting?
+                                        // Since it renders many inputs, we should pass 'missingFields' down if possible, or just wrap it in a red border if ANY inside is missing?
+                                        // Checking which fields in the block are missing:
+                                        const systemFields = [
+                                            // Mapping systemId to fields... this is tricky without hardcoding again.
+                                            // Ideally SystemBlockRenderer accepts 'errors' array or map.
+                                            // For now, let's wrap the block in red if any of its known fields are missing.
+                                            // But fields like 'nomPredomHDR' are inside 'team_info'.
+                                        ];
+                                        // Simplification: Check if any missing field belongs to this block?
+                                        // We have a list of required fields in handleSubmit:
+                                        // "prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT", "departementDoctorant" -> identity
+                                        // "titreThese", "anneeThese", "typeFinancement" -> thesis_info
+                                        // "intituleUR", "directeurUR" -> research_unit
+                                        // "intituleEquipe", "directeurEquipe", "nomPrenomHDR", "email_HDR" -> team_info
+                                        // "nomMembre1", "emailMembre1", "nomMembre2", "emailMembre2" -> csi_members
 
-                        <div className='flex-item'>
-                            <label>Date first registration <span style={{ color: "red" }}>*</span></label>
-                            <input type="date" name="datePremiereInscription" value={doctorant.datePremiereInscription?.split('T')[0] || ''} onChange={handleChange} />
-                        </div>
+                                        const blockFieldsMap: { [key: string]: string[] } = {
+                                            'identity': ["prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT", "departementDoctorant"],
+                                            'thesis_info': ["titreThese", "anneeThese", "typeFinancement"],
+                                            'research_unit': ["intituleUR", "directeurUR"],
+                                            'team_info': ["intituleEquipe", "directeurEquipe", "nomPrenomHDR", "email_HDR"],
+                                            'csi_members': ["nomMembre1", "emailMembre1", "nomMembre2", "emailMembre2"]
+                                        };
+                                        const fieldsToCheck = blockFieldsMap[q.systemId] || [];
+                                        const hasError = fieldsToCheck.some(f => missingFields.includes(f));
 
-                        <div className='flex-item'>
-                            <label>Unique ID <span style={{ color: "red" }}>*</span></label>
-                            <input disabled type="text" name="ID_DOCTORANT" value={doctorant.ID_DOCTORANT || ''} onChange={handleChange} />
-                        </div>
-
-                        <div className='flex-item'>
-                            <label>Doctoral student's department <span style={{ color: "red" }}>*</span></label>
-                            <select 
-                                name="departementDoctorant" 
-                                value={doctorant.departementDoctorant || ''} 
-                                onChange={handleChange}
-                            >
-                                <option value="">-- Select a Department --</option>
-                                <option value="MECA">MECA</option>
-                                <option value="PP">PP</option>
-                                <option value="IM">IM</option>
-                                <option value="IMMUNO">IMMUNO</option>
-                                <option value="GENYX">GENYX</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <h2>Thesis information & supervision</h2>
-                    <div className="flex-container">
-
-                    <label>Thesis Title <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} placeholder='Thesis Title' />
-
-                    <label>CSI Number <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} placeholder='Thesis year' />
-
-                    <label>Funding <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} placeholder='Funding' />
-
-                    <h2>Research Unit</h2>
-                    <label>Title of the research unit <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} placeholder='Title of the research unit' />
-
-                    <label>Director of the research unit <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} placeholder='Family name and first name' />
-
-                    </div>
-
-                    <h2>Team</h2>
-                    <div className="flex-container">
-
-                    <div className='flex-item'>
-                    <label>Title of the team <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} placeholder='Title of the team' />
-                    </div>
-
-                    <div className='flex-item'>
-                    <label>Team leader <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} placeholder='Family name and first name' />
-                    </div>
-
-                    <div className='flex-item'>
-                    <label>Thesis supervisor <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} placeholder='Family name and first name' />
-                    <input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} placeholder='email'/>
-                    </div>
-
-                    <div className='flex-item'>
-                    <label>Thesis co-supervisor (optional) :</label>
-                    <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} placeholder='First name and family name' />
-                    </div>
-
-                    </div>
-
-                    <h2>Member of the CSI committee</h2>
-                    <div className="flex-container">
-
-                    <label>Member #1 <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} placeholder='First name and family name' />
-                    <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='Email'/>
-
-                    <label>Member #2 <span style={{ color: "red" }}>*</span></label>
-                    <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} placeholder='First name and family name' />
-                    <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='Email'/>
-
-                    <label>Additional member (optionnal)</label>
-                    <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} placeholder='First name and family name' />
-                    <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} placeholder='Email' />
-
-                    </div>
-
-                    <h2>Scientific activities</h2>
-                    <div className="flex-container">
-
-                    <label>Missions <span style={{ color: "red" }}>*</span></label>
-                    <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} placeholder='"None" for empty field'/>
-
-                    <label>Publications <span style={{ color: "red" }}>*</span></label>
-                    <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} placeholder='"None" for empty field' />
-
-                    <label>Conferences <span style={{ color: "red" }}>*</span></label>
-                    <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} placeholder='"None" for empty field' />
-
-                    <label>Posters <span style={{ color: "red" }}>*</span></label>
-                    <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} placeholder='"None" for empty field' />
-
-                    <label>Public communications <span style={{ color: "red" }}>*</span></label>
-                    <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} placeholder='"None" for empty field'/>
-                    </div>
-
-                    <h2>Training modules</h2>
-                    <div className="flex-container">
-
-                    <label>Scientific modules (cumulated hours) :</label>
-                    <input
-                        type="number"
-                        name="nbHoursScientificModules"
-                        value={doctorant.nbHoursScientificModules || 0}
-                        onChange={handleHoursChange}
-                    />
-
-                    <label>Cross-disciplinary modules (cumulated hours) :</label>
-                    <input
-                        type="number"
-                        name="nbHoursCrossDisciplinaryModules"
-                        value={doctorant.nbHoursCrossDisciplinaryModules || 0}
-                        onChange={handleHoursChange}
-                    />
-
-                    <label>Professional integration and career development modules (cumulated hours):</label>
-                    <input
-                        type="number"
-                        name="nbHoursProfessionalIntegrationModules"
-                        value={doctorant.nbHoursProfessionalIntegrationModules || 0}
-                        onChange={handleHoursChange}
-                    />
-
-                    <label>Total number of hours (all modules) :</label>
-                    <input
-                        type="number"
-                        name="totalNbHours"
-                        value={doctorant.totalNbHours || 0}
-                        disabled
-                    />
-
-                    </div>
-
-                    <h2>Documents to upload</h2>
-                    <div className="flex-container">
-
-                    {/* Rapport Scientifique */}
-                    <div className="file-upload">
-                    
-                        <label className="text-file-upload">Your annual scientific report <span style={{ color: "red" }}>*</span></label>
-                        <label className="warning-message">Do not reuse last year’s CSI form. All required information is now entered directly into the online form. Please upload only your current scientific report as a separate PDF</label>
-                        <span className="note-fichier ">(Max: 5 MB, format PDF)</span>
-                        <br />
-                        <input ref={scientificReportInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
-                        {scientificReport && (
-                            <div className="file-preview">
-                                <span>{scientificReport.name}</span>
-                                <button type="button" onClick={() => handleRemoveFile("scientificReport")}>🗑</button>
+                                        return (
+                                            <div key={q._id} style={{ gridColumn: '1 / -1', border: hasError ? '2px solid #dc3545' : 'none', padding: hasError ? '10px' : '0', borderRadius: '8px' }}>
+                                                {hasError && <p style={{ color: '#dc3545', fontWeight: 'bold', marginBottom: '5px' }}>⚠️ Missing information in this section</p>}
+                                                <SystemBlockRenderer
+                                                    systemId={q.systemId}
+                                                    data={doctorant}
+                                                    onChange={handleChange}
+                                                    handleHoursChange={handleHoursChange} // Pass specific handler for hours
+                                                />
+                                            </div>
+                                        );
+                                    } else {
+                                        // Standard Question
+                                        return renderDynamicQuestion(q);
+                                    }
+                                })}
                             </div>
-                        )}
-                        {missingFields.includes("scientificReport") && (
-                            <p style={{ color: "red", fontWeight: "bold" }}>⚠️ You must upload your annual scientific report.</p>
-                        )}
-                    </div>
+                        </div>
+                    ))}
 
-                    <br />
-                    <br />
-
-                    {/* Auto-évaluation */}
-                    <div className="file-upload">
-                        <label>Self assessment of doctoral students' competency (optional)</label>
-                        <span className='sub-text'><a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here.</a> <a>If you do so, you will receive a PDF file that you can drop here</a></span>
-                        <br />
-                        <input ref={selfAssessmentInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
-                        {selfAssessment && (
-                            <div className="file-preview">
-                                <span>{selfAssessment.name}</span>
-                                <button type="button" onClick={() => handleRemoveFile("selfAssessment")}>🗑</button>
-                            </div>
-                        )}
-                    </div>
-                    
-                    <br />                  
-
-                    </div>
-
-                    <h2>Additional information</h2>
-                    <div className="flex-container">
-                    <label>You can transmit additional information to your committee here (optional):</label>
-                    <textarea name="additionalInformation" value={doctorant.additionalInformation || ''} onChange={handleChange} />
-                    </div>
-
-
-                    <br />
-                    {/** ✅ **Message d'erreur des champs manquants ici** */}
-                    {missingFields.length > 0 && (
-                        <div style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
-                            ⚠️ Please fill in all required fields:
-                            {/* <ul>
-                                {missingFields.map((field, index) => (
-                                    <li key={index}>{field}</li>
-                                ))}
-                            </ul> */}
+                    {/* Fallback if no questions (legacy/loading safety) */}
+                    {questions.length === 0 && !loading && (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                            <p>No questions configured. Please contact administrator.</p>
+                            {/* Optional: Render hardcoded if truly empty? No, Admin should force init. */}
                         </div>
                     )}
 
-                    <div className="flex-container">
-                        <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
-                        <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
 
-                            <button 
-                            type="submit" 
-                            className={`submit-btn ${submitting ? 'loading' : ''}`} 
-                            disabled={submitting || !scientificReport}
+                    {/* MISSING FIELDS ERROR */}
+                    {missingFields.length > 0 && (
+                        <div className="missing-fields" style={{ margin: '20px 0', padding: '15px', backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '5px', textAlign: 'center' }}>
+                            <strong>⚠️ Please fill in all required fields to submit.</strong>
+                        </div>
+                    )}
+
+                    <div className="form-section" style={{ textAlign: 'center', backgroundColor: '#f8f9fa', border: 'none' }}>
+                        <h3 style={{ color: '#2c3e50', marginBottom: '15px' }}>Final Validation</h3>
+                        <p style={{ marginBottom: '20px', color: '#666' }}>
+                            By pressing this button, you confirm that this report has been approved by your thesis supervisor.<br />
+                            The report will be automatically sent to your committee members.
+                        </p>
+
+                        <button
+                            type="submit"
+                            className="submit-btn"
+                            disabled={submitting}
+                            style={{ width: '100%', maxWidth: '400px' }}
                         >
-                            {submitting ? (
-                                <>
-                                    <span className="spinner"></span> ⏳ Saving your data, please wait...
-                                </>
-                            ) : "Submit"}
+                            {submitting ? "⏳ Saving..." : "Submit Report"}
                         </button>
                     </div>
                 </form>

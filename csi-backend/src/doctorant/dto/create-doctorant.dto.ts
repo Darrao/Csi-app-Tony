@@ -11,6 +11,21 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+
+class QuestionResponseDto {
+  @IsNotEmpty()
+  @IsString()
+  questionId: string;
+
+  @IsOptional()
+  @IsString()
+  value: string;
+
+  @IsOptional()
+  @IsString()
+  comment: string;
+}
+
 class FichierExterneDto {
   @IsNotEmpty()
   @IsString()
@@ -331,4 +346,10 @@ export class CreateDoctorantDto {
   @IsOptional()
   @IsString()
   suiviComment?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionResponseDto)
+  responses?: QuestionResponseDto[];
 }

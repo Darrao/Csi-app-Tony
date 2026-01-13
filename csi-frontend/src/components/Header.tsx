@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'; // ✅ Import du contexte d'au
 import { CSSProperties } from 'react';
 
 const Header: React.FC = () => {
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
     const { logout } = useAuth(); // ✅ Récupération de la fonction logout du contexte
 
     const handleLogout = () => {
@@ -53,6 +53,7 @@ const Header: React.FC = () => {
                     <Link to="/" style={linkStyles}>Importer CSV</Link>
                     <Link to="/doctorants" style={linkStyles}>Liste des Doctorants</Link>
                     <Link to="/email-config" style={linkStyles}>Configuration Email</Link>
+                    <Link to="/questions" style={linkStyles}>Configuration Question</Link>
                 </div>
                 <button style={logoutButtonStyles} onClick={handleLogout}>Logout</button>
             </nav>

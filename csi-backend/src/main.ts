@@ -37,7 +37,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Supprime les champs inconnus
-      forbidNonWhitelisted: true, // Rejette toute clé non déclarée
+      forbidNonWhitelisted: false, // Ignorer les champs inconnus (au lieu de rejeter)
       transform: true, // Transforme les données en objets DTO
       enableDebugMessages: true, // Active les messages détaillés
     }),

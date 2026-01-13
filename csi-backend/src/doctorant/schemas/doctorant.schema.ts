@@ -246,6 +246,16 @@ export class Doctorant extends Document {
   @Prop({ required: false, default: '' })
   orcid?: string;
 
+  // 🆕 Champ flexible pour stocker les réponses aux questions dynamiques
+  @Prop({
+    type: [{
+      questionId: { type: String, required: true },
+      value: { type: String, required: false, default: '' },
+      comment: { type: String, required: false, default: '' }
+    }], default: []
+  })
+  responses: Array<{ questionId: string, value: string, comment: string }>;
+
   @Prop({ required: false, default: 0 })
   selfEvaluation?: number;
 
