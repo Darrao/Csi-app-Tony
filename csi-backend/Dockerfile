@@ -27,7 +27,8 @@ COPY --from=builder /app/dist ./dist
 # Copy assets/templates if needed (e.g. email templates, images)
 COPY --from=builder /app/assets ./assets
 # Copy uploads folder structure (optional, but good practice to have the dir)
-COPY --from=builder /app/uploads ./uploads
+# Create uploads directory (it will be mounted as a volume)
+RUN mkdir -p uploads
 
 # Expose port (Documentation only, real port is ENV)
 EXPOSE 3000
