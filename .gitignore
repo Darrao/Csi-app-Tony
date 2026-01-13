@@ -6,3 +6,4 @@ build
 *.log
 .env
 csi-frontend/public/logo512.png
+*.pem

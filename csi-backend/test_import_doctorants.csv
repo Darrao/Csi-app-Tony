@@ -1,0 +1,2 @@
+Prénom,Nom,Date 1ère Inscription,AnnéeThèse,Type Financement Clean,Missions,Sujet Thèse à l'inscription,UnitésRecherche::Intitulé Unité Recherche,UnitésRecherche::Nom_Prenom_DU,Equipes::Nom Equipe Affichée,Equipes::Nom_Prenom_Responsable,HDR::Nom_Prenom_HDR,Email d'envoi,ID_DOCTORANT,DEPARTEMENT_DOCTORANT DIRECT::Nom Département
+Tony,Darr,2024-01-01,1,Contrat Doctoral,Enseignement,Développement Application CSI,Laboratoire Info,Prof. Directeur UR,Équipe Dev,Dr. Resp Equipe,Prof. HDR,darraotv@gmail.com,DOC-TONY-001,Informatique

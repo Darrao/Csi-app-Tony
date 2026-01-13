@@ -1,0 +1,16 @@
+# MONGODB_URI=mongodb+srv://darraselio1:UPGsr8R7oY7H3ltg@csi.yjyir.mongodb.net/?retryWrites=true&w=majority&appName=Csi
+MONGODB_URI=mongodb://localhost:27017/csi
+ADMIN_SECRET_KEY=gFHLXmFihrxuOhqW4
+SMTP_USER=csi@edbiospc.fr
+SMTP_PASS=1SiteX@u698
+SMTP_HOST=edbiospc.fr
+SMTP_PORT=465
+SMTP_SECURE=true # for 465 port
+# SMTP_SECURE=false # for 587 port
+SMTP_REQUIRE_TLS=true
+SECRET_KEY=wWKcI6cY10rXcHACIB5TkWJ9+F53y50nZLmey6t8O+U=
+# FRONTEND_URL=https://csi.edbiospc.fr
+FRONTEND_URL=http://localhost:3001
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
