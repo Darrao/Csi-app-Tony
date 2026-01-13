@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/backend
+  IMAGE_NAME: darrao/csi-app-tony/backend
   # Replace with your actual user/org name if needed, but github.repository handles it (e.g. Darrao/Csi-app-Tony)
 
 jobs:
