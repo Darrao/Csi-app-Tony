@@ -45,7 +45,7 @@ async function bootstrap() {
 
   // ✅ Activer CORS
   app.enableCors({
-    origin: `${config.FRONTEND_URL}`, // Frontend URL
+    origin: config.FRONTEND_URL.endsWith('/') ? config.FRONTEND_URL.slice(0, -1) : config.FRONTEND_URL,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
