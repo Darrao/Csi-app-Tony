@@ -1,128 +1,133 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import '../styles/FormulaireToken.css';
-// ajouter container et class pour le css
+import { FaSave, FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine } from 'react-icons/fa';
 
-const ModifierDoctorant: React.FC = () => {
+// Fix for React 18 type mismatch with react-icons
+const IconSave = FaSave as any;
+const IconFilePdf = FaFilePdf as any;
+const IconArrowLeft = FaArrowLeft as any;
+const IconCheckCircle = FaCheckCircle as any;
+const IconExclamationTriangle = FaExclamationTriangle as any;
+const IconUserShield = FaUserShield as any;
+const IconGraduationCap = FaGraduationCap as any;
+const IconUniversity = FaUniversity as any;
+const IconClipboardList = FaClipboardList as any;
+const IconBullhorn = FaBullhorn as any;
+const IconQuestionCircle = FaQuestionCircle as any;
+const IconChartLine = FaChartLine as any;
+
+const ModifierDoctorantAdmin: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [doctorant, setDoctorant] = useState<any>(null);
+    const [doctorantQuestions, setDoctorantQuestions] = useState<any[]>([]);
+    const [referentQuestions, setReferentQuestions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
-    const [selectedFiles1, setSelectedFiles1] = useState<FileList | null>(null);
-    const [selectedFiles2, setSelectedFiles2] = useState<FileList | null>(null);
-    // Stockage local des fichiers avant upload
-    const [tempFiles, setTempFiles] = useState<File[]>([]);
-    const [scientificReport, setScientificReport] = useState<File | null>(null);
-    const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
+    const [isDirty, setIsDirty] = useState(false); // ⚠️ Unsaved Changes Tracker
     const [submitting, setSubmitting] = useState(false);
-    const [missingFields, setMissingFields] = useState<string[]>([]);
-
-
 
     useEffect(() => {
-        const fetchDoctorant = async () => {
+        const fetchData = async () => {
             try {
-                const response = await api.get(`/doctorant/${id}`);
-                setDoctorant(response.data);
+                const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    setError("Accès refusé. Vous devez être connecté en tant qu'administrateur.");
+                    setLoading(false);
+                    return;
+                }
+
+                const docResponse = await api.get(`/doctorant/admin/${id}`, {
+                    headers: { Authorization: token }
+                });
+
+                const [qDocResponse, qRefResponse] = await Promise.all([
+                    api.get('/questions?target=doctorant'),
+                    api.get('/questions?target=referent')
+                ]);
+
+                setDoctorant(docResponse.data);
+                setDoctorantQuestions(qDocResponse.data);
+                setReferentQuestions(qRefResponse.data);
                 setLoading(false);
-            } catch (err) {
-                console.error("Erreur lors de la récupération du doctorant :", err);
-                setError("Vous avez déjà rempli votre formulaire !");
+            } catch (err: any) {
+                console.error("Erreur lors de la récupération des données :", err);
+                if (err.response && err.response.status === 401) {
+                    setError("Session expirée ou non autorisée. Veuillez vous reconnecter.");
+                } else {
+                    setError("Impossible de charger le doctorant (ID invalide ou erreur serveur).");
+                }
                 setLoading(false);
             }
         };
 
-        fetchDoctorant();
+        if (id) fetchData();
     }, [id]);
 
-    if (loading) return <p>Chargement des données...</p>;
-    if (error) return <p style={{ color: 'red' }}>{error}</p>;
-    if (!doctorant) return <p>Aucune donnée trouvée.</p>;
-
-    const _id = doctorant?._id;
-    const fichiersExternes = doctorant?.fichiersExternes || [];
-    const sanitizedDoctorant = doctorant ? { ...doctorant } : {};
-
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setDoctorant({ ...doctorant, [name]: value });
+        setIsDirty(true);
     };
 
-    // Ajout des fichiers dans le state (sans les envoyer encore)
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-        if (e.target.files && e.target.files.length > 0) {
-            const selectedFile = e.target.files[0]; // On prend uniquement le premier fichier
-
-            if (fileType === "scientificReport") {
-                setScientificReport(selectedFile);
-            } else if (fileType === "selfAssessment") {
-                setSelfAssessment(selectedFile);
-            }
-        }
+    const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setDoctorant({ ...doctorant, [name]: Number(value) });
+        setIsDirty(true);
     };
 
-    // Suppression des fichiers dans le frontend uniquement
-    const handleRemoveFile = (fileType: string) => {
-        if (fileType === "scientificReport") {
-            setScientificReport(null);
-        } else if (fileType === "selfAssessment") {
-            setSelfAssessment(null);
-        }
-    };
+    const handleResponseChange = (questionId: string, field: 'value' | 'comment', newValue: string) => {
+        const updatedResponses = [...(doctorant.responses || [])];
+        const index = updatedResponses.findIndex((r: any) => r.questionId === questionId);
 
-    const handleUpload = async (fileType: number) => {
-        const files = fileType === 1 ? selectedFiles1 : selectedFiles2;
-        if (!files || files.length === 0) return;
-
-        const formData = new FormData();
-        for (let i = 0; i < files.length; i++) {
-            formData.append("fichiersExternes", files[i]);
-        }
-
-        try {
-            await api.post(`/doctorant/upload/${id}`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
+        if (index >= 0) {
+            updatedResponses[index] = { ...updatedResponses[index], [field]: newValue };
+        } else {
+            updatedResponses.push({
+                questionId,
+                value: field === 'value' ? newValue : '',
+                comment: field === 'comment' ? newValue : ''
             });
-            alert("Fichiers uploadés !");
-            window.location.reload(); // Recharge la page pour afficher les nouveaux fichiers
-        } catch (err) {
-            console.error("Erreur upload :", err);
-            setError("Erreur lors de l'upload des fichiers.");
         }
+
+        setDoctorant({ ...doctorant, responses: updatedResponses });
+        setIsDirty(true);
     };
 
     const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         const updatedDoctorant = { ...doctorant, [name]: Number(value) || 0 };
 
-        // Recalcule le nombre total d'heures automatiquement
         updatedDoctorant.totalNbHours =
             (updatedDoctorant.nbHoursScientificModules || 0) +
             (updatedDoctorant.nbHoursCrossDisciplinaryModules || 0) +
             (updatedDoctorant.nbHoursProfessionalIntegrationModules || 0);
 
         setDoctorant(updatedDoctorant);
+        setIsDirty(true);
     };
 
     const toggleStatus = async (field: string) => {
         const currentValue = doctorant[field];
-        const action = currentValue ? "DÉSACTIVER (Passer à NON)" : "ACTIVER (Passer à OUI)";
-        const message = `⚠️ ATTENTION : MODIFICATION MANUELLE DE STATUT ⚠️\n\nVous êtes sur le point de ${action} le statut "${field}".\n\nCela peut impacter le workflow automatique et l'envoi des emails.\n\nÊtes-vous SÛR de vouloir faire cela ?`;
-
-        if (!window.confirm(message)) return;
-
-        // Deuxième confirmation pour sécurité
-        if (!window.confirm(`Vraiment sûr de vouloir forcer "${field}" à ${!currentValue} ?`)) return;
+        if (!window.confirm(`Voulez-vous basculer "${field}" de ${currentValue ? 'OUI' : 'NON'} à ${!currentValue ? 'OUI' : 'NON'} ?`)) return;
 
         try {
             const newValue = !doctorant[field];
             await api.put(`/doctorant/${doctorant._id}`, { [field]: newValue });
             setDoctorant({ ...doctorant, [field]: newValue });
-            alert(`✅ Statut "${field}" mis à jour avec succès : ${newValue ? 'OUI' : 'NON'}`);
         } catch (err) {
             console.error(err);
             alert("❌ Erreur lors de la mise à jour du statut.");
@@ -130,12 +135,14 @@ const ModifierDoctorant: React.FC = () => {
     };
 
     const handleRegeneratePDF = async () => {
-        const message = "⚠️ ATTENTION : RÉGÉNÉRATION DU PDF ⚠️\n\nCette action va :\n1. Écraser l'ancien PDF du rapport.\n2. Mettre à jour les informations avec les données actuelles de la base de données.\n\nCela est irréversible. Voulez-vous continuer ?";
-        if (!window.confirm(message)) return;
-
+        if (!window.confirm("⚠️ Régénérer le PDF écrasera l'ancien avec les données actuelles. Continuer ?")) return;
         try {
             await api.post(`/doctorant/regenerate-pdf/${doctorant._id}`);
-            alert("✅ Le PDF a été régénéré et sauvegardé avec succès !");
+            alert("✅ PDF régénéré avec succès !");
+            const response = await api.get(`/doctorant/admin/${id}`, {
+                headers: { Authorization: localStorage.getItem('adminToken') }
+            });
+            setDoctorant(response.data);
         } catch (err) {
             console.error(err);
             alert("❌ Erreur lors de la régénération du PDF.");
@@ -147,198 +154,294 @@ const ModifierDoctorant: React.FC = () => {
         setMessage(null);
         setError(null);
 
-        // Vérification des champs obligatoires
-        const requiredFields = [
-            "prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT",
-            "departementDoctorant", "titreThese", "anneeThese", "typeFinancement",
-            "intituleUR", "directeurUR", "intituleEquipe", "directeurEquipe",
-            "nomPrenomHDR", "email_HDR", "nomMembre1", "emailMembre1",
-            "nomMembre2", "emailMembre2"
-        ];
-
-        const missing = requiredFields.filter(field => !doctorant[field] || doctorant[field].trim() === "");
-
-        if (missing.length > 0) {
-            setMissingFields(missing); // Stocker les champs manquants sans affecter l'affichage
-            return;
-        }
-
-        // ✅ Confirmation avant soumission
-        const confirmation = window.confirm("Êtes-vous sûr de vouloir valider ?\nAvez-vous bien tout vérifié ?");
-        if (!confirmation) return;
+        if (!window.confirm("Enregistrer les modifications ?")) return;
 
         setSubmitting(true);
 
         const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
 
-        // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {
-            console.log("🔑 Clé :", key, " | Valeur :", sanitizedDoctorant[key]);
             if (sanitizedDoctorant[key] === "" || sanitizedDoctorant[key] === null) {
-                delete sanitizedDoctorant[key];
+                if (typeof sanitizedDoctorant[key] === 'string' && sanitizedDoctorant[key] === "") {
+                    delete sanitizedDoctorant[key];
+                }
             }
         });
 
-        // 📅 Ajoute automatiquement la date de validation si elle est vide
-        if (!doctorant.dateValidation) {
-            const today = new Date().toISOString().split('T')[0];
-            sanitizedDoctorant.dateValidation = today;
-            setDoctorant({ ...doctorant, dateValidation: today }); // Met à jour l'affichage
-        }
-
-        // 📅 Ajoute automatiquement la date de validation si elle est vide
-        if (!dateValidation) {
-            sanitizedDoctorant.dateValidation = new Date().toISOString().split('T')[0];
-        }
-
-        // on ne force plus le statut isValid qui écrase tout
-        // sanitizedDoctorant.doctorantValide = true;
-
-        console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
-
         try {
-            let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
-
-            // Étape 1 : Upload des fichiers et récupération de leurs infos
-            if (scientificReport || selfAssessment) {
-                const formData = new FormData();
-                if (scientificReport) formData.append("fichiersExternes", scientificReport);
-                if (selfAssessment) formData.append("fichiersExternes", selfAssessment);
-
-                console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
-
-                const uploadResponse = await api.post(`/doctorant/upload/${id}`, formData, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                });
-
-                console.log("✅ Fichiers uploadés :", uploadResponse.data);
-                uploadedFiles = uploadResponse.data.fichiersExternes;
-            }
-
-            // Étape 2 : Mise à jour du doctorant avec les fichiers stockés dans fichiersExternes
-            sanitizedDoctorant.fichiersExternes = uploadedFiles;
-
-            console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
-            const response = await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
-            console.log("✅ Réponse API :", response.data);
-            setMessage("Modifications enregistrées avec succès !");
-
-            // 📩 Envoi d'un email aux référents s'ils existent
-            const referentsEmails = [
-                doctorant.emailMembre1,
-                doctorant.emailMembre2,
-                doctorant.emailAdditionalMembre
-            ].filter(Boolean);
-
-            console.log("📧 Emails des référents :", referentsEmails);
-            if (referentsEmails.length > 0) {
-                console.log(doctorant.email_HDR)
-                await api.post('/email/send', { emails: referentsEmails, doctorantPrenom: doctorant.prenom, doctorantNom: doctorant.nom, doctorantEmail: doctorant.email, directeurTheseEmail: doctorant.email_HDR });
-                console.log('doctorant prenom' + doctorant.prenom);
-                console.log("📧 Emails envoyés aux référents :", referentsEmails);
-            }
-
-            console.log("✅ Mise à jour réussie !");
-            setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
+            await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
+            setMessage("✅ Doctorant mis à jour avec succès !");
+            setIsDirty(false);
+            window.scrollTo(0, 0);
         } catch (err) {
-            console.error("❌ Erreur lors de la mise à jour :", err);
-            setError("Échec de la mise à jour.");
+            console.error("❌ Erreur save :", err);
+            setError("Échec de la sauvegarde.");
         } finally {
-            setSubmitting(false); // Désactive l'animation de chargement
+            setSubmitting(false);
         }
     };
 
-    return (
-        <div className="container">
-            <h1>Modifier Doctorant</h1>
+    if (loading) return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}><h3>Chargement des données...</h3></div>;
+    if (error) return (
+        <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>
+            <h3 style={{ color: '#d9534f' }}><IconExclamationTriangle /> Erreur</h3>
+            <p>{error}</p>
+            <button onClick={() => navigate('/login')} style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}>Retour connexion</button>
+        </div>
+    );
+    if (!doctorant) return <div className="container"><p>Introuvable.</p></div>;
 
-            {loading && <p>Chargement des données...</p>}
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {message && <p style={{ color: 'green' }}>{message}</p>}
+    // --- STYLES ---
 
-            {doctorant && (
-                <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f0f8ff', border: '1px solid #bdd7ee', borderRadius: '8px' }}>
-                    <h2 style={{ marginTop: 0, color: '#0056b3' }}>🔧 Administration</h2>
+    const sectionStyle = {
+        backgroundColor: '#fff',
+        padding: '30px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        marginBottom: '30px',
+        border: '1px solid #e1e4e8'
+    };
 
-                    <label style={{ fontWeight: 'bold' }}>Commentaire de suivi (interne) :</label>
-                    <textarea
-                        name="suiviComment"
-                        value={doctorant.suiviComment || ''}
-                        onChange={handleChange}
-                        rows={4}
-                        style={{ width: '100%', marginBottom: '15px' }}
-                    />
+    const sectionHeaderStyle = {
+        marginTop: 0,
+        marginBottom: '25px',
+        color: '#1a202c',
+        borderBottom: '2px solid #edf2f7',
+        paddingBottom: '15px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        fontSize: '1.25em',
+        fontWeight: '600'
+    };
 
-                    <h3 style={{ fontSize: '1.1em', color: '#333' }}>Gestion des Status</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px', marginBottom: '15px' }}>
-                        {['sendToDoctorant', 'doctorantValide', 'sendToRepresentants', 'representantValide', 'gestionnaireDirecteurValide', 'finalSend'].map(status => (
-                            <div key={status} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px' }}>
-                                <span style={{ fontSize: '0.9em' }}>{status}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <strong style={{ color: doctorant[status] ? 'green' : '#d9534f' }}>
-                                        {doctorant[status] ? 'OUI' : 'NON'}
-                                    </strong>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleStatus(status)}
-                                        style={{ padding: '2px 8px', fontSize: '0.8em', cursor: 'pointer' }}
-                                    >
-                                        Inverser
-                                    </button>
+    const inputGroupStyle = {
+        marginBottom: '15px'
+    };
+
+    const labelStyle = {
+        display: 'block',
+        marginBottom: '8px',
+        fontWeight: '500',
+        color: '#4a5568',
+        fontSize: '0.9em'
+    };
+
+    const inputStyle = {
+        width: '100%',
+        padding: '10px 12px',
+        borderRadius: '6px',
+        border: '1px solid #cbd5e0',
+        fontSize: '0.95em',
+        transition: 'border-color 0.2s',
+        outline: 'none',
+        backgroundColor: '#f8fafc'
+    };
+
+    const subHeaderStyle = {
+        color: '#2d3748',
+        fontSize: '1.1em',
+        fontWeight: '600',
+        marginTop: '25px',
+        marginBottom: '15px',
+        paddingBottom: '8px',
+        borderBottom: '1px solid #e2e8f0'
+    };
+
+    // --- RENDER HELPERS ---
+
+    // Helper to get response value safely
+    const getResponse = (qId: string) => doctorant.responses?.find((r: any) => r.questionId === qId) || {};
+
+    const renderQuestions = (questions: any[], sectionTitle: string, icon: any) => {
+        const filtered = questions.filter((q: any) => !q.systemId).sort((a: any, b: any) => a.order - b.order);
+        if (filtered.length === 0) return null;
+
+        return (
+            <div style={sectionStyle}>
+                <h2 style={sectionHeaderStyle}>{icon} {sectionTitle}</h2>
+                {filtered.map((q: any) => {
+                    const resp = getResponse(q._id);
+                    const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
+                    // We check if it is "visually empty" just to add a hint, but we render inputs regardless
+                    const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
+
+                    return (
+                        <div key={q._id} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px solid #eee' }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#2d3748' }}>
+                                {q.content}
+                            </label>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div>
+                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Réponse :</span>
+                                    {isScale ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu (Modifier pour définir)</span>}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="5"
+                                                    step="1"
+                                                    value={Number(resp.value) || 1} // Default visual to 1 if empty, but shows "Non répondu" above
+                                                    onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                                    style={{ flex: 1, cursor: 'pointer' }}
+                                                />
+                                                <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>
+                                                    {resp.value || '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={resp.value || ''}
+                                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                            style={inputStyle}
+                                            placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
+                                        />
+                                    )}
+                                </div>
+                                <div>
+                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Commentaire :</span>
+                                    <input
+                                        type="text"
+                                        value={resp.comment || ''}
+                                        onChange={(e) => handleResponseChange(q._id, 'comment', e.target.value)}
+                                        style={inputStyle}
+                                        placeholder="Commentaire optionnel"
+                                    />
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
 
-                    <div>
-                        <button
-                            type="button"
-                            onClick={handleRegeneratePDF}
-                            style={{ backgroundColor: '#ff9800', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            🔄 Régénérer le PDF
-                        </button>
+    return (
+        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '100px', backgroundColor: '#f8f9fa', position: 'relative', fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
+
+            {/* FLOATING UNSAVED CHANGES WARNING */}
+            {isDirty && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '30px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#1a202c',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '50px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '15px',
+                    fontWeight: '600',
+                    border: '1px solid #2d3748'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <IconExclamationTriangle style={{ color: '#ecc94b', fontSize: '1.2em' }} />
+                        <span style={{ fontSize: '0.95em' }}>Modifications non enregistrées</span>
                     </div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        style={{
+                            backgroundColor: '#ecc94b',
+                            color: '#1a202c',
+                            border: 'none',
+                            padding: '8px 20px',
+                            borderRadius: '20px',
+                            cursor: 'pointer',
+                            fontWeight: '700',
+                            fontSize: '0.9em',
+                            transition: 'transform 0.1s',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        {submitting ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
                 </div>
             )}
 
-            {doctorant && (
-                <form onSubmit={handleSubmit}>
-                    <h2>Informations personnelles</h2>
-                    <div className="flex-container">
-                        <div className='flex-item'>
-                            <label>First Name :</label>
-                            <input type="text" name="prenom" value={doctorant.prenom || ''} onChange={handleChange} />
-                        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px', paddingTop: '30px' }}>
+                <button onClick={() => navigate('/doctorants')} style={{ background: 'white', border: '1px solid #e2e8f0', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', color: '#4a5568', fontWeight: '500' }}>
+                    <IconArrowLeft /> Retour
+                </button>
+                <h1 style={{ margin: 0, color: '#1a202c', fontSize: '1.8em', fontWeight: '700' }}>Administration : {doctorant.prenom} {doctorant.nom}</h1>
+            </div>
 
-                        <div className='flex-item'>
-                            <label>Family Name :</label>
-                            <input type="text" name="nom" value={doctorant.nom || ''} onChange={handleChange} />
-                        </div>
+            {message && <div style={{ padding: '15px', backgroundColor: '#c6f6d5', color: '#276749', borderRadius: '8px', marginBottom: '20px', border: '1px solid #9ae6b4', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500' }}><IconCheckCircle /> {message}</div>}
 
-                        <div className='flex-item'>
-                            <label>Email :</label>
-                            <input type="email" name="email" value={doctorant.email || ''} onChange={handleChange} />
-                        </div>
+            {/* ACTIONS ADMINISTRATIVES */}
+            <div style={{ ...sectionStyle, backgroundColor: '#ebf8ff', borderColor: '#bee3f8' }}>
+                <h2 style={{ ...sectionHeaderStyle, color: '#2c5282', borderBottomColor: '#bee3f8' }}><IconUserShield /> Actions Administratives</h2>
 
-                        <div className='flex-item'>
-                            <label>Date first registration :</label>
-                            <input type="date" name="datePremiereInscription" value={doctorant.datePremiereInscription?.split('T')[0] || ''} onChange={handleChange} />
-                        </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '25px' }}>
+                    <div style={inputGroupStyle}>
+                        <label style={{ ...labelStyle, color: '#2b6cb0' }}>Commentaire de suivi (Interne) :</label>
+                        <textarea
+                            name="suiviComment"
+                            value={doctorant.suiviComment || ''}
+                            onChange={handleChange}
+                            rows={3}
+                            placeholder="Note réservée aux administrateurs..."
+                            style={{ ...inputStyle, borderColor: '#90cdf4', backgroundColor: '#fff' }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <label style={{ ...labelStyle, color: '#2b6cb0' }}>Documents :</label>
+                        <button type="button" onClick={handleRegeneratePDF} style={{ backgroundColor: '#3182ce', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(49, 130, 206, 0.3)' }}>
+                            <IconFilePdf /> Régénérer le Rapport PDF
+                        </button>
+                        {doctorant.rapport?.url && (
+                            <a href={doctorant.rapport.url} target="_blank" rel="noreferrer" style={{ textAlign: 'center', color: '#3182ce', textDecoration: 'none', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                                <IconFilePdf /> Voir le PDF actuel
+                            </a>
+                        )}
+                    </div>
+                </div>
 
-                        <div className='flex-item'>
-                            <label>Unique ID :</label>
-                            <input disabled type="text" name="ID_DOCTORANT" value={doctorant.ID_DOCTORANT || ''} onChange={handleChange} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
+                    {[
+                        { key: 'sendToDoctorant', label: 'Envoyé au Doc.' },
+                        { key: 'doctorantValide', label: 'Validé par Doc.' },
+                        { key: 'sendToRepresentants', label: 'Envoyé aux Réf.' },
+                        { key: 'representantValide', label: 'Validé par Réf.' },
+                        { key: 'finalSend', label: 'Envoi Final' }
+                    ].map(status => (
+                        <div key={status.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '15px', background: '#fff', border: '1px solid', borderColor: doctorant[status.key] ? '#c6f6d5' : '#fed7d7', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                            <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '8px', fontWeight: '500' }}>{status.label}</span>
+                            <strong style={{ color: doctorant[status.key] ? '#2f855a' : '#c53030', fontSize: '1.2em', marginBottom: '8px' }}>
+                                {doctorant[status.key] ? 'OUI' : 'NON'}
+                            </strong>
+                            <button type="button" onClick={() => toggleStatus(status.key)} style={{ fontSize: '0.8em', cursor: 'pointer', background: '#f7fafc', border: '1px solid #cbd5e0', padding: '4px 10px', borderRadius: '4px', color: '#4a5568' }}>Changer</button>
                         </div>
+                    ))}
+                </div>
+            </div>
 
-                        <div className='flex-item'>
-                            <label>Doctoral student's department :</label>
-                            <select
-                                name="departementDoctorant"
-                                value={doctorant.departementDoctorant || ''}
-                                onChange={handleChange}
-                            >
-                                <option value="">-- Select a Department --</option>
+            <form onSubmit={handleSubmit}>
+                {/* IDENTITÉ */}
+                <div style={sectionStyle}>
+                    <h2 style={sectionHeaderStyle}><IconGraduationCap /> Identité & Inscription</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Prénom</label><input type="text" name="prenom" value={doctorant.prenom || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Nom</label><input type="text" name="nom" value={doctorant.nom || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Email</label><input type="email" name="email" value={doctorant.email || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>ID Doctorant</label><input type="text" name="ID_DOCTORANT" value={doctorant.ID_DOCTORANT || ''} onChange={handleChange} style={inputStyle} /></div>
+
+                        <div style={inputGroupStyle}><label style={labelStyle}>Date 1ère Inscription</label><input type="date" name="datePremiereInscription" value={doctorant.datePremiereInscription?.split('T')[0] || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Date Entretien</label><input type="date" name="dateEntretien" value={doctorant.dateEntretien?.split('T')[0] || ''} onChange={handleChange} style={inputStyle} /></div>
+
+                        <div style={inputGroupStyle}>
+                            <label style={labelStyle}>Département</label>
+                            <select name="departementDoctorant" value={doctorant.departementDoctorant || ''} onChange={handleChange} style={inputStyle}>
+                                <option value="">-- Sélectionner --</option>
                                 <option value="MECA">MECA</option>
                                 <option value="PP">PP</option>
                                 <option value="IM">IM</option>
@@ -347,203 +450,134 @@ const ModifierDoctorant: React.FC = () => {
                             </select>
                         </div>
                     </div>
+                </div>
 
-                    <h2>Thesis information & supervision</h2>
-                    <div className="flex-container">
-
-                        <label>Thesis Title :</label>
-                        <input type="text" name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} />
-
-                        <label>CSI Number :</label>
-                        <input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} />
-
-                        <label>Funding :</label>
-                        <input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} />
-
-                        <h2>Research Unit</h2>
-                        <label>Title of the research unit :</label>
-                        <input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} />
-
-                        <label>Director of the research unit :</label>
-                        <input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} />
-
+                {/* THÈSE */}
+                <div style={sectionStyle}>
+                    <h2 style={sectionHeaderStyle}><IconUniversity /> Thèse & Encadrement</h2>
+                    <div style={inputGroupStyle}>
+                        <label style={labelStyle}>Titre de la Thèse</label>
+                        <textarea name="titreThese" value={doctorant.titreThese || ''} onChange={handleChange} rows={2} style={inputStyle} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '15px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Année Thèse</label><input type="text" name="anneeThese" value={doctorant.anneeThese || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Type Financement</label><input type="text" name="typeFinancement" value={doctorant.typeFinancement || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>ORCID</label><input type="text" name="orcid" value={doctorant.orcid || ''} placeholder="0000-0000-0000-0000" onChange={handleChange} style={inputStyle} /></div>
                     </div>
 
-                    <h2>Team</h2>
-                    <div className="flex-container">
-
-                        <div className='flex-item'>
-                            <label>Title of the team :</label>
-                            <input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} />
-                        </div>
-
-                        <div className='flex-item'>
-                            <label>Team leader :</label>
-                            <input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} />
-                        </div>
-
-                        <div className='flex-item'>
-                            <label>Thesis supervisor :</label>
-                            <input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} />
-                            <input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} placeholder='email' />
-                        </div>
-
-                        <div className='flex-item'>
-                            <label>Thesis co-supervisor (optional) :</label>
-                            <input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} />
-                        </div>
-
+                    <h4 style={subHeaderStyle}>Laboratoire & Équipe</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Intitulé UR</label><input type="text" name="intituleUR" value={doctorant.intituleUR || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Directeur UR</label><input type="text" name="directeurUR" value={doctorant.directeurUR || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Intitulé Équipe</label><input type="text" name="intituleEquipe" value={doctorant.intituleEquipe || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Directeur Équipe</label><input type="text" name="directeurEquipe" value={doctorant.directeurEquipe || ''} onChange={handleChange} style={inputStyle} /></div>
                     </div>
 
-                    <h2>Member of the CSI committee</h2>
-                    <div className="flex-container">
+                    <h4 style={subHeaderStyle}>Encadrement</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Directeur Thèse (HDR)</label><input type="text" name="nomPrenomHDR" value={doctorant.nomPrenomHDR || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Email HDR</label><input type="email" name="email_HDR" value={doctorant.email_HDR || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Co-Directeur</label><input type="text" name="coDirecteurThese" value={doctorant.coDirecteurThese || ''} onChange={handleChange} style={inputStyle} /></div>
+                    </div>
+                </div>
 
-                        <label>Member #1 :</label>
-                        <input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} />
-                        <input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} placeholder='email' />
+                {/* COMITÉ CSI */}
+                <div style={sectionStyle}>
+                    <h2 style={sectionHeaderStyle}><IconClipboardList /> Comité CSI</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre 1 (Nom)</label><input type="text" name="nomMembre1" value={doctorant.nomMembre1 || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre 1 (Email)</label><input type="email" name="emailMembre1" value={doctorant.emailMembre1 || ''} onChange={handleChange} style={inputStyle} /></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre 2 (Nom)</label><input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre 2 (Email)</label><input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} style={inputStyle} /></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre Add. (Nom)</label><input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Membre Add. (Email)</label><input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} style={inputStyle} /></div>
+                    </div>
+                </div>
 
-                        <label>Member #2 :</label>
-                        <input type="text" name="nomMembre2" value={doctorant.nomMembre2 || ''} onChange={handleChange} />
-                        <input type="email" name="emailMembre2" value={doctorant.emailMembre2 || ''} onChange={handleChange} placeholder='email' />
+                {/* FORMULAIRE ÉTUDIANT */}
+                {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />)}
 
-                        <label>Additional member :</label>
-                        <input type="text" name="nomAdditionalMembre" value={doctorant.nomAdditionalMembre || ''} onChange={handleChange} />
-                        <input type="email" name="emailAdditionalMembre" value={doctorant.emailAdditionalMembre || ''} onChange={handleChange} />
-
+                {/* ACTIVITÉS & FORMATIONS */}
+                <div style={sectionStyle}>
+                    <h2 style={sectionHeaderStyle}><IconBullhorn /> Activités scientifiques & Formations</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Missions</label><textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} rows={4} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Publications</label><textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} rows={4} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Conférences</label><textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} rows={4} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Posters</label><textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} rows={4} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Comm. Publique</label><textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} rows={4} style={inputStyle} /></div>
                     </div>
 
-                    <h2>Scientific activities</h2>
-                    <div className="flex-container">
-
-                        <label>Missions :</label>
-                        <textarea name="missions" value={doctorant.missions || ''} onChange={handleChange} />
-
-                        <label>Publications :</label>
-                        <textarea name="publications" value={doctorant.publications || ''} onChange={handleChange} />
-
-                        <label>Conferences :</label>
-                        <textarea name="conferencePapers" value={doctorant.conferencePapers || ''} onChange={handleChange} />
-
-                        <label>Posters :</label>
-                        <textarea name="posters" value={doctorant.posters || ''} onChange={handleChange} />
-
-                        <label>Public communications :</label>
-                        <textarea name="publicCommunication" value={doctorant.publicCommunication || ''} onChange={handleChange} />
+                    <h4 style={subHeaderStyle}>Heures de Formation</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' }}>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Scientifique</label><input type="number" name="nbHoursScientificModules" value={doctorant.nbHoursScientificModules || 0} onChange={handleHoursChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Transverses</label><input type="number" name="nbHoursCrossDisciplinaryModules" value={doctorant.nbHoursCrossDisciplinaryModules || 0} onChange={handleHoursChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>Insertion Pro.</label><input type="number" name="nbHoursProfessionalIntegrationModules" value={doctorant.nbHoursProfessionalIntegrationModules || 0} onChange={handleHoursChange} style={inputStyle} /></div>
+                        <div style={inputGroupStyle}><label style={labelStyle}>TOTAL</label><input type="number" value={doctorant.totalNbHours || 0} disabled style={{ ...inputStyle, backgroundColor: '#e2e8f0', fontWeight: 'bold' }} /></div>
                     </div>
+                </div>
 
-                    <h2>Training modules</h2>
-                    <div className="flex-container">
+                {/* CONCLUSION & RECOMMANDATION (STRICTLY MATCHING FormulaireToken.tsx) */}
+                <div style={{ ...sectionStyle, borderLeft: '5px solid #3182ce' }}>
+                    <h2 style={{ ...sectionHeaderStyle, color: '#2b6cb0' }}><IconChartLine /> Conclusion & Recommendations</h2>
 
-                        <label>Scientific modules (cumulated hours) :</label>
-                        <input
-                            type="number"
-                            name="nbHoursScientificModules"
-                            value={doctorant.nbHoursScientificModules || 0}
-                            onChange={handleHoursChange}
+                    <div style={inputGroupStyle}>
+                        <label style={labelStyle}>General Conclusion</label>
+                        <textarea
+                            name="conclusion"
+                            value={doctorant.conclusion || ''}
+                            onChange={handleChange}
+                            rows={4}
+                            style={{ ...inputStyle, minHeight: '120px' }}
+                            placeholder="Summarize the interview..."
                         />
-
-                        <label>Cross-disciplinary modules (cumulated hours) :</label>
-                        <input
-                            type="number"
-                            name="nbHoursCrossDisciplinaryModules"
-                            value={doctorant.nbHoursCrossDisciplinaryModules || 0}
-                            onChange={handleHoursChange}
-                        />
-
-                        <label>Professional integration and career development modules (cumulated hours):</label>
-                        <input
-                            type="number"
-                            name="nbHoursProfessionalIntegrationModules"
-                            value={doctorant.nbHoursProfessionalIntegrationModules || 0}
-                            onChange={handleHoursChange}
-                        />
-
-                        <label>Total number of hours (all modules) :</label>
-                        <input
-                            type="number"
-                            name="totalNbHours"
-                            value={doctorant.totalNbHours || 0}
-                            disabled
-                        />
-
                     </div>
 
-                    <h2>Documents to upload</h2>
-                    <div className="flex-container">
-
-                        {/* Rapport Scientifique */}
-                        <div className="file-upload">
-                            <label>Your annual scientific report :</label>
-                            <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "scientificReport")} />
-                            {scientificReport && (
-                                <div className="file-preview">
-                                    <span>{scientificReport.name}</span>
-                                    <button type="button" onClick={() => handleRemoveFile("scientificReport")}>🗑</button>
-                                </div>
-                            )}
+                    <div style={{ ...inputGroupStyle, marginTop: '25px', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                        <label style={{ ...labelStyle, marginBottom: '15px', color: '#1a202c', fontSize: '1em' }}>Committee Recommendation</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {[
+                                { val: "approve", label: "The committee approves the re-registration" },
+                                { val: "disapprove", label: "The committee disapproves of the re-registration" },
+                                { val: "exemption", label: "The committee supports the request for an exemption for an additional registration" },
+                                { val: "unfavourable", label: "The committee issues an unfavourable opinion on the request for a derogation for additional registration" },
+                                { val: "new_meeting", label: "The committee advises scheduling a new meeting with the CSI" }
+                            ].map(opt => (
+                                <label key={opt.val} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.95em', color: '#2d3748' }}>
+                                    <input
+                                        type="radio"
+                                        name="recommendation"
+                                        value={opt.val}
+                                        checked={doctorant.recommendation === opt.val}
+                                        onChange={handleChange}
+                                        style={{ marginRight: '12px', transform: 'scale(1.2)', accentColor: '#3182ce' }}
+                                    />
+                                    {opt.label}
+                                </label>
+                            ))}
                         </div>
-
-                        <br />
-
-                        {/* Auto-évaluation */}
-                        <div className="file-upload">
-                            <label>Self assessment of doctoral students' competency acquisition (optional) :</label>
-                            <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "selfAssessment")} />
-                            {selfAssessment && (
-                                <div className="file-preview">
-                                    <span>{selfAssessment.name}</span>
-                                    <button type="button" onClick={() => handleRemoveFile("selfAssessment")}>🗑</button>
-                                </div>
-                            )}
-                        </div>
-
-
-                        <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank">You can fill a self-assessment form here</a>
-
-                        <br />
-
                     </div>
 
-                    <h2>Additional information</h2>
-                    <div className="flex-container">
-                        <label>You can transmit additional information to your committee here (optional):</label>
-                        <textarea name="additionalInformation" value={doctorant.additionalInformation || ''} onChange={handleChange} />
+                    <div style={{ ...inputGroupStyle, marginTop: '25px' }}>
+                        <label style={labelStyle}>Specific Comments on Recommendation</label>
+                        <textarea
+                            name="recommendation_comment"
+                            value={doctorant.recommendation_comment || ''}
+                            onChange={handleChange}
+                            rows={2}
+                            style={inputStyle}
+                            placeholder="Any specific reasons or advice..."
+                        />
                     </div>
+                </div>
 
-
-                    <br />
-                    {/** ✅ **Message d'erreur des champs manquants ici** */}
-                    {missingFields.length > 0 && (
-                        <div style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
-                            ⚠️ Please fill in all required fields:
-                            {/* <ul>
-                                {missingFields.map((field, index) => (
-                                    <li key={index}>{field}</li>
-                                ))}
-                            </ul> */}
-                        </div>
-                    )}
-
-                    <div className="flex-container">
-                        <h3>By pressing this <strong>final</strong> validation button, you confirm that this report has been approved by your thesis supervisor.</h3>
-                        <label>Warning: After clicking this button, the report will be automatically sent to the members of your committee. You and your thesis supervisor will receive a copy of the email</label>
-
-                        <button
-                            type="submit"
-                            className={`submit-btn ${submitting ? 'loading' : ''}`}
-                            disabled={submitting}
-                        >
-                            {submitting ? (
-                                <>
-                                    <span className="spinner"></span> ⏳ Saving your data, please wait...
-                                </>
-                            ) : "Submit"}
-                        </button>
-                    </div>
-                </form>
-            )}
+            </form>
         </div>
     );
 };
 
-export default ModifierDoctorant;
+export default ModifierDoctorantAdmin;

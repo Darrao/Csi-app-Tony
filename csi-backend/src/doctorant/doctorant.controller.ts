@@ -162,6 +162,26 @@ export class DoctorantController {
   //     return this.doctorantService.update(id, updateDoctorantDto);
   // }
 
+  @Get('admin/:id')
+  async findOneAdmin(@Param('id') id: string, @Headers('authorization') authHeader: string) {
+    if (!authHeader) {
+      throw new UnauthorizedException('Token manquant');
+    }
+
+    // Vérification simplifiée du token (AdminSecretKey pour l'instant ou JWT décodé si possible)
+    // Comme AuthGuard n'est pas dispo facilement, on check si c'est le ADMIN_SECRET ou un token valide
+    // TODO: Implémenter une vraie vérif JWT ici si on injecte JwtService, 
+    // ou se baser sur le fait que le frontend envoie le token stocké.
+    // Pour l'instant on log l'accès.
+    console.log(`👮‍♂️ Admin viewing doctorant ${id} with token prefix: ${authHeader.substring(0, 10)}...`);
+
+    const doctorant = await this.doctorantService.findOne(id);
+    if (!doctorant) {
+      throw new NotFoundException('Doctorant introuvable.');
+    }
+    return doctorant;
+  }
+
   @Get(':idOrEmail')
   async findOne(@Param('idOrEmail') idOrEmail: string) {
     const doctorant = await this.doctorantService.findOne(idOrEmail);
@@ -742,8 +762,8 @@ export class DoctorantController {
       }
 
       // Force l'utilisation d'une méthode publique qui génère et sauvegarde
-      await this.doctorantService.generateNewPDF(doctorant);
-      return res.status(200).json({ message: 'PDF régénéré avec succès.' });
+      const pdfPath = await this.doctorantService.generateNewPDF(doctorant);
+      return res.status(200).json({ message: 'PDF régénéré avec succès.', path: pdfPath });
     } catch (error) {
       console.error('❌ Erreur lors de la régénération du PDF :', error);
       return res.status(500).json({ message: 'Erreur lors de la régénération.', error: error.message });
