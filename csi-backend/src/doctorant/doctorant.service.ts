@@ -1142,6 +1142,19 @@ export class DoctorantService {
       let legacyIndex = 1; // 🕰️ Compteur pour compatibilité ascendante (Q1, Q2...)
 
       for (const q of pdfQuestions) {
+        // [NEW] Handle Chapter Titles (Super Sections)
+        if (q.type === 'chapter_title') {
+          if (y <= marginBottom + 100) newPage(); // Ensure space, else new page
+          // Logic for Big Title
+          y -= 40;
+          page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryColor });
+          page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryColor });
+          y -= 40;
+          // Reset section tracking so next section title triggers
+          currentSection = '';
+          continue; // Skip response printing for chapters
+        }
+
         // Gestion des sections
         if (q.section && q.section !== currentSection) {
           addSectionTitle(q.section);

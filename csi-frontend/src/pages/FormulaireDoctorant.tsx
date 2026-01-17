@@ -90,6 +90,7 @@ const FormulaireDoctorant: React.FC = () => {
       .required("L'auto-évaluation est requise"),
     responses: Yup.object().shape(
       questions.reduce((acc, q) => {
+        if (q.type === 'chapter_title') return acc; // Skip validation for chapters
         acc[q._id] = Yup.object().shape({
           value: Yup.string().required('Réponse obligatoire'),
         });
@@ -131,12 +132,7 @@ const FormulaireDoctorant: React.FC = () => {
 
   if (loadingQuestions) return <p>Chargement du formulaire...</p>;
 
-  // Group questions by section
-  const sections: { [key: string]: Question[] } = {};
-  questions.forEach(q => {
-    if (!sections[q.section]) sections[q.section] = [];
-    sections[q.section].push(q);
-  });
+  if (loadingQuestions) return <p>Chargement du formulaire...</p>;
 
   return (
     <div>
@@ -260,81 +256,125 @@ const FormulaireDoctorant: React.FC = () => {
                 </div>
               </div>
 
-              {/* DYNAMIC QUESTIONS RENDERED BY SECTION */}
-              {Object.keys(sections).map(section => (
-                <div key={section} style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <h3 style={{
-                    marginTop: 0,
-                    borderBottom: '2px solid #0056b3',
-                    paddingBottom: '10px',
-                    marginBottom: '20px',
-                    color: '#0056b3',
-                    fontSize: '1.4em'
-                  }}>
-                    {section || "Questions Complémentaires"}
-                  </h3>
-                  <div style={{ display: 'grid', gap: '15px' }}>
-                    {sections[section].map(q => {
-                      const fieldName = `responses.${q._id}.value`;
-                      const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
+              {/* DYNAMIC QUESTIONS RENDERED LINEARLY (With Chapters) */}
+              {(() => {
+                // 1. Sort by order
+                const sortedQ = [...questions].sort((a, b) => a.order - b.order);
 
-                      return (
-                        <div key={q._id}>
-                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>{q.content}</label>
+                // 2. Group adjacent items
+                const blocks: any[] = [];
+                let currentBlock: { type: 'section' | 'chapter', sectionName?: string, questions: Question[] } | null = null;
 
-                          <div style={{ marginBottom: '5px' }}>
-                            {q.type === 'plus_minus_comment' ? (
-                              <Field as="select" name={fieldName} style={{ padding: '8px', minWidth: '150px' }} className={hasError ? 'input-error' : ''}>
-                                <option value="">Choose...</option>
-                                <option value="+">+ (Strong/Yes)</option>
-                                <option value="-">- (Weak/No)</option>
-                                <option value="±">± (Moderate/Mixed)</option>
-                                <option value="NotAddressed">Not Addressed</option>
-                              </Field>
-                            ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ fontSize: '12px', color: '#666' }}>Low (1)</span>
-                                <div style={{ flex: 1, position: 'relative' }}>
-                                  <Field
-                                    type="range"
-                                    name={fieldName}
-                                    min="1"
-                                    max="5"
-                                    step="1"
-                                    style={{ width: '100%', cursor: 'pointer', accentColor: '#007BFF' }}
-                                  />
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#999', marginTop: '5px' }}>
-                                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-                                  </div>
+                sortedQ.forEach(q => {
+                  if (q.type === 'chapter_title') {
+                    // Start a new Chapter Block
+                    if (currentBlock) blocks.push(currentBlock);
+                    currentBlock = { type: 'chapter', questions: [q] };
+                    blocks.push(currentBlock);
+                    currentBlock = null; // Reset
+                  } else {
+                    // Regular question
+                    if (currentBlock && currentBlock.type === 'section' && currentBlock.sectionName === q.section) {
+                      // Continue current section block
+                      currentBlock.questions.push(q);
+                    } else {
+                      // New Section Block
+                      if (currentBlock) blocks.push(currentBlock);
+                      currentBlock = { type: 'section', sectionName: q.section, questions: [q] };
+                    }
+                  }
+                });
+                if (currentBlock) blocks.push(currentBlock);
+
+                // 3. Render Blocks
+                return blocks.map((block, bIndex) => {
+                  if (block.type === 'chapter') {
+                    const q = block.questions[0];
+                    return (
+                      <div key={`chap_${q._id}`} style={{ marginTop: '40px', marginBottom: '20px', textAlign: 'center', borderBottom: '3px solid #0056b3', paddingBottom: '10px' }}>
+                        <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
+                      </div>
+                    );
+                  } else {
+                    // Render Section Block
+                    const sectionName = block.sectionName;
+                    return (
+                      <div key={`sec_${bIndex}`} style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <h3 style={{
+                          marginTop: 0,
+                          borderBottom: '2px solid #0056b3',
+                          paddingBottom: '10px',
+                          marginBottom: '20px',
+                          color: '#0056b3',
+                          fontSize: '1.4em'
+                        }}>
+                          {sectionName || "General Questions"}
+                        </h3>
+                        <div style={{ display: 'grid', gap: '15px' }}>
+                          {block.questions.map((q: Question) => {
+                            const fieldName = `responses.${q._id}.value`;
+                            const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
+
+                            return (
+                              <div key={q._id}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>{q.content}</label>
+
+                                <div style={{ marginBottom: '5px' }}>
+                                  {q.type === 'plus_minus_comment' ? (
+                                    <Field as="select" name={fieldName} style={{ padding: '8px', minWidth: '150px' }} className={hasError ? 'input-error' : ''}>
+                                      <option value="">Choose...</option>
+                                      <option value="+">+ (Strong/Yes)</option>
+                                      <option value="-">- (Weak/No)</option>
+                                      <option value="±">± (Moderate/Mixed)</option>
+                                      <option value="NotAddressed">Not Addressed</option>
+                                    </Field>
+                                  ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <span style={{ fontSize: '12px', color: '#666' }}>Low (1)</span>
+                                      <div style={{ flex: 1, position: 'relative' }}>
+                                        <Field
+                                          type="range"
+                                          name={fieldName}
+                                          min="1"
+                                          max="5"
+                                          step="1"
+                                          style={{ width: '100%', cursor: 'pointer', accentColor: '#007BFF' }}
+                                        />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#999', marginTop: '5px' }}>
+                                          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                        </div>
+                                      </div>
+                                      <span style={{ fontSize: '12px', color: '#666' }}>High (5)</span>
+                                    </div>
+                                  ) : q.type === 'select' ? (
+                                    <Field as="select" name={fieldName} style={{ padding: '8px', minWidth: '100px' }} className={hasError ? 'input-error' : ''}>
+                                      <option value="">Choose...</option>
+                                      <option value="Yes">Yes</option>
+                                      <option value="No">No</option>
+                                    </Field>
+                                  ) : (
+                                    <Field type="text" name={fieldName} style={{ padding: '8px', width: '100%' }} placeholder="Your answer..." className={hasError ? 'input-error' : ''} />
+                                  )}
                                 </div>
-                                <span style={{ fontSize: '12px', color: '#666' }}>High (5)</span>
-                              </div>
-                            ) : q.type === 'select' ? (
-                              <Field as="select" name={fieldName} style={{ padding: '8px', minWidth: '100px' }} className={hasError ? 'input-error' : ''}>
-                                <option value="">Choose...</option>
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                              </Field>
-                            ) : (
-                              <Field type="text" name={fieldName} style={{ padding: '8px', width: '100%' }} placeholder="Your answer..." className={hasError ? 'input-error' : ''} />
-                            )}
-                          </div>
-                          <div style={{ color: 'red' }}>
-                            <ErrorMessage name={fieldName} component="div" />
-                          </div>
+                                <div style={{ color: 'red' }}>
+                                  <ErrorMessage name={fieldName} component="div" />
+                                </div>
 
-                          <Field
-                            as="textarea"
-                            name={`responses.${q._id}.comment`}
-                            style={{ width: '100%', padding: '8px', height: '60px' }}
-                            placeholder="Optional comment"
-                          />
+                                <Field
+                                  as="textarea"
+                                  name={`responses.${q._id}.comment`}
+                                  style={{ width: '100%', padding: '8px', height: '60px' }}
+                                  placeholder="Optional comment"
+                                />
+                              </div>
+                            )
+                          })}
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
+                      </div>
+                    );
+                  }
+                });
+              })()}
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                 <button type="submit">Submit</button>

@@ -171,12 +171,48 @@ const AdminQuestionConfig: React.FC = () => {
         setUnsavedChanges(true);
     };
 
+
+
     const handleRenameSection = (oldSectionName: string) => {
         const newSectionName = window.prompt("Enter new section name:", oldSectionName);
         if (newSectionName && newSectionName !== oldSectionName) {
             setQuestions(prev => prev.map(q => q.section === oldSectionName ? { ...q, section: newSectionName } : q));
             setUnsavedChanges(true);
         }
+    };
+
+    const handleMoveQuestion = (index: number, direction: -1 | 1) => {
+        if (direction === -1 && index === 0) return;
+        if (direction === 1 && index === questions.length - 1) return;
+
+        const newQuestions = [...questions];
+        const temp = newQuestions[index];
+        newQuestions[index] = newQuestions[index + direction];
+        newQuestions[index + direction] = temp;
+
+        setQuestions(newQuestions);
+        setUnsavedChanges(true);
+    };
+
+    const handleAddChapterTitle = () => {
+        const title = window.prompt("Enter Chapter Title:");
+        if (!title) return;
+
+        const tempId = `temp_chap_${Date.now()}`;
+        const newQ: Question = {
+            _id: tempId,
+            target: target,
+            section: "", // Empty section so it stands out/breaks flow
+            type: "chapter_title",
+            content: title,
+            order: questions.length + 1,
+            active: true,
+            visibleInPdf: true,
+            required: false
+        } as Question;
+
+        setQuestions(prev => [...prev, newQ]);
+        setUnsavedChanges(true);
     };
 
     const handleSaveChanges = async () => {
@@ -268,6 +304,7 @@ const AdminQuestionConfig: React.FC = () => {
                     <p>Customize the {target === 'doctorant' ? 'Doctoral Student' : 'Referent'} form structure.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
                     {target === 'doctorant' && !questions.some(q => q.systemId) && (
                         <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
                     )}
@@ -326,13 +363,15 @@ const AdminQuestionConfig: React.FC = () => {
                             <div style={{ marginBottom: '10px', fontWeight: 'bold', color: '#555', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span>{group.section || 'Uncategorized'}</span>
-                                    <button
-                                        onClick={() => handleRenameSection(group.section)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 5px' }}
-                                        title="Rename Section"
-                                    >
-                                        ✏️
-                                    </button>
+                                    {group.section && (
+                                        <button
+                                            onClick={() => handleRenameSection(group.section)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 5px' }}
+                                            title="Rename Section"
+                                        >
+                                            ✏️
+                                        </button>
+                                    )}
                                     {group.systemId && <span className="card-badge system">SYSTEM BLOCK</span>}
                                     {hasShared && <span title="Contains questions visible to Referent" style={{ marginLeft: '10px', fontSize: '1.2em' }}>👁️</span>}
                                 </div>
@@ -356,8 +395,8 @@ const AdminQuestionConfig: React.FC = () => {
                                     style={{
                                         marginBottom: '10px',
                                         padding: '10px',
-                                        backgroundColor: draggedItemIndex === q.originalIndex ? '#f0f0f0' : '#f9f9f9',
-                                        border: '1px solid #eee',
+                                        backgroundColor: q.type === 'chapter_title' ? '#e3f2fd' : (draggedItemIndex === q.originalIndex ? '#f0f0f0' : '#f9f9f9'), // Distinct bg for chapter_title
+                                        border: q.type === 'chapter_title' ? '2px solid #2196f3' : '1px solid #eee',
                                         borderRadius: '6px',
                                         position: 'relative',
                                         opacity: draggedItemIndex === q.originalIndex ? 0.5 : 1,
@@ -365,14 +404,33 @@ const AdminQuestionConfig: React.FC = () => {
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <h4 style={{ margin: '0 0 5px 0', fontSize: '1em' }}>
-                                                {q.content}
+                                        {/* Reordering Arrows */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', marginRight: '10px', gap: '2px' }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleMoveQuestion(q.originalIndex, -1); }}
+                                                className="btn-arrow"
+                                                style={{ padding: '0 5px', fontSize: '12px', background: '#e9ecef', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                                                disabled={q.originalIndex === 0}
+                                            >
+                                                ▲
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleMoveQuestion(q.originalIndex, 1); }}
+                                                className="btn-arrow"
+                                                style={{ padding: '0 5px', fontSize: '12px', background: '#e9ecef', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                                                disabled={q.originalIndex === questions.length - 1}
+                                            >
+                                                ▼
+                                            </button>
+                                        </div>
+
+                                        <div style={{ flex: 1 }}>
+                                            <h4 style={{ margin: '0 0 5px 0', fontSize: q.type === 'chapter_title' ? '1.3em' : '1em', color: q.type === 'chapter_title' ? '#0d47a1' : 'inherit' }}>
+                                                {q.type === 'chapter_title' ? `🏁 ${q.content}` : q.content}
                                                 {q.required && <span className="red"> *</span>}
-                                                {/* 🆕 PDF Icon (Undefined = True default) */}
                                                 {(q.visibleInPdf !== false) ? <span title="Visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em' }}>📄</span> : <span title="Not visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em', opacity: 0.3 }}>🚫📄</span>}
                                             </h4>
-                                            {!q.systemId && (
+                                            {!q.systemId && q.type !== 'chapter_title' && (
                                                 <div className="type-indicator" style={{ fontSize: '0.8em', color: '#888' }}>
                                                     {q.type === 'text' && "Text Input"}
                                                     {q.type === 'scale_1_5' && "Scale 1-5"}
@@ -394,13 +452,15 @@ const AdminQuestionConfig: React.FC = () => {
                                             <InteractiveSystemPreview systemId={q.systemId} />
                                         </div>
                                     ) : (
-                                        <div className="input-group" style={{ marginTop: '5px', pointerEvents: 'none', opacity: 0.6 }}>
-                                            {q.type === 'text' && <input type="text" className="select-input" placeholder={q.placeholder || "Text input"} style={{ padding: '5px' }} />}
-                                            {q.type === 'scale_1_5' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Scale 1-5</div>}
-                                            {q.type === 'rating_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Rating (1-5) + Comment</div>}
-                                            {q.type === 'plus_minus_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>+/- with Comment</div>}
-                                            {q.type === 'select' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Yes/No Select</div>}
-                                        </div>
+                                        q.type !== 'chapter_title' && (
+                                            <div className="input-group" style={{ marginTop: '5px', pointerEvents: 'none', opacity: 0.6 }}>
+                                                {q.type === 'text' && <input type="text" className="select-input" placeholder={q.placeholder || "Text input"} style={{ padding: '5px' }} />}
+                                                {q.type === 'scale_1_5' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Scale 1-5</div>}
+                                                {q.type === 'rating_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Rating (1-5) + Comment</div>}
+                                                {q.type === 'plus_minus_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>+/- with Comment</div>}
+                                                {q.type === 'select' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Yes/No Select</div>}
+                                            </div>
+                                        )
                                     )}
                                 </div>
                             ))}
