@@ -8,7 +8,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: darrao/csi-app-tony/backend
-  # Replace with your actual user/org name if needed, but github.repository handles it (e.g. Darrao/Csi-app-Tony)
 
 jobs:
   build-and-deploy:
@@ -84,20 +83,28 @@ jobs:
             # Cleanup unused images
             docker image prune -f
 
-      - name: 📢 Deployment Summary
-        if: success()
+      - name: � Deployment Dashboard
+        if: always()
         run: |
-          echo "### ✅ Déploiement Réussi ! 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "**Backend déploié sur :** \`http://${{ secrets.EC2_HOST }}:3000\`" >> $GITHUB_STEP_SUMMARY
-          echo "**URL Frontend configurée :** \`${{ secrets.FRONTEND_URL }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "# 🚀 Rapport de Déploiement : CSI App (Preprod)" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 🔗 Accès & Liens" >> $GITHUB_STEP_SUMMARY
+          echo "- **🖥️ Console AWS EC2 (Paris)** : [Ouvrir la liste des instances](https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
+          echo "  _Cliquez ci-dessus pour gérer votre serveur._" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "👇 **Voici l'IP du serveur (format espacé pour contourner le masquage) :**" >> $GITHUB_STEP_SUMMARY
-          IP_WITH_SPACES=$(echo "${{ secrets.EC2_HOST }}" | sed 's/./& /g')
-          echo "\`$IP_WITH_SPACES\`" >> $GITHUB_STEP_SUMMARY
+
+          IP_SPACED=$(echo "${{ secrets.EC2_HOST }}" | sed 's/./& /g')
+          echo "- **🌐 IP Serveur** : \`$IP_SPACED\`" >> $GITHUB_STEP_SUMMARY
+          echo "  _(Les espaces sont là pour contourner le masquage de sécurité GitHub)_" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📜 Pour voir les logs du backend :" >> $GITHUB_STEP_SUMMARY
-          echo "Connectez-vous en SSH et lancez :" >> $GITHUB_STEP_SUMMARY
+          
+          echo "- **🔗 Lien Frontend** : ${{ secrets.FRONTEND_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **🔗 Lien Backend** : http://${{ secrets.EC2_HOST }}:3000" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 📜 Voir les Logs (Live)" >> $GITHUB_STEP_SUMMARY
+          echo "Pour surveiller le backend en direct, copiez-collez ceci dans votre terminal :" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "ssh -i csi-key.pem ubuntu@${{ secrets.EC2_HOST }}" >> $GITHUB_STEP_SUMMARY
-          echo "docker logs -f csi-backend" >> $GITHUB_STEP_SUMMARY
+          echo "ssh -i csi-key.pem ubuntu@${{ secrets.EC2_HOST }} 'docker logs -f csi-backend'" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

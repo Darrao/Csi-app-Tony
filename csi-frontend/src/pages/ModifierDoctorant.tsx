@@ -12,10 +12,10 @@ const ModifierDoctorant: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
-    const [selectedFiles1, setSelectedFiles1] = useState<FileList | null>(null);
-    const [selectedFiles2, setSelectedFiles2] = useState<FileList | null>(null);
+    // const [selectedFiles1, setSelectedFiles1] = useState<FileList | null>(null);
+    // const [selectedFiles2, setSelectedFiles2] = useState<FileList | null>(null);
     // Stockage local des fichiers avant upload
-    const [tempFiles, setTempFiles] = useState<File[]>([]);
+    // const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [scientificReport, setScientificReport] = useState<File | null>(null);
     const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -105,9 +105,9 @@ const ModifierDoctorant: React.FC = () => {
     if (error) return <p style={{ color: 'red' }}>{error}</p>;
     if (!doctorant) return <p>Aucune donnée trouvée.</p>;
 
-    const _id = doctorant?._id;
-    const fichiersExternes = doctorant?.fichiersExternes || [];
-    const sanitizedDoctorant = doctorant ? { ...doctorant } : {};
+    // const _id = doctorant?._id;
+    // const fichiersExternes = doctorant?.fichiersExternes || [];
+    // const sanitizedDoctorant = doctorant ? { ...doctorant } : {};
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -153,7 +153,7 @@ const ModifierDoctorant: React.FC = () => {
         }
     };
 
-    const handleUpload = async (fileType: number) => {
+    /* const handleUpload = async (fileType: number) => {
         const files = fileType === 1 ? selectedFiles1 : selectedFiles2;
         if (!files || files.length === 0) return;
 
@@ -172,7 +172,7 @@ const ModifierDoctorant: React.FC = () => {
             console.error("Erreur upload :", err);
             setError("Erreur lors de l'upload des fichiers.");
         }
-    };
+    }; */
 
     const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -235,7 +235,7 @@ const ModifierDoctorant: React.FC = () => {
 
         setSubmitting(true);
 
-        const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
+        const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
 
         // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {
@@ -252,10 +252,7 @@ const ModifierDoctorant: React.FC = () => {
             setDoctorant({ ...doctorant, dateValidation: today }); // Met à jour l'affichage
         }
 
-        // 📅 Ajoute automatiquement la date de validation si elle est vide
-        if (!dateValidation) {
-            sanitizedDoctorant.dateValidation = new Date().toISOString().split('T')[0];
-        }
+
 
         sanitizedDoctorant.doctorantValide = true; // Marque le doctorant comme validé
 
@@ -284,7 +281,7 @@ const ModifierDoctorant: React.FC = () => {
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
             console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
-            const response = await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
+            const response = await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
             console.log("✅ Réponse API :", response.data);
             setMessage("Modifications enregistrées avec succès !");
 
@@ -508,12 +505,6 @@ const ModifierDoctorant: React.FC = () => {
                                         // SystemBlockRenderer needs to support 'error' highlighting?
                                         // Since it renders many inputs, we should pass 'missingFields' down if possible, or just wrap it in a red border if ANY inside is missing?
                                         // Checking which fields in the block are missing:
-                                        const systemFields = [
-                                            // Mapping systemId to fields... this is tricky without hardcoding again.
-                                            // Ideally SystemBlockRenderer accepts 'errors' array or map.
-                                            // For now, let's wrap the block in red if any of its known fields are missing.
-                                            // But fields like 'nomPredomHDR' are inside 'team_info'.
-                                        ];
                                         // Simplification: Check if any missing field belongs to this block?
                                         // We have a list of required fields in handleSubmit:
                                         // "prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT", "departementDoctorant" -> identity

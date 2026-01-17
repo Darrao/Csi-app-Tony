@@ -28,7 +28,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
         formData.append('file', file);
 
         try {
-            const _response = await api.post('/doctorant/import-csv', formData, {
+            await api.post('/doctorant/import-csv', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

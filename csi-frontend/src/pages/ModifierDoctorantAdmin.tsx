@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { FaSave, FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine } from 'react-icons/fa';
+import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine } from 'react-icons/fa';
 
 // Fix for React 18 type mismatch with react-icons
 // Fix for React 18 type mismatch with react-icons
@@ -43,7 +43,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                     headers: { Authorization: token }
                 });
 
-                const [qDocResponse, _qRefResponse] = await Promise.all([
+                const [qDocResponse] = await Promise.all([
                     api.get('/questions?target=doctorant'),
                     api.get('/questions?target=referent')
                 ]);
