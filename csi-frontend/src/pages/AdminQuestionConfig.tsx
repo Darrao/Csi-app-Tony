@@ -153,6 +153,7 @@ const AdminQuestionConfig: React.FC = () => {
         const tempId = `temp_${Date.now()}`;
         const newQ: Question = {
             ...newQuestion,
+            target: target, // ✅ Force usage of current view target
             _id: tempId,
             order: questions.length + 1
         } as Question;
