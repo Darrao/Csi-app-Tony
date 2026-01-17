@@ -78,18 +78,18 @@ const AdminEmailConfig: React.FC = () => {
             alert('Erreur : Aucune configuration trouvée.');
             return;
         }
-    
+
         try {
             // console.log('[FRONTEND] Réinitialisation et recréation de la configuration...');
-    
+
             // Crée une copie avec _id optionnel
             const configToSend: Partial<EmailConfig> = { ...emailConfig };
-    
+
             // Supprime _id s'il est vide
             if (configToSend._id === '') {
                 delete configToSend._id;
             }
-    
+
             // Applique le formatage HTML uniquement pour les champs de texte long
             const textFields: (keyof EmailConfig)[] = [
                 'firstDoctorantEmail',
@@ -99,19 +99,19 @@ const AdminEmailConfig: React.FC = () => {
                 'CsiMemberHasSubmitForDirector',
                 'finalEmail'
             ];
-    
+
             textFields.forEach(field => {
                 const value = configToSend[field];
-    
+
                 // ✅ Vérifie si la valeur est bien une string avant d'appliquer formatTextToHtml
                 if (typeof value === 'string') {
                     (configToSend as any)[field] = formatTextToHtml(value);
                 }
             });
-    
+
             // Envoie la requête à l'API
             const response = await api.post('/email-config/reset', configToSend);
-    
+
             setEmailConfig(response.data);
             alert('Configuration recréée avec succès !');
         } catch (error) {
@@ -192,7 +192,7 @@ const AdminEmailConfig: React.FC = () => {
     return (
         <div className="admin-email-config-container">
             <h1 className="title">Gestion des Configurations Email</h1>
-    
+
             {emailConfig ? (
                 <>
                     {/* 🔧 Champs pour les emails des groupes */}
@@ -231,9 +231,10 @@ const AdminEmailConfig: React.FC = () => {
                             </div>
                         </div>
                     ))}
-                    
+
                     <div className="email-group">
                         <h2>Lien pdf explicatif pour doctorant</h2>
+                        {/* eslint-disable-next-line no-template-curly-in-string */}
                         <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${csiPdfExplicatif}"}</strong></p>
                         <div className="email-entry">
                             <input
@@ -245,6 +246,7 @@ const AdminEmailConfig: React.FC = () => {
                     </div>
                     <div className="email-group">
                         <h2>Lien pour les doctorant pour faire valider leur comitée de CSI</h2>
+                        {/* eslint-disable-next-line no-template-curly-in-string */}
                         <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${csiProposalLink}"}</strong></p>
                         <div className="email-entry">
                             <input
@@ -256,6 +258,7 @@ const AdminEmailConfig: React.FC = () => {
                     </div>
                     <div className="email-group">
                         <h2>Lien de contact de l'ED</h2>
+                        {/* eslint-disable-next-line no-template-curly-in-string */}
                         <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${contactLink}"}</strong></p>
                         <div className="email-entry">
                             <input
@@ -267,6 +270,7 @@ const AdminEmailConfig: React.FC = () => {
                     </div>
                     <div className="email-group">
                         <h2>Lien vers le template pour les présentations des doctorants</h2>
+                        {/* eslint-disable-next-line no-template-curly-in-string */}
                         <p>exemple d'utilisation : selectionner et mettre ca en lien : <strong>{"${presentationTemplate}"}</strong></p>
                         <div className="email-entry">
                             <input

@@ -120,6 +120,7 @@ const AdminQuestionConfig: React.FC = () => {
         setUnsavedChanges(false);
         setDeletedIds([]);
         fetchQuestions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
 
     // Warn on tab close

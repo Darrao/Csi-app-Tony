@@ -83,28 +83,28 @@ jobs:
             # Cleanup unused images
             docker image prune -f
 
-      - name: � Deployment Dashboard
+      - name: 🚀 Deployment Dashboard
         if: always()
         run: |
           echo "# 🚀 Rapport de Déploiement : CSI App (Preprod)" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           
-          echo "### 🔗 Accès & Liens" >> $GITHUB_STEP_SUMMARY
-          echo "- **🖥️ Console AWS EC2 (Paris)** : [Ouvrir la liste des instances](https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
-          echo "  _Cliquez ci-dessus pour gérer votre serveur._" >> $GITHUB_STEP_SUMMARY
+          echo "### � Où est mon serveur ?" >> $GITHUB_STEP_SUMMARY
+          echo "Il semble que vous ne trouviez pas l'instance à Paris. Essayez ces liens :" >> $GITHUB_STEP_SUMMARY
+          echo "- 🇫🇷 **Paris (eu-west-3)** : [Voir les instances](https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🇮🇪 **Irlande (eu-west-1)** : [Voir les instances](https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🇺🇸 **Virginie du Nord (us-east-1)** : [Voir les instances](https://us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🇬🇧 **Londres (eu-west-2)** : [Voir les instances](https://eu-west-2.console.aws.amazon.com/ec2/home?region=eu-west-2#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           IP_SPACED=$(echo "${{ secrets.EC2_HOST }}" | sed 's/./& /g')
-          echo "- **🌐 IP Serveur** : \`$IP_SPACED\`" >> $GITHUB_STEP_SUMMARY
-          echo "  _(Les espaces sont là pour contourner le masquage de sécurité GitHub)_" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "- **🔗 Lien Frontend** : ${{ secrets.FRONTEND_URL }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **🔗 Lien Backend** : http://${{ secrets.EC2_HOST }}:3000" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Information Connexion" >> $GITHUB_STEP_SUMMARY
+          echo "- **IP Serveur (Cachée par GitHub, lisible ici)** : \`$IP_SPACED\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend URL** : \`${{ secrets.FRONTEND_URL }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          echo "### 📜 Voir les Logs (Live)" >> $GITHUB_STEP_SUMMARY
-          echo "Pour surveiller le backend en direct, copiez-collez ceci dans votre terminal :" >> $GITHUB_STEP_SUMMARY
+          echo "### 📜 Voir les logs en direct" >> $GITHUB_STEP_SUMMARY
+          echo "Copiez cette commande dans votre terminal :" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "ssh -i csi-key.pem ubuntu@${{ secrets.EC2_HOST }} 'docker logs -f csi-backend'" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

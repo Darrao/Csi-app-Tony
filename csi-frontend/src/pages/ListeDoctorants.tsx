@@ -328,11 +328,13 @@ const ListeDoctorants: React.FC = () => {
   };
 
   // Est-ce qu'au moins 1 filtre est actif ?
+  /*
   const areWeFiltering = () =>
     searchTerm.trim() !== '' ||
     filterYear !== 'Tous' ||
     filterStatus !== 'Tous' ||
     Object.values(statusFilters).some(f => f.yes !== f.no);
+  */
 
   // ✅ UNIQUEMENT les filtres avancés Oui/Non
   const hasActiveAdvancedFilters = () =>
@@ -356,6 +358,7 @@ const ListeDoctorants: React.FC = () => {
   };
 
   // Sérialise en URLSearchParams en répétant ids[] pour le GET
+  /*
   const toUrlParams = (obj: Record<string, any>) => {
     const p = new URLSearchParams();
     Object.entries(obj).forEach(([k, v]) => {
@@ -367,6 +370,7 @@ const ListeDoctorants: React.FC = () => {
     });
     return p;
   };
+  */
 
   // Téléchargement d'un blob
   const saveBlob = (blob: Blob, filename: string) => {
@@ -379,6 +383,7 @@ const ListeDoctorants: React.FC = () => {
   };
 
   // Affichage des erreurs blob du backend (utile quand il renvoie du JSON d'erreur)
+  /*
   const showBlobError = async (err: any, fallbackMsg: string) => {
     try {
       const blob = err?.response?.data;
@@ -392,6 +397,7 @@ const ListeDoctorants: React.FC = () => {
     console.error(err);
     alert(fallbackMsg);
   };
+  */
 
   const handleExportFilteredCSV = async () => {
     try {
@@ -685,6 +691,7 @@ const ListeDoctorants: React.FC = () => {
     }
   };
 
+  /*
   const handleDownloadFilteredPDFsOneByOne = async () => {
     if (!filteredDoctorants.length) {
       alert('Aucun doctorant correspondant aux filtres.');
@@ -766,6 +773,7 @@ const ListeDoctorants: React.FC = () => {
       setLoadingButton(null);
     }
   };
+  */
 
   // 🧠 helpers pour les filtres
   const matchesYesNo = (value: any, f: YesNo) => {

@@ -2,14 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext'; // Ajoute AuthProvider
 import PrivateRoute from './components/PrivateRoute'; // Ajoute PrivateRoute
-import FormulaireDoctorant from './pages/FormulaireDoctorant';
+// import FormulaireDoctorant from './pages/FormulaireDoctorant';
 import ListeDoctorants from './pages/ListeDoctorants';
 import ModifierDoctorant from './pages/ModifierDoctorant';
 import ModifierDoctorantAdmin from './pages/ModifierDoctorantAdmin';
 import Header from './components/Header';
 import EnvoiEmail from './pages/sendEmail';
 import FormulaireToken from './pages/FormulaireToken';
-import FormulaireRepresentant from './pages/FormulaireRepresentant';
+// import FormulaireRepresentant from './pages/FormulaireRepresentant';
 import Login from './components/Login';
 import AdminEmailConfig from './pages/AdminEmailConfig';
 import AdminQuestionConfig from './pages/AdminQuestionConfig';
