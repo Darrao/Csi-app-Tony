@@ -11,7 +11,7 @@ export class QuestionService implements OnModuleInit {
     constructor(@InjectModel(Question.name) private questionModel: Model<QuestionDocument>) { }
 
     async onModuleInit() {
-        await this.seedQuestions();
+        // await this.seedQuestions(); // 🛑 Disabled to prevent overwriting custom questions
     }
 
     async seedQuestions() {
