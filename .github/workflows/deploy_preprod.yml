@@ -89,8 +89,11 @@ jobs:
           echo "# 🚀 Rapport de Déploiement : CSI App (Preprod)" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           
-          echo "### � Où est mon serveur ?" >> $GITHUB_STEP_SUMMARY
-          echo "Il semble que vous ne trouviez pas l'instance à Paris. Essayez ces liens :" >> $GITHUB_STEP_SUMMARY
+          echo "###  Où est mon serveur ?" >> $GITHUB_STEP_SUMMARY
+          echo "D'après l'adresse IP ($IP_SPACED), votre serveur est probablement ici :" >> $GITHUB_STEP_SUMMARY
+          echo "- 🇸🇪 **Stockholm (eu-north-1)** : [Voir les instances](https://eu-north-1.console.aws.amazon.com/ec2/home?region=eu-north-1#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Autres possibilités courantes :" >> $GITHUB_STEP_SUMMARY
           echo "- 🇫🇷 **Paris (eu-west-3)** : [Voir les instances](https://eu-west-3.console.aws.amazon.com/ec2/home?region=eu-west-3#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
           echo "- 🇮🇪 **Irlande (eu-west-1)** : [Voir les instances](https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
           echo "- 🇺🇸 **Virginie du Nord (us-east-1)** : [Voir les instances](https://us-east-1.console.aws.amazon.com/ec2/home?region=us-east-1#Instances:instanceState=running)" >> $GITHUB_STEP_SUMMARY
