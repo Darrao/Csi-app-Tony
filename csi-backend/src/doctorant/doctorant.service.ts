@@ -645,10 +645,9 @@ export class DoctorantService {
       '../../assets/images/BandeauBioSPC.jpeg',
     );
     const bandeauBytes = fs.readFileSync(bandeauPath);
-    const bandeauImage = await pdfDoc.embedJpg(bandeauBytes); // ou embedPng si nécessaire
-    const bandeauDims = bandeauImage.scale(0.5); // Ajuste la taille si besoin
+    const bandeauImage = await pdfDoc.embedJpg(bandeauBytes);
+    const bandeauDims = bandeauImage.scale(0.5);
 
-    // 🔽 Déclare la fonction d'abord
     const drawHeader = (pageToEdit: PDFPage) => {
       pageToEdit.drawImage(bandeauImage, {
         x: (600 - bandeauDims.width) / 2,
@@ -658,177 +657,55 @@ export class DoctorantService {
       });
     };
 
-    // 🔽 Et maintenant tu peux l’utiliser
     drawHeader(page);
 
     // 🔥 Importation des polices standard
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+    // 🎨 Couleurs Uniformes (Updated)
+    const burgundyColor = rgb(0.545, 0.082, 0.220); // Burgundy #8B1538 (Chapter Titles & Main Report Title)
+    const blueColor = rgb(0, 0.2, 0.404); // Blue #003367 (Section Titles)
+
+    // Mapping for usage
+    const primaryTitleColor = burgundyColor;
+    const sectionTitleColor = blueColor;
+
+    const textColor = rgb(0, 0, 0);       // Noir
+    const grayColor = rgb(0.4, 0.4, 0.4); // Gris
+    const accentColor = rgb(0.8, 0.1, 0.1); // Rouge discret (Corrections)
+
     let y = 730; // 📌 Position initiale
     const marginLeft = 50;
     const marginRight = 550;
     const marginBottom = 50;
-    const maxWidth = marginRight - marginLeft; // Largeur maximale pour le texte
+    const maxWidth = marginRight - marginLeft;
 
-    // Fonction pour nettoyer les textes
+    // Fonction pour gérer le saut de page
+    const newPage = () => {
+      page = pdfDoc.addPage([600, 800]);
+      y = 770;
+    };
+
+    // --- HELPER FUNCTIONS ---
+
     const cleanText = (text: string | null): string => {
       if (!text) return 'N/A';
       return text
-        .normalize('NFD') // Supprime les accents
-        .replace(/[\u0300-\u036f]/g, '') // Diacritiques
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 🚨 Supprime les caractères de contrôle (comme \v)
-        .replace(/\t/g, '    ') // Tabulation → espaces
-        .replace(/\r?\n|\r/g, ' ') // Sauts de ligne → espace
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\t/g, '    ')
+        .replace(/\r?\n|\r/g, ' ')
         .replace(/[^\x00-\x7F]/g, (char) => {
           const replacements: Record<string, string> = {
-            '±': '+/-',
-            '•': '-',
-            '×': 'x',
-            '→': '->',
-            '“': '"',
-            '”': '"',
-            '‘': "'",
-            '’': "'",
+            '±': '+/-', '•': '-', '×': 'x', '→': '->', '“': '"', '”': '"', '‘': "'", '’': "'"
           };
           return replacements[char] || '?';
         })
         .trim();
     };
 
-    // Ajout de texte avec mise en page
-    const addWrappedText = (label: string, value: string | null) => {
-      if (y <= marginBottom) newPage();
-      if (value === null || value === undefined || value === '') return;
-
-      const cleanedValue = cleanText(value).replace(/\n/g, ' ');
-      const labelWidth = boldFont.widthOfTextAtSize(label, 10);
-      const text = cleanedValue;
-
-      const lines = [];
-      let words = text.split(' ');
-      let line = '';
-
-      for (let word of words) {
-        let testLine = line + (line.length ? ' ' : '') + word;
-        let textWidth = font.widthOfTextAtSize(testLine, 10);
-
-        if (textWidth < maxWidth - labelWidth - 10) {
-          line = testLine;
-        } else {
-          lines.push(line);
-          line = word;
-        }
-      }
-      if (line) lines.push(line);
-
-      // Affichage du label en gras
-      page.drawText(label, { x: marginLeft, y, size: 10, font: boldFont });
-
-      lines.forEach((line, index) => {
-        const xPosition =
-          index === 0 ? marginLeft + labelWidth + 10 : marginLeft;
-        if (y <= marginBottom) newPage();
-        page.drawText(line, { x: xPosition, y, size: 10, font });
-        y -= 10; // 🔥 Espacement augmenté
-      });
-      console.log('✍️ Writing:', label, value, 'at y =', y);
-
-      y -= 5; // 🔥 Ajoute un espace entre chaque champ
-    };
-
-    const addWrappedText3 = (
-      label: string,
-      value1: string | null,
-      value2: string | null,
-    ) => {
-      if (y <= marginBottom) newPage();
-      if (!value1 && !value2) return;
-
-      const cleanedValue1 = cleanText(value1) || 'N/A';
-      const cleanedValue2 = cleanText(value2) || 'N/A';
-
-      const fullText = `${cleanedValue1} - ${cleanedValue2}`; // Fusionne les deux valeurs
-      const labelWidth = boldFont.widthOfTextAtSize(label, 10) + 5; // 🛠️ Ajuste l'espace après le label
-      const textWidth = font.widthOfTextAtSize(fullText, 10);
-
-      // Si le texte complet dépasse la largeur max, il est divisé en lignes
-      const words = fullText.split(' ');
-      let line = '';
-      const lines: string[] = [];
-
-      for (const word of words) {
-        const testLine = line.length ? line + ' ' + word : word;
-        const testWidth = font.widthOfTextAtSize(testLine, 10);
-
-        if (testWidth < maxWidth - labelWidth - 10) {
-          line = testLine;
-        } else {
-          lines.push(line);
-          line = word;
-        }
-      }
-      if (line) lines.push(line);
-
-      // 📌 Affichage du label en gras
-      page.drawText(label, { x: marginLeft, y, size: 10, font: boldFont });
-
-      // 📌 Affichage du texte aligné avec les autres valeurs
-      lines.forEach((line, index) => {
-        const xPosition = index === 0 ? marginLeft + labelWidth : marginLeft;
-        if (y <= marginBottom) newPage();
-        page.drawText(line, { x: xPosition, y, size: 10, font });
-        y -= 10; // Espacement entre les lignes
-      });
-
-      y -= 5; // Espace supplémentaire après le champ
-    };
-
-    const addTitleWidthVar = (label: string, value: string | null) => {
-      if (y <= marginBottom) newPage();
-      if (!value) return;
-
-      const cleanedValue = cleanText(value).replace(/\n/g, ' ');
-      const fullText = `${label} ${cleanedValue}`;
-
-      const words = fullText.split(' ');
-      let line = '';
-      const lines: string[] = [];
-
-      for (const word of words) {
-        const testLine = line.length ? line + ' ' + word : word;
-        const textWidth = boldFont.widthOfTextAtSize(testLine, 14);
-
-        if (textWidth < maxWidth) {
-          line = testLine;
-        } else {
-          lines.push(line);
-          line = word;
-        }
-      }
-      if (line) lines.push(line);
-
-      // Affiche chaque ligne du titre centré
-      for (const l of lines) {
-        if (y <= marginBottom) newPage();
-
-        const textWidth = boldFont.widthOfTextAtSize(l, 16);
-        const centeredX = (600 - textWidth) / 2;
-
-        page.drawText(l, { x: centeredX, y, size: 16, font: boldFont, color: rgb(0, 0.2, 0.4) });
-        y -= 25;
-      }
-
-      y -= 10;
-    };
-
-    // 🎨 Couleurs Uniformes
-    const primaryColor = rgb(0, 0.2, 0.4); // Bleu nuit professionnel
-    const textColor = rgb(0, 0, 0);       // Noir
-    const grayColor = rgb(0.4, 0.4, 0.4); // Gris
-    const accentColor = rgb(0.8, 0.1, 0.1); // Rouge discret
-
-    // Helper pour wrapper le texte (DRY)
     const wrapText = (text: string, size: number, fontToUse: any, width_: number) => {
       const words = text.split(' ');
       let line = '';
@@ -846,70 +723,144 @@ export class DoctorantService {
       return result;
     };
 
-    const addTitle = (title: string) => {
-      y -= 15;
+    const addTitleWidthVar = (label: string, value: string | null) => {
       if (y <= marginBottom) newPage();
+      if (!value) return;
 
-      const cleanedTitle = cleanText(title);
-      const lines = wrapText(cleanedTitle, 12, boldFont, maxWidth);
+      const cleanedValue = cleanText(value).replace(/\n/g, ' ');
+      const fullText = `${label} ${cleanedValue}`;
+      const lines = wrapText(fullText, 16, boldFont, maxWidth);
 
       for (const l of lines) {
         if (y <= marginBottom) newPage();
-        page.drawText(l, { x: marginLeft, y, size: 12, font: boldFont, color: textColor });
-        y -= 16;
+        // Center align the main title
+        const textWidth = boldFont.widthOfTextAtSize(l, 16);
+        const centeredX = (600 - textWidth) / 2;
+        page.drawText(l, { x: centeredX, y, size: 16, font: boldFont, color: primaryTitleColor });
+        y -= 25;
       }
-      y -= 5;
+      y -= 10;
     };
 
     const addSectionTitle = (title: string) => {
-      y -= 35; // More spacing before section
+      y -= 35;
       if (y <= marginBottom) newPage();
 
       const cleanedTitle = cleanText(title);
-      // Increased font size to 16
-      const lines = wrapText(cleanedTitle, 16, boldFont, maxWidth - 20); // slightly less width for padding
-
-      // Calculate total height needed for the title block
+      const lines = wrapText(cleanedTitle, 16, boldFont, maxWidth - 20);
       const lineHeight = 20;
-      const titleHeight = lines.length * lineHeight + 10; // +10 padding
+      const titleHeight = lines.length * lineHeight + 10;
 
-      // Draw Background Rectangle
-      // Check if we need a new page for the whole block?
       if (y - titleHeight <= marginBottom) newPage();
 
       page.drawRectangle({
         x: marginLeft - 5,
-        y: y - titleHeight + 15, // Adjust y to bottom of rect
+        y: y - titleHeight + 15,
         width: maxWidth + 10,
         height: titleHeight,
-        color: rgb(0.95, 0.95, 0.95), // Light gray background
+        color: rgb(0.95, 0.95, 0.95),
       });
 
-      // Draw Title Text
-      y -= 5; // Padding top inside rect
+      y -= 5;
       for (const l of lines) {
-        page.drawText(l, { x: marginLeft, y, size: 16, font: boldFont, color: primaryColor });
+        page.drawText(l, { x: marginLeft, y, size: 16, font: boldFont, color: sectionTitleColor });
         y -= 20;
       }
 
-      // Bottom border for the section
       page.drawLine({
         start: { x: marginLeft, y: y + 5 },
         end: { x: marginRight, y: y + 5 },
         thickness: 2,
-        color: primaryColor,
+        color: sectionTitleColor,
       });
 
-      y -= 20; // Spacing after section
+      y -= 20;
+    };
+
+    const addWrappedText = (label: string, value: string | null) => {
+      if (y <= marginBottom) newPage();
+      if (value === null || value === undefined || value === '') return;
+
+      const cleanedValue = cleanText(value).replace(/\n/g, ' ');
+      const labelWidth = boldFont.widthOfTextAtSize(label, 10);
+      const text = cleanedValue;
+
+      const lines = [];
+      let words = text.split(' ');
+      let line = '';
+
+      for (let word of words) {
+        let testLine = line + (line.length ? ' ' : '') + word;
+        let textWidth = font.widthOfTextAtSize(testLine, 10);
+
+        // First line accounts for label width
+        let currentLineWidth = (lines.length === 0) ? (maxWidth - labelWidth - 10) : maxWidth;
+
+        if (textWidth < currentLineWidth) {
+          line = testLine;
+        } else {
+          lines.push(line);
+          line = word;
+        }
+      }
+      if (line) lines.push(line);
+
+      page.drawText(label, { x: marginLeft, y, size: 10, font: boldFont });
+
+      lines.forEach((line, index) => {
+        const xPosition = index === 0 ? marginLeft + labelWidth + 10 : marginLeft;
+        if (y <= marginBottom) newPage();
+        page.drawText(line, { x: xPosition, y, size: 10, font });
+        y -= 10;
+      });
+      console.log('✍️ Writing:', label, value, 'at y =', y);
+      y -= 5;
+    };
+
+    const addWrappedText3 = (label: string, value1: string | null, value2: string | null) => {
+      if (y <= marginBottom) newPage();
+      if (!value1 && !value2) return;
+
+      const cleanedValue1 = cleanText(value1) || 'N/A';
+      const cleanedValue2 = cleanText(value2) || 'N/A';
+      const fullText = `${cleanedValue1} - ${cleanedValue2}`;
+      const labelWidth = boldFont.widthOfTextAtSize(label, 10) + 5;
+
+      // Logic similar to addWrappedText helper above but simplified for 3 args
+      const words = fullText.split(' ');
+      let line = '';
+      const lines: string[] = [];
+
+      for (const word of words) {
+        const testLine = line.length ? line + ' ' + word : word;
+        // Optimization: simplified wrapping check (perfect wrapping requires index awareness inside loop like above)
+        // Re-using strict logic:
+        let currentMaxWidth = (lines.length === 0) ? (maxWidth - labelWidth) : maxWidth;
+        if (font.widthOfTextAtSize(testLine, 10) < currentMaxWidth) {
+          line = testLine;
+        } else {
+          lines.push(line);
+          line = word;
+        }
+      }
+      if (line) lines.push(line);
+
+      page.drawText(label, { x: marginLeft, y, size: 10, font: boldFont });
+
+      lines.forEach((line, index) => {
+        const xPosition = index === 0 ? marginLeft + labelWidth : marginLeft;
+        if (y <= marginBottom) newPage();
+        page.drawText(line, { x: xPosition, y, size: 10, font });
+        y -= 10;
+      });
+      y -= 5;
     };
 
     const addWrappedTextContent = (value: string | null, color = textColor) => {
       if (y <= marginBottom) newPage();
       if (!value) return;
-
       const cleanedValue = cleanText(value) || 'N/A';
       const lines = wrapText(cleanedValue, 10, font, maxWidth);
-
       lines.forEach((line) => {
         if (y <= marginBottom) newPage();
         page.drawText(line, { x: marginLeft, y, size: 10, font, color });
@@ -918,371 +869,311 @@ export class DoctorantService {
       y -= 5;
     };
 
-    // Fonction pour gérer le saut de page
-    const newPage = () => {
-      page = pdfDoc.addPage([600, 800]);
-      y = 770;
+    const addTitle = (title: string) => {
+      y -= 15;
+      if (y <= marginBottom) newPage();
+      const cleanedTitle = cleanText(title);
+      const lines = wrapText(cleanedTitle, 12, boldFont, maxWidth);
+      for (const l of lines) {
+        if (y <= marginBottom) newPage();
+        page.drawText(l, { x: marginLeft, y, size: 12, font: boldFont, color: textColor });
+        y -= 16;
+      }
+      y -= 5;
     };
 
-    // 🎨 Titre principal
+    // --- RENDERERS FOR SYSTEM BLOCKS ---
+
+    const renderers: Record<string, () => void> = {
+      'identity': () => {
+        // Title handled dynamically
+        addWrappedText('First Name :', doctorant.prenom);
+        addWrappedText('Family Name :', doctorant.nom);
+        addWrappedText('Email :', doctorant.email);
+        addWrappedText(
+          'Date first registration :',
+          doctorant.datePremiereInscription?.toISOString().split('T')[0],
+        );
+        addWrappedText('Unique ID :', doctorant.ID_DOCTORANT);
+        addWrappedText("Doctoral student's department :", doctorant.departementDoctorant);
+        addWrappedText('Your ORCID identification number :', doctorant.orcid);
+
+        let interviewDate: Date | null = null;
+        if (doctorant.dateEntretien instanceof Date && !isNaN(doctorant.dateEntretien.getTime())) {
+          interviewDate = doctorant.dateEntretien;
+        } else if (doctorant.dateEntretien === null) {
+          interviewDate = doctorant.dateValidation;
+        }
+        if (interviewDate) {
+          addWrappedText('Date of interview :', interviewDate.toISOString().split('T')[0]);
+        }
+      },
+      'thesis_info': () => {
+        addWrappedText('Thesis Title :', doctorant.titreThese);
+        addWrappedText('Funding :', doctorant.typeFinancement);
+      },
+      'research_unit': () => {
+        addWrappedText('Research unit :', doctorant.intituleUR);
+        addWrappedText('Director of the research unit :', doctorant.directeurUR);
+      },
+      'team_info': () => {
+        addWrappedText('Team :', doctorant.intituleEquipe);
+        addWrappedText('Team leader :', doctorant.directeurEquipe);
+        addWrappedText3('Thesis supervisor :', doctorant.nomPrenomHDR, doctorant.email_HDR);
+        addWrappedText('Thesis co-supervisor (optional) :', doctorant.coDirecteurThese);
+      },
+      'csi_members': () => {
+        addWrappedText3('Member #1 :', doctorant.nomMembre1, doctorant.emailMembre1);
+        addWrappedText3('Member #2 :', doctorant.nomMembre2, doctorant.emailMembre2);
+        addWrappedText3('Additional member :', doctorant.nomAdditionalMembre, doctorant.emailAdditionalMembre);
+      },
+      'scientific_activities': () => {
+        addWrappedText('Missions :', doctorant.missions);
+        addWrappedText('Publications :', doctorant.publications);
+        addWrappedText('Conferences :', doctorant.conferencePapers);
+        addWrappedText('Posters :', doctorant.posters);
+        addWrappedText('Public communications :', doctorant.publicCommunication);
+      },
+      'training_modules': () => {
+        addWrappedText('Scientific modules (cumulated hours) :', `${doctorant.nbHoursScientificModules || 0}h`);
+        addWrappedText('Cross-disciplinary modules (cumulated hours) :', `${doctorant.nbHoursCrossDisciplinaryModules || 0}h`);
+        addWrappedText('Professional integration and career development modules (cumulated hours) :', `${doctorant.nbHoursProfessionalIntegrationModules || 0}h`);
+        addWrappedText('Total number of hours (all modules) :', `${doctorant.totalNbHours || 0}h`);
+        if (doctorant.selfEvaluation) {
+          addWrappedText('Self-assessment of competency acquisition :', `${doctorant.selfEvaluation} / 5`);
+        }
+        addWrappedText('Additional information :', doctorant.additionalInformation);
+      },
+      'documents_upload': () => {
+        if (doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0) {
+          if (y - 50 <= marginBottom) newPage();
+          y -= 30;
+          page.drawText('Annual Scientific Report', { x: marginLeft, y, size: 14, font: boldFont, color: primaryTitleColor });
+          y -= 20;
+          page.drawText('Please see on next pages', { x: marginLeft, y, size: 12, font });
+          y -= 40;
+        }
+      },
+      'conclusion_recommendations': () => {
+        if (doctorant.referentRating || (doctorant.referentComment && doctorant.referentComment !== 'N/A')) {
+          addSectionTitle("Director's Opinion (Referent)");
+          if (doctorant.referentRating) addWrappedText('Global Rating :', `${doctorant.referentRating} / 5`);
+          if (doctorant.referentComment) addWrappedText('Comment :', doctorant.referentComment);
+        }
+
+        if (doctorant.conclusion || doctorant.recommendation) {
+          if (y - 100 <= marginBottom) newPage();
+          addSectionTitle('Conclusion and recommendations');
+          if (doctorant.conclusion) addWrappedText('Conclusion :', doctorant.conclusion);
+
+          const recommendationLabels: Record<string, string> = {
+            approve: 'The committee approves the re-registration',
+            disapprove: 'The committee disapproves of the re-registration',
+            exemption: 'The committee supports the request for an exemption for an additional registration',
+            unfavourable: 'The committee issues an unfavourable opinion on the request for a derogation for additional registration',
+            new_meeting: 'The committee advises scheduling a new meeting with the CSI',
+          };
+
+          if (doctorant.recommendation) {
+            const readableRecommendation = recommendationLabels[doctorant.recommendation] || doctorant.recommendation;
+            addWrappedText('Recommendation :', readableRecommendation);
+          }
+          if (doctorant.recommendation_comment) {
+            addWrappedText('Comment on the recommandation :', doctorant.recommendation_comment);
+          }
+        }
+
+        if (doctorant.suiviComment) {
+          if (y <= marginBottom) newPage();
+          addSectionTitle('Administrative Follow-up');
+          addWrappedTextContent(doctorant.suiviComment);
+        }
+      }
+    };
+
+
+    // 🔥 MAIN RENDERING LOOP 🔥
+
+    // 1. Title is always first
     addTitleWidthVar('Rapport Annuel - CSI Year ', doctorant.anneeThese);
 
-    // 📝 Informations personnelles
-    addSectionTitle('Informations personnelles');
-    addWrappedText('First Name :', doctorant.prenom);
-    addWrappedText('Family Name :', doctorant.nom);
-    addWrappedText('Email :', doctorant.email);
-    addWrappedText(
-      'Date first registration :',
-      doctorant.datePremiereInscription?.toISOString().split('T')[0],
-    );
-    addWrappedText('Unique ID :', doctorant.ID_DOCTORANT);
-    addWrappedText('Doctoral student\'s department :', doctorant.departementDoctorant);
-    addWrappedText('ORCID :', doctorant.orcid); // [NEW] V2 Field
+    // 2. Fetch all questions sorted
+    const allQuestions = await this.questionModel.find({}).sort({ order: 1 }).lean();
 
-    // 📅 Ajout de la date d'entretien ou date de validation
-    let interviewDate: Date | null = null;
+    const doctorantQuestions = allQuestions.filter(q => q.target === 'doctorant');
+    const referentQuestions = allQuestions.filter(q => q.target === 'referent');
 
-    if (
-      doctorant.dateEntretien instanceof Date &&
-      !isNaN(doctorant.dateEntretien.getTime())
-    ) {
-      interviewDate = doctorant.dateEntretien;
-    } else if (doctorant.dateEntretien === null) {
-      interviewDate = doctorant.dateValidation;
-    }
-
-    if (interviewDate) {
-      const formattedDate = interviewDate.toISOString().split('T')[0];
-      addWrappedText('Date of interview :', formattedDate);
-    }
-
-    // 📝 Thesis information & supervision
-    addSectionTitle('Thesis information & supervision');
-    addWrappedText('Thesis Title :', doctorant.titreThese);
-    addWrappedText('Funding :', doctorant.typeFinancement);
-
-    // 🏫 Research Unit
-    // addSectionTitle("Research Unit");
-    addWrappedText('Research unit :', doctorant.intituleUR);
-    addWrappedText('Director of the research unit :', doctorant.directeurUR);
-
-    // 👥 Team
-    // addSectionTitle("Team");
-    addWrappedText('Team :', doctorant.intituleEquipe);
-    addWrappedText('Team leader :', doctorant.directeurEquipe);
-    addWrappedText3(
-      'Thesis supervisor :',
-      doctorant.nomPrenomHDR,
-      doctorant.email_HDR,
-    );
-    // addWrappedText("Thesis supervisor email :", doctorant.email_HDR);
-    addWrappedText(
-      'Thesis co-supervisor (optional) :',
-      doctorant.coDirecteurThese,
-    );
-
-    // 🏛 Member of the CSI committee
-    addSectionTitle('Member of the CSI committee');
-    addWrappedText3(
-      'Member #1 :',
-      doctorant.nomMembre1,
-      doctorant.emailMembre1,
-    );
-    // addWrappedText("Email :", doctorant.emailMembre1);
-    addWrappedText3(
-      'Member #2 :',
-      doctorant.nomMembre2,
-      doctorant.emailMembre2,
-    );
-    // addWrappedText("Email :", doctorant.emailMembre2);
-    addWrappedText3(
-      'Additional member :',
-      doctorant.nomAdditionalMembre,
-      doctorant.emailAdditionalMembre,
-    );
-    // addWrappedText("Email :", doctorant.emailAdditionalMembre);
-
-    // 📖 Scientific activities
-    addSectionTitle('Scientific activities');
-    addWrappedText('Missions :', doctorant.missions);
-    addWrappedText('Publications :', doctorant.publications);
-    addWrappedText('Conferences :', doctorant.conferencePapers);
-    addWrappedText('Posters :', doctorant.posters);
-    addWrappedText('Public communications :', doctorant.publicCommunication);
-
-    // 📌 Training modules
-    addSectionTitle('Training modules');
-    addWrappedText(
-      'Scientific modules (cumulated hours) :',
-      `${doctorant.nbHoursScientificModules || 0}h`,
-    );
-    addWrappedText(
-      'Cross-disciplinary modules (cumulated hours) :',
-      `${doctorant.nbHoursCrossDisciplinaryModules || 0}h`,
-    );
-    addWrappedText(
-      'Professional integration and career development modules (cumulated hours) :',
-      `${doctorant.nbHoursProfessionalIntegrationModules || 0}h`,
-    );
-    addWrappedText('Total number of hours (all modules) :', `${doctorant.totalNbHours || 0}h`);
-
-    // [NEW] V2 Field: Self Evaluation
-    if (doctorant.selfEvaluation) {
-      addWrappedText('Self-assessment of competency acquisition :', `${doctorant.selfEvaluation} / 5`);
-    }
-
-    addWrappedText('Additional information :', doctorant.additionalInformation);
-
-    y -= 20;
-
-    // [NEW] V2 Fields: Referent Feedback
-    if (doctorant.referentRating || (doctorant.referentComment && doctorant.referentComment !== 'N/A')) {
-      addSectionTitle("Director's Opinion (Referent)");
-      if (doctorant.referentRating) {
-        addWrappedText('Global Rating :', `${doctorant.referentRating} / 5`);
-      }
-      if (doctorant.referentComment) {
-        addWrappedText('Comment :', doctorant.referentComment);
-      }
-      y -= 20;
-    }
-
-    // 🔥 Ajout des fichiers PDF supplémentaires
-    if (doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0) {
-      console.log(
-        `📂 Ajout des fichiers externes (${doctorant.fichiersExternes.length} fichiers)`,
-      );
-
-      // ✅ Vérifier si suffisamment d’espace avant d’ajouter le texte
-      if (y - 50 <= marginBottom) newPage();
-
-      // 📝 Ajout du titre "Annual Scientific Report" à gauche
-      y -= 30; // Ajoute un grand espace avant
-      page.drawText('Annual Scientific Report', {
-        x: marginLeft,
-        y,
-        size: 14,
-        font: boldFont,
-      });
-
-      y -= 20; // Espacement après le titre
-
-      // 📄 Ajout du texte "Please see on next pages" à gauche
-      page.drawText('Please see on next pages', {
-        x: marginLeft,
-        y,
-        size: 12,
-        font,
-      });
-
-      y -= 40; // Gros espace avant d’ajouter les fichiers externes
-
-      // ✅ Ajout des fichiers externes après cette section
+    // 3. Helper to handle embedding files ASYNC
+    const embedFiles = async () => {
+      if (!doctorant.fichiersExternes || doctorant.fichiersExternes.length === 0) return;
       for (const fichier of doctorant.fichiersExternes) {
         const filePath = path.join(__dirname, '../../', fichier.cheminStockage);
-
-        if (!fs.existsSync(filePath)) {
-          console.warn(`⚠️ Fichier introuvable : ${filePath}`);
-          continue;
-        }
-
-        if (!filePath.endsWith('.pdf')) {
-          console.warn(`🚫 Fichier ignoré (non PDF) : ${filePath}`);
-          continue;
-        }
-
+        if (!fs.existsSync(filePath) || !filePath.endsWith('.pdf')) continue;
         try {
           const fileBytes = fs.readFileSync(filePath);
           const embeddedPdf = await PDFDocument.load(fileBytes);
-
           const copiedPages = await pdfDoc.embedPages(embeddedPdf.getPages());
-
           copiedPages.forEach((embeddedPage) => {
             const { width, height } = embeddedPage;
-
             const newPage = pdfDoc.addPage([width, height]);
-
-            newPage.drawPage(embeddedPage, {
-              x: 0,
-              y: 0,
-              width,
-              height,
-            });
+            newPage.drawPage(embeddedPage, { x: 0, y: 0, width, height });
           });
-
           console.log(`✅ Fichier ajouté: ${fichier.nomOriginal}`);
         } catch (error) {
-          console.error(
-            `❌ Erreur lors de l'ajout du fichier ${filePath} :`,
-            error,
-          );
+          console.error(`❌ Erreur ajout fichier ${filePath}:`, error);
         }
       }
-
-      // ✅ IMPORTANT : Remettre y à 770 après l'ajout des fichiers externes
       newPage();
+    };
+
+    let currentSection = '';
+
+    // --- RENDER DOCTORANT QUESTIONS ---
+
+    for (const q of doctorantQuestions) {
+
+      // 1. Global Section Handling
+      if (q.type !== 'chapter_title' && q.section && q.section !== 'Uncategorized' && q.section !== currentSection) {
+        addSectionTitle(q.section);
+        currentSection = q.section;
+      }
+
+      // A. SYSTEM BLOCK
+      if (q.systemId) {
+        if (renderers[q.systemId]) {
+          if (q.systemId === 'documents_upload') {
+            renderers[q.systemId](); // Render header text
+            await embedFiles();      // Async embed files
+          } else {
+            renderers[q.systemId](); // Render text fields
+          }
+        }
+        continue; // System block handled, move next
+      }
+
+      // B. CHAPTER TITLE
+      if (q.type === 'chapter_title') {
+        if (y <= marginBottom + 100) newPage();
+        y -= 40;
+        page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryTitleColor });
+        page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
+        y -= 40;
+        currentSection = ''; // Reset section context
+        continue;
+      }
+
+      // C. REGULAR QUESTION
+      if (q.visibleInPdf === false) continue;
+
+      const response = doctorant.responses?.find(r => r.questionId === q._id.toString());
+      let val = response?.value;
+      let comment = response?.comment;
+
+      if (!val) val = 'N/A';
+
+      // Render Question
+      if (y - 50 <= marginBottom) newPage();
+      addTitle(q.content);
+
+      // Student Answer
+      if (y - 40 <= marginBottom) newPage();
+      addWrappedText('Student Answer :', val);
+
+      // Comment
+      if (comment && comment !== 'N/A') {
+        if (y - 30 <= marginBottom) newPage();
+        addWrappedText('Comment :', comment);
+      }
+
+      // Referent Correction
+      const correctionId = `${q._id}_corrected_referent`;
+      const correction = doctorant.responses?.find(r => r.questionId === correctionId);
+      if (correction) {
+        if (y - 50 <= marginBottom) newPage();
+        y -= 15;
+        const referentName = doctorant.nomPrenomHDR || 'Referent';
+        page.drawText(`Corrected by ${referentName}:`, { x: marginLeft, y, size: 10, font: boldFont, color: accentColor });
+        y -= 12;
+        addWrappedTextContent(correction.value, accentColor);
+        if (correction.comment) {
+          addWrappedTextContent(`Reason: ${correction.comment}`, accentColor);
+        }
+        y -= 5;
+      }
+      y -= 15;
     }
 
-    // 📌 Ajout des réponses du CSI (DYNAMIQUE)
+    // --- RENDER REFERENT QUESTIONS (If any) ---
+    // If we have referent questions that are VISIBLE in PDF, render them
+    // Usually Referent questions are implicitly 'visibleToReferent: true', 'visibleInPdf: true'??
+    // Let's assume yes.
 
-    // 1. Récupérer toutes les questions et les trier
-    const allQuestions = await this.questionModel.find({}).sort({ order: 1 }).lean();
-    // 📌 Filter: Include if visibleInPdf is filtered AND it's NOT a system block (system blocks are handled separately/hardcoded)
-    const pdfQuestions = allQuestions.filter(q => q.visibleInPdf !== false && q.type !== 'system');
+    if (referentQuestions.length > 0) {
 
-    // 2. Grouper par section (optionnel mais plus joli) ou juste afficher
-    // Pour simplifier et respecter l'ordre global :
+      // Add a separator or specific title?
+      // Maybe "Referent Evaluation" or similar if not provided by section/chapter
+      // BUT: Referent questions might have their own Chapter Titles!
+      // So we just iterate them.
+      // We do NOT reset 'currentSection' blindly?
+      // Actually, if Referent starts with a new Section, it will catch it.
+      // But if it relies on 'currentSection' from Doctorant, that's bad.
+      // Let's reset it to be safe, so the first Referent section is printed.
+      currentSection = '';
 
-    if (pdfQuestions.length > 0) {
-      y -= 20;
-      addSectionTitle('Evaluation');
+      for (const q of referentQuestions) {
 
-      let currentSection = '';
-      let legacyIndex = 1; // 🕰️ Compteur pour compatibilité ascendante (Q1, Q2...)
-
-      for (const q of pdfQuestions) {
-        // [NEW] Handle Chapter Titles (Super Sections)
-        if (q.type === 'chapter_title') {
-          if (y <= marginBottom + 100) newPage(); // Ensure space, else new page
-          // Logic for Big Title
-          y -= 40;
-          page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryColor });
-          page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryColor });
-          y -= 40;
-          // Reset section tracking so next section title triggers
-          currentSection = '';
-          continue; // Skip response printing for chapters
-        }
-
-        // Gestion des sections
-        if (q.section && q.section !== currentSection) {
+        // 1. Global Section Handling
+        if (q.type !== 'chapter_title' && q.section && q.section !== 'Uncategorized' && q.section !== currentSection) {
           addSectionTitle(q.section);
           currentSection = q.section;
         }
 
-        // Récupérer la réponse du doctorant
-        // responses est un array { questionId, value, comment }
+        // Referent questions usually don't have System Blocks (except maybe custom ones, but 'identity' etc are Doctorant)
+        // But if they did, the loop handles it IF specific renderers existed. (Likely none).
+        // We just reused the loop logic for Regular & Chapter.
+
+        // B. CHAPTER TITLE
+        if (q.type === 'chapter_title') {
+          if (y <= marginBottom + 100) newPage();
+          y -= 40;
+          page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryTitleColor });
+          page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
+          y -= 40;
+          currentSection = '';
+          continue;
+        }
+
+        // C. REGULAR QUESTION
+        if (q.visibleInPdf === false) continue;
+
         const response = doctorant.responses?.find(r => r.questionId === q._id.toString());
         let val = response?.value;
         let comment = response?.comment;
 
-        // 🕰️ FALLBACK LEGACY : Si pas de réponse dans 'responses', on regarde dans Q1, Q2...
-        // Cela permet de générer des PDF pour les anciens doctorants importés en conservant le nouveau style unifié.
-        if (!val && !comment) {
-          const legacyVal = (doctorant as any)[`Q${legacyIndex}`];
-          const legacyCom = (doctorant as any)[`Q${legacyIndex}_comment`];
-          if (legacyVal !== undefined) val = legacyVal;
-          if (legacyCom !== undefined) comment = legacyCom;
-        }
-        legacyIndex++;
+        // IMPORTANT: For REFERENT questions, "val" is the REFERENT's Answer.
+        // Is it stored in the same 'responses' array? Yes.
 
-        // Valeur par défaut pour l'affichage
         if (!val) val = 'N/A';
 
-        // Récupérer la correction éventuelle du référent
-        const correctionId = `${q._id}_corrected_referent`;
-        const correction = doctorant.responses?.find(r => r.questionId === correctionId);
-
+        // Render Question
         if (y - 50 <= marginBottom) newPage();
-
-        // Question Content
         addTitle(q.content);
 
-        // Student Answer
+        // Referent Answer (Label should differ?)
+        // "Referent Answer" or just "Answer"?
+        // Or maybe "Evaluation"?
         if (y - 40 <= marginBottom) newPage();
+        addWrappedText('Referent Answer :', val); // Distinguish
 
-        // Render "Student Answer :" label visually consistent with addWrappedText
-        page.drawText('Student Answer :', { x: marginLeft, y, size: 10, font: boldFont, color: textColor });
-        // We use addWrappedTextContent which wraps the VALUE on the NEXT lines usually?
-        // addWrappedText prints label then value.
-        // Here we print label manually.
-        // Let's print value slightly offset or below?
-        // addWrappedText logic puts value on SAME line if it fits.
-        // For simplicity and uniformity with "Comments", let's put it below or use addWrappedTextContent logic.
-        // But to match 'addWrappedText' perfectly, I should use it.
-        // Problem: 'addWrappedText' is defined above and I can use it!
-        // It takes (label, value).
-        // So:
-        // addWrappedText('Student Answer :', val);
-        // Wait, did I change addWrappedText? No. It uses default black. Perfect.
-
-        // Let's just use the existing function if possible!
-        // The original code used: addWrappedText('Student Answer :', val);
-        // I will revert to that.
-
-        // But I want to make sure spacing is correct (original had y checking).
-
-        // Just calling the function:
-        const startY = y;
-        addWrappedText('Student Answer :', val);
-        // If it wrapped significantly, y is updated.
-
-        // Student Comment
+        // Comment
         if (comment && comment !== 'N/A') {
-          // Original used addWrappedTextContent(`Comment: ${comment}`);
-          // I'll stick to that but maybe with a label "Comment :"
           if (y - 30 <= marginBottom) newPage();
           addWrappedText('Comment :', comment);
         }
+        // No Check for "Referent Correction" on Referent Questions...
 
-        // Correction ?
-        if (correction) {
-          if (y - 50 <= marginBottom) newPage();
-          y -= 15;
-          page.drawText("REFERENT CORRECTION:", { x: marginLeft, y, size: 10, font: boldFont, color: accentColor });
-          y -= 12;
-          addWrappedTextContent(correction.value, accentColor);
-          if (correction.comment) {
-            addWrappedTextContent(`Reason: ${correction.comment}`, accentColor);
-          }
-          y -= 5;
-        }
-
-        y -= 15; // Spacer between questions
+        y -= 15;
       }
-    }
-
-    const recommendationLabels: Record<string, string> = {
-      approve: 'The committee approves the re-registration',
-      disapprove: 'The committee disapproves of the re-registration',
-      exemption:
-        'The committee supports the request for an exemption for an additional registration',
-      unfavourable:
-        'The committee issues an unfavourable opinion on the request for a derogation for additional registration',
-      new_meeting:
-        'The committee advises scheduling a new meeting with the CSI',
-    };
-
-    // 📌 Ajout de la conclusion (Toujours afficher si présent)
-    if (doctorant.conclusion || doctorant.recommendation) {
-      if (y - 100 <= marginBottom) newPage();
-
-      addSectionTitle('Conclusion and recommendations');
-
-      if (doctorant.conclusion) {
-        addWrappedText('Conclusion :', doctorant.conclusion);
-      }
-
-      // 🛠️ Transformation de la recommandation en texte lisible
-      if (doctorant.recommendation) {
-        const readableRecommendation = recommendationLabels[doctorant.recommendation] || doctorant.recommendation;
-        addWrappedText('Recommendation :', readableRecommendation);
-      }
-
-      if (doctorant.recommendation_comment) {
-        addWrappedText(
-          'Comment on the recommandation :',
-          doctorant.recommendation_comment,
-        );
-      }
-    }
-
-    // [NEW] V2 Field: Suivi Comment (Admin)
-    if (doctorant.suiviComment) {
-      if (y <= marginBottom) newPage();
-      addSectionTitle('Administrative Follow-up');
-      addWrappedTextContent(doctorant.suiviComment);
     }
 
     // 📌 Génération des bytes du PDF
@@ -1322,10 +1213,6 @@ export class DoctorantService {
       { new: true },
     );
 
-    console.log(
-      `🔍 Contenu du PDF :`,
-      cleanText(JSON.stringify(doctorant, null, 2)),
-    );
     return pdfBuffer;
   }
 }
