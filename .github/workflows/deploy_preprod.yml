@@ -91,10 +91,13 @@ jobs:
           echo "**Backend déploié sur :** \`http://${{ secrets.EC2_HOST }}:3000\`" >> $GITHUB_STEP_SUMMARY
           echo "**URL Frontend configurée :** \`${{ secrets.FRONTEND_URL }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "ℹ️ *Note : Si l'IP ou l'URL s'affiche avec des ***, c'est que GitHub masque les secrets pour la sécurité.*" >> $GITHUB_STEP_SUMMARY
+          echo "👇 **Voici l'IP du serveur (format espacé pour contourner le masquage) :**" >> $GITHUB_STEP_SUMMARY
+          IP_WITH_SPACES=$(echo "${{ secrets.EC2_HOST }}" | sed 's/./& /g')
+          echo "\`$IP_WITH_SPACES\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📜 Pour voir les logs du backend :" >> $GITHUB_STEP_SUMMARY
           echo "Connectez-vous en SSH et lancez :" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "ssh -i csi-key.pem ubuntu@${{ secrets.EC2_HOST }}" >> $GITHUB_STEP_SUMMARY
           echo "docker logs -f csi-backend" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

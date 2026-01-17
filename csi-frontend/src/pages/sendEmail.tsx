@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { FiUploadCloud } from 'react-icons/fi';
 import api from '../services/api';
 import '../styles/ImportCSVAndSendEmail.css';
 
@@ -29,7 +28,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
         formData.append('file', file);
 
         try {
-            const response = await api.post('/doctorant/import-csv', formData, {
+            const _response = await api.post('/doctorant/import-csv', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

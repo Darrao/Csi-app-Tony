@@ -4,7 +4,7 @@ import api from '../services/api';
 import { FaSave, FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine } from 'react-icons/fa';
 
 // Fix for React 18 type mismatch with react-icons
-const IconSave = FaSave as any;
+// Fix for React 18 type mismatch with react-icons
 const IconFilePdf = FaFilePdf as any;
 const IconArrowLeft = FaArrowLeft as any;
 const IconCheckCircle = FaCheckCircle as any;
@@ -22,7 +22,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
     const navigate = useNavigate();
     const [doctorant, setDoctorant] = useState<any>(null);
     const [doctorantQuestions, setDoctorantQuestions] = useState<any[]>([]);
-    const [referentQuestions, setReferentQuestions] = useState<any[]>([]);
+    // const [referentQuestions, setReferentQuestions] = useState<any[]>([]); // Unused
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
@@ -43,14 +43,14 @@ const ModifierDoctorantAdmin: React.FC = () => {
                     headers: { Authorization: token }
                 });
 
-                const [qDocResponse, qRefResponse] = await Promise.all([
+                const [qDocResponse, _qRefResponse] = await Promise.all([
                     api.get('/questions?target=doctorant'),
                     api.get('/questions?target=referent')
                 ]);
 
                 setDoctorant(docResponse.data);
                 setDoctorantQuestions(qDocResponse.data);
-                setReferentQuestions(qRefResponse.data);
+                // setReferentQuestions(qRefResponse.data);
                 setLoading(false);
             } catch (err: any) {
                 console.error("Erreur lors de la récupération des données :", err);
@@ -83,11 +83,11 @@ const ModifierDoctorantAdmin: React.FC = () => {
         setIsDirty(true);
     };
 
-    const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    /* const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setDoctorant({ ...doctorant, [name]: Number(value) });
         setIsDirty(true);
-    };
+    }; */
 
     const handleResponseChange = (questionId: string, field: 'value' | 'comment', newValue: string) => {
         const updatedResponses = [...(doctorant.responses || [])];
@@ -158,8 +158,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
         setSubmitting(true);
 
-        const { _id, __v, fichiersExternes, dateValidation, ...sanitizedDoctorant } = doctorant;
+        const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
 
+        // Clean empty fields
         Object.keys(sanitizedDoctorant).forEach((key) => {
             if (sanitizedDoctorant[key] === "" || sanitizedDoctorant[key] === null) {
                 if (typeof sanitizedDoctorant[key] === 'string' && sanitizedDoctorant[key] === "") {
@@ -169,7 +170,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
         });
 
         try {
-            await api.put(`/doctorant/${_id}`, sanitizedDoctorant);
+            await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
             setMessage("✅ Doctorant mis à jour avec succès !");
             setIsDirty(false);
             window.scrollTo(0, 0);
