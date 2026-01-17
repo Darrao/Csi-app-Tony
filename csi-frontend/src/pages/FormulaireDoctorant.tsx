@@ -262,8 +262,17 @@ const FormulaireDoctorant: React.FC = () => {
 
               {/* DYNAMIC QUESTIONS RENDERED BY SECTION */}
               {Object.keys(sections).map(section => (
-                <div key={section} style={{ marginTop: '20px', padding: '15px', border: '1px solid #eee' }}>
-                  <h3>{section || "Questions Complémentaires"}</h3>
+                <div key={section} style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <h3 style={{
+                    marginTop: 0,
+                    borderBottom: '2px solid #0056b3',
+                    paddingBottom: '10px',
+                    marginBottom: '20px',
+                    color: '#0056b3',
+                    fontSize: '1.4em'
+                  }}>
+                    {section || "Questions Complémentaires"}
+                  </h3>
                   <div style={{ display: 'grid', gap: '15px' }}>
                     {sections[section].map(q => {
                       const fieldName = `responses.${q._id}.value`;

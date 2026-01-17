@@ -862,28 +862,45 @@ export class DoctorantService {
     };
 
     const addSectionTitle = (title: string) => {
-      y -= 30;
+      y -= 35; // More spacing before section
       if (y <= marginBottom) newPage();
 
       const cleanedTitle = cleanText(title);
-      const lines = wrapText(cleanedTitle, 14, boldFont, maxWidth);
+      // Increased font size to 16
+      const lines = wrapText(cleanedTitle, 16, boldFont, maxWidth - 20); // slightly less width for padding
 
-      for (const l of lines) {
-        if (y <= marginBottom) newPage();
-        page.drawText(l, { x: marginLeft, y, size: 14, font: boldFont, color: primaryColor });
-        y -= 18;
-      }
+      // Calculate total height needed for the title block
+      const lineHeight = 20;
+      const titleHeight = lines.length * lineHeight + 10; // +10 padding
 
-      // Ligne séparatrice
-      page.drawLine({
-        start: { x: marginLeft, y: y + 8 },
-        end: { x: marginRight, y: y + 8 },
-        thickness: 1,
-        color: primaryColor,
-        opacity: 0.5,
+      // Draw Background Rectangle
+      // Check if we need a new page for the whole block?
+      if (y - titleHeight <= marginBottom) newPage();
+
+      page.drawRectangle({
+        x: marginLeft - 5,
+        y: y - titleHeight + 15, // Adjust y to bottom of rect
+        width: maxWidth + 10,
+        height: titleHeight,
+        color: rgb(0.95, 0.95, 0.95), // Light gray background
       });
 
-      y -= 15;
+      // Draw Title Text
+      y -= 5; // Padding top inside rect
+      for (const l of lines) {
+        page.drawText(l, { x: marginLeft, y, size: 16, font: boldFont, color: primaryColor });
+        y -= 20;
+      }
+
+      // Bottom border for the section
+      page.drawLine({
+        start: { x: marginLeft, y: y + 5 },
+        end: { x: marginRight, y: y + 5 },
+        thickness: 2,
+        color: primaryColor,
+      });
+
+      y -= 20; // Spacing after section
     };
 
     const addWrappedTextContent = (value: string | null, color = textColor) => {
@@ -1276,7 +1293,6 @@ export class DoctorantService {
     fs.writeFileSync(filePath, pdfBuffer);
     console.log(`✅ Rapport PDF sauvegardé à : ${filePath}`);
 
-    // ⛔ Ici tu faisais une erreur :
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const cheminStockage = `uploads/doctorants/${doctorant.ID_DOCTORANT}/rapport/${fileName}`;
     const publicURL = `${frontendUrl}/${cheminStockage}`;

@@ -153,7 +153,7 @@ const AdminQuestionConfig: React.FC = () => {
         const tempId = `temp_${Date.now()}`;
         const newQ: Question = {
             ...newQuestion,
-            target: target, // ✅ Force usage of current view target
+            target: target, // cible la target (doctorant ou referent)
             _id: tempId,
             order: questions.length + 1
         } as Question;
@@ -169,6 +169,14 @@ const AdminQuestionConfig: React.FC = () => {
         setQuestions(prev => prev.map(q => q._id === editingQuestion._id ? editingQuestion : q));
         setEditingQuestion(null);
         setUnsavedChanges(true);
+    };
+
+    const handleRenameSection = (oldSectionName: string) => {
+        const newSectionName = window.prompt("Enter new section name:", oldSectionName);
+        if (newSectionName && newSectionName !== oldSectionName) {
+            setQuestions(prev => prev.map(q => q.section === oldSectionName ? { ...q, section: newSectionName } : q));
+            setUnsavedChanges(true);
+        }
     };
 
     const handleSaveChanges = async () => {
@@ -316,13 +324,18 @@ const AdminQuestionConfig: React.FC = () => {
                         // Let's rely on the original index of the first item for DragStart.
                         >
                             <div style={{ marginBottom: '10px', fontWeight: 'bold', color: '#555', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span>
-                                    {group.section || 'Uncategorized'}
-                                    {group.systemId && <span className="card-badge system">SYSTEM BLOCK</span>}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span>{group.section || 'Uncategorized'}</span>
+                                    <button
+                                        onClick={() => handleRenameSection(group.section)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 5px' }}
+                                        title="Rename Section"
+                                    >
+                                        ✏️
+                                    </button>
                                     {group.systemId && <span className="card-badge system">SYSTEM BLOCK</span>}
                                     {hasShared && <span title="Contains questions visible to Referent" style={{ marginLeft: '10px', fontSize: '1.2em' }}>👁️</span>}
-                                    {/* 🆕 Visible in PDF Indicator on Group header is partial, better on question level */}
-                                </span>
+                                </div>
 
                                 {/* Group Actions (Delete whole section? Or just hint?) */}
                             </div>
