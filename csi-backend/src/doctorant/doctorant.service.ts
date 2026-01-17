@@ -521,11 +521,16 @@ export class DoctorantService {
     const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
     const currentYear = new Date().getFullYear(); // 🔥 Obtenir l'année actuelle
 
+    // Détection du séparateur (virgule ou point-virgule)
+    const firstLine = csvData.split(/\r?\n/)[0];
+    const separator = firstLine && firstLine.includes(';') ? ';' : ',';
+    console.log(`🔍 [DEBUG] Séparateur détecté : '${separator}'`);
+
     return new Promise((resolve, reject) => {
       const readableStream = require('stream').Readable.from(csvData);
 
       readableStream
-        .pipe(csvParser({ separator: ',' }))
+        .pipe(csvParser({ separator }))
         .on('data', (row) => {
           const cleanedRow = {};
           for (let key in row) {
@@ -575,7 +580,7 @@ export class DoctorantService {
               ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
               departementDoctorant:
                 row[
-                cleanKey('DEPARTEMENT_DOCTORANT DIRECT::Nom Département')
+                cleanKey('DEPARTEMENT_DOCTORANT_DIRECT::Nom Département')
                 ] || '',
               datePremiereInscription: this.safeParseDate(
                 row[cleanKey('Date 1ère Inscription')],

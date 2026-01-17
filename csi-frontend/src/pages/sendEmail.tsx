@@ -84,10 +84,9 @@ const ImportCSVAndSendEmail: React.FC = () => {
                     <li><code>HDR::Nom_Prenom_HDR</code></li>
                     <li><code>Email d'envoi</code></li>
                     <li><code>ID_DOCTORANT</code></li>
-                    <li><code>DEPARTEMENT_DOCTORANT</code></li>
-                    <li><code>DIRECT::Nom Département</code></li>
+                    <li><code>DEPARTEMENT_DOCTORANT_DIRECT::Nom Département</code></li>
                 </ul>
-                <p>⚠️ Le fichier doit être encodé en <strong>UTF-8</strong> et utiliser une <strong>virgule (,)</strong> comme séparateur.</p>
+                <p>⚠️ Le fichier doit être encodé en <strong>UTF-8</strong> et peut utiliser une <strong>virgule (,)</strong> ou un <strong>point-virgule (;)</strong> comme séparateur (il sera converti automatiquement).</p>
             </div>
         </div>
     );

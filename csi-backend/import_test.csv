@@ -1,0 +1,2 @@
+Prénom,Nom,Date 1ère Inscription,AnnéeThèse,Type Financement Clean,Missions,Sujet Thèse à l'inscription,UnitésRecherche::Intitulé Unité Recherche,UnitésRecherche::Nom_Prenom_DU,Equipes::Nom Equipe Affichée,Equipes::Nom_Prenom_Responsable,HDR::Nom_Prenom_HDR,Email d'envoi,ID_DOCTORANT,DEPARTEMENT_DOCTORANT_DIRECT::Nom Département
+Jean,Dupont,2023-09-01,1,Contrat Doctoral,Enseignement,Recherche sur l'IA,Labo IA,Dr. Director,Team Alpha,Dr. TeamLead,Dr. HDR,yveltale@gmail.com,DOC123,Informatique
