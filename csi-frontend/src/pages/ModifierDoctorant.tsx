@@ -17,11 +17,9 @@ const ModifierDoctorant: React.FC = () => {
     // Stockage local des fichiers avant upload
     // const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [scientificReport, setScientificReport] = useState<File | null>(null);
-    const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const scientificReportInputRef = useRef<HTMLInputElement>(null);
-    const selfAssessmentInputRef = useRef<HTMLInputElement>(null);
 
     // Dynamic Questions State
     const [questions, setQuestions] = useState<any[]>([]);
@@ -132,8 +130,6 @@ const ModifierDoctorant: React.FC = () => {
 
             if (fileType === "scientificReport") {
                 setScientificReport(selectedFile);
-            } else if (fileType === "selfAssessment") {
-                setSelfAssessment(selectedFile);
             }
         }
     };
@@ -144,11 +140,6 @@ const ModifierDoctorant: React.FC = () => {
             setScientificReport(null);
             if (scientificReportInputRef.current) {
                 scientificReportInputRef.current.value = "";
-            }
-        } else if (fileType === "selfAssessment") {
-            setSelfAssessment(null);
-            if (selfAssessmentInputRef.current) {
-                selfAssessmentInputRef.current.value = "";
             }
         }
     };
@@ -262,12 +253,11 @@ const ModifierDoctorant: React.FC = () => {
             let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
 
             // Étape 1 : Upload des fichiers et récupération de leurs infos
-            if (scientificReport || selfAssessment) {
+            if (scientificReport) {
                 const formData = new FormData();
                 if (scientificReport) formData.append("fichiersExternes", scientificReport);
-                if (selfAssessment) formData.append("fichiersExternes", selfAssessment);
 
-                console.log("📂 Upload des fichiers :", { scientificReport, selfAssessment });
+                console.log("📂 Upload des fichiers :", { scientificReport });
 
                 const uploadResponse = await api.post(`/doctorant/upload/${id}`, formData, {
                     headers: { "Content-Type": "multipart/form-data" },
@@ -402,25 +392,8 @@ const ModifierDoctorant: React.FC = () => {
                 )}
             </div>
 
-            {/* Auto-évaluation */}
-            <div className="question-block">
-                <label className="question-text">Self assessment of doctoral students' competency (optional)</label>
-                <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '10px' }}>
-                    <a href="https://forms.gle/8HFPSvLuaSLdg8qKA" target="_blank" rel="noopener noreferrer">You can fill a self-assessment form here.</a> If you do so, you will receive a PDF file that you can drop here.
-                </p>
-                <input
-                    ref={selfAssessmentInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) => handleFileChange(e, "selfAssessment")}
-                />
-                {selfAssessment && (
-                    <div className="file-preview" style={{ marginTop: '10px', padding: '5px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: 'fit-content' }}>
-                        <span style={{ marginRight: '10px' }}>📄 {selfAssessment.name}</span>
-                        <button type="button" onClick={() => handleRemoveFile("selfAssessment")} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'red' }}>🗑</button>
-                    </div>
-                )}
-            </div>
+            {/* Auto-évaluation REMOVED */}
+
         </>
     );
 

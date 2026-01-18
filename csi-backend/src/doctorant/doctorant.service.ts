@@ -1128,11 +1128,14 @@ export class DoctorantService {
     }
 
     // --- RENDER REFERENT QUESTIONS (If any) ---
-    // If we have referent questions that are VISIBLE in PDF, render them
-    // Usually Referent questions are implicitly 'visibleToReferent: true', 'visibleInPdf: true'??
-    // Let's assume yes.
+    // Check if there are any answers for referent questions
+    // If NOT, we skip the entire block (First PDF case)
+    const hasReferentAnswers = referentQuestions.some(q => {
+      const r = doctorant.responses?.find((res: any) => res.questionId === q._id.toString());
+      return r && r.value && r.value !== '' && r.value !== 'N/A';
+    });
 
-    if (referentQuestions.length > 0) {
+    if (referentQuestions.length > 0 && hasReferentAnswers) {
 
       // Add a separator or specific title?
       // Maybe "Referent Evaluation" or similar if not provided by section/chapter
