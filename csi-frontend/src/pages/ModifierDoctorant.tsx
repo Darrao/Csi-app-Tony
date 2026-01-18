@@ -189,7 +189,8 @@ const ModifierDoctorant: React.FC = () => {
             "departementDoctorant", "titreThese", "anneeThese", "typeFinancement",
             "intituleUR", "directeurUR", "intituleEquipe", "directeurEquipe",
             "nomPrenomHDR", "email_HDR", "nomMembre1", "emailMembre1",
-            "nomMembre2", "emailMembre2"
+            "nomMembre2", "emailMembre2",
+            "missions", "publications", "conferencePapers", "posters", "publicCommunication"
         ];
 
         const missing = requiredFields.filter(field => !doctorant[field] || doctorant[field].trim() === "");

@@ -1133,7 +1133,7 @@ export class DoctorantService {
     const hasReferentAnswers = referentQuestions.some(q => {
       const r = doctorant.responses?.find((res: any) => res.questionId === q._id.toString());
       return r && r.value && r.value !== '' && r.value !== 'N/A';
-    });
+    }) || !!doctorant.conclusion || !!doctorant.recommendation;
 
     if (referentQuestions.length > 0 && hasReferentAnswers) {
 
@@ -1157,7 +1157,14 @@ export class DoctorantService {
 
         // Referent questions usually don't have System Blocks (except maybe custom ones, but 'identity' etc are Doctorant)
         // But if they did, the loop handles it IF specific renderers existed. (Likely none).
-        // We just reused the loop logic for Regular & Chapter.
+
+        // A. SYSTEM BLOCK (Added for Conclusion/Recommendations which might be a System Block in Referent section)
+        if (q.systemId) {
+          if (renderers[q.systemId]) {
+            renderers[q.systemId]();
+          }
+          continue;
+        }
 
         // B. CHAPTER TITLE
         if (q.type === 'chapter_title') {
@@ -1200,6 +1207,11 @@ export class DoctorantService {
         // No Check for "Referent Correction" on Referent Questions...
 
         y -= 15;
+      }
+
+      // Force render Conclusion & Recommendations at the end
+      if (renderers['conclusion_recommendations']) {
+        renderers['conclusion_recommendations']();
       }
     }
 
