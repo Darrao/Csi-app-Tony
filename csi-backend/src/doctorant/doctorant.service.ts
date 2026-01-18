@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Doctorant } from './schemas/doctorant.schema';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
+import { UpdateDoctorantDto } from './dto/update-doctorant.dto';
 import { PDFDocument, StandardFonts, PDFPage, rgb } from 'pdf-lib';
 import { Question } from '../question/schemas/question.schema';
 import * as fs from 'fs';
@@ -331,7 +332,7 @@ export class DoctorantService {
 
   async update(
     id: string,
-    updateDoctorantDto: CreateDoctorantDto,
+    updateDoctorantDto: UpdateDoctorantDto,
   ): Promise<Doctorant> {
     try {
       console.log('🔄 Mise à jour du doctorant :', id);
@@ -1091,8 +1092,31 @@ export class DoctorantService {
       if (correction) {
         if (y - 50 <= marginBottom) newPage();
         y -= 15;
-        const referentName = doctorant.nomPrenomHDR || 'Referent';
-        page.drawText(`Corrected by ${referentName}:`, { x: marginLeft, y, size: 10, font: boldFont, color: accentColor });
+
+        // Construct Dynamic Referent Names
+        console.log('DEBUG: doctorant member fields:', {
+          nomMembre1: doctorant.nomMembre1,
+          prenomMembre1: doctorant.prenomMembre1,
+          nomMembre2: doctorant.nomMembre2,
+          prenomMembre2: doctorant.prenomMembre2,
+          nomAdditionalMembre: doctorant.nomAdditionalMembre,
+          prenomAdditionalMembre: doctorant.prenomAdditionalMembre,
+          nomPrenomHDR: doctorant.nomPrenomHDR
+        });
+
+        const referents: string[] = [];
+        if (doctorant.nomMembre1) referents.push(`${doctorant.prenomMembre1 || ''} ${doctorant.nomMembre1}`.trim());
+        if (doctorant.nomMembre2) referents.push(`${doctorant.prenomMembre2 || ''} ${doctorant.nomMembre2}`.trim());
+        if (doctorant.nomAdditionalMembre) referents.push(`${doctorant.prenomAdditionalMembre || ''} ${doctorant.nomAdditionalMembre}`.trim());
+
+        console.log('DEBUG: constructed referents array:', referents);
+
+        // Fallback: if no members found, use existing HDR field or generic
+        if (referents.length === 0 && doctorant.nomPrenomHDR) referents.push(doctorant.nomPrenomHDR);
+
+        const correctedByLabel = referents.length > 0 ? `Corrected by ${referents.join(' & ')}:` : "Corrected by Referent:";
+
+        page.drawText(correctedByLabel, { x: marginLeft, y, size: 10, font: boldFont, color: accentColor });
         y -= 12;
         addWrappedTextContent(correction.value, accentColor);
         if (correction.comment) {

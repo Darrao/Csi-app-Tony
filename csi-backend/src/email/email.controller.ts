@@ -1,4 +1,4 @@
-import { Body, Controller, Post, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Post, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import {
   sendMail,
   generateToken,
@@ -20,7 +20,7 @@ export class EmailController {
     private readonly tokenService: TokenService,
     private readonly doctorantService: DoctorantService, // ➕ Injection du service
     private readonly emailConfigService: EmailConfigService,
-  ) {}
+  ) { }
 
   @Post('send')
   async sendEmails(
@@ -42,6 +42,14 @@ export class EmailController {
       }
 
       console.log(`✅ Configuration email récupérée.`);
+
+      const strippedFormCsiMember = emailConfig.formCsiMember ? emailConfig.formCsiMember.replace(/<[^>]*>/g, '').trim() : '';
+
+      if (!emailConfig.formCsiMember || strippedFormCsiMember === '') {
+        throw new BadRequestException(
+          "Le modèle d'email 'Formulaire Membre CSI' n'est pas configuré.",
+        );
+      }
 
       // 🔍 Récupération des données du doctorant
       const doctorant = await this.doctorantService.findByEmail(doctorantEmail);
@@ -179,10 +187,10 @@ export class EmailController {
       return { message: 'Emails envoyés avec succès.' };
     } catch (error) {
       console.error('❌ Erreur dans la route /email/send :', error.message);
-      return {
-        message: "Erreur lors de l'envoi des emails.",
-        error: error.message,
-      };
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Erreur lors de l'envoi des emails.");
     }
   }
 
@@ -234,6 +242,14 @@ export class EmailController {
       }
 
       console.log(`✅ Configuration email récupérée.`);
+
+      const strippedCsiMemberHasSubmitForDirector = emailConfig.CsiMemberHasSubmitForDirector ? emailConfig.CsiMemberHasSubmitForDirector.replace(/<[^>]*>/g, '').trim() : '';
+
+      if (!emailConfig.CsiMemberHasSubmitForDirector || strippedCsiMemberHasSubmitForDirector === '') {
+        throw new BadRequestException(
+          "Le modèle d'email 'Notification Directeur' n'est pas configuré.",
+        );
+      }
 
       // 🔍 Récupération du doctorant
       const doctorant = await this.doctorantService.findOne(doctorantId);
@@ -332,7 +348,10 @@ export class EmailController {
       };
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi de l'email :", error.message);
-      throw new NotFoundException("Erreur lors de l'envoi de l'email.");
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Erreur lors de l'envoi de l'email.");
     }
   }
 
@@ -351,6 +370,14 @@ export class EmailController {
       }
 
       console.log(`✅ Configuration email récupérée.`);
+
+      const strippedThanksForSubmitCsiMember = emailConfig.thanksForSubmitCsiMember ? emailConfig.thanksForSubmitCsiMember.replace(/<[^>]*>/g, '').trim() : '';
+
+      if (!emailConfig.thanksForSubmitCsiMember || strippedThanksForSubmitCsiMember === '') {
+        throw new BadRequestException(
+          "Le modèle d'email 'Remerciement Référent' n'est pas configuré.",
+        );
+      }
 
       // 🔍 Récupération du doctorant
       const doctorant = await this.doctorantService.findOne(doctorantId);
@@ -414,9 +441,10 @@ export class EmailController {
         "❌ Erreur lors de l'envoi de l'email aux référents :",
         error.message,
       );
-      throw new NotFoundException(
-        "Erreur lors de l'envoi de l'email aux référents.",
-      );
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Erreur lors de l'envoi de l'email aux référents.");
     }
   }
 
@@ -433,6 +461,13 @@ export class EmailController {
       if (!doctorant) throw new NotFoundException('Doctorant introuvable');
 
       const config = await this.emailConfigService.getEmailConfig();
+      const strippedFinalEmail = config.finalEmail ? config.finalEmail.replace(/<[^>]*>/g, '').trim() : '';
+
+      if (!config.finalEmail || strippedFinalEmail === '') {
+        throw new BadRequestException(
+          "Le modèle d'email 'Rapport Final' n'est pas configuré.",
+        );
+      }
       const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
       const pdfName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
 
@@ -471,12 +506,19 @@ export class EmailController {
         message: 'Email final envoyé avec succès.',
         destinataires: [doctorantEmail, directeurTheseEmail],
       };
+      return {
+        message: 'Email final envoyé avec succès.',
+        destinataires: [doctorantEmail, directeurTheseEmail],
+      };
     } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi du rapport final :",
         error.message,
       );
-      throw new NotFoundException("Erreur lors de l'envoi du rapport final.");
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Erreur lors de l'envoi du rapport final.");
     }
   }
 }

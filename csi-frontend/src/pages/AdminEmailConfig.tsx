@@ -32,6 +32,7 @@ interface EmailConfig {
 
 const AdminEmailConfig: React.FC = () => {
     const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
+    const [unsavedChanges, setUnsavedChanges] = useState(false);
 
     const fetchEmailConfig = async () => {
         try {
@@ -113,6 +114,7 @@ const AdminEmailConfig: React.FC = () => {
             const response = await api.post('/email-config/reset', configToSend);
 
             setEmailConfig(response.data);
+            setUnsavedChanges(false);
             alert('Configuration recréée avec succès !');
         } catch (error) {
             console.error('Erreur lors de la mise à jour de la configuration :', error);
@@ -120,12 +122,15 @@ const AdminEmailConfig: React.FC = () => {
         }
     };
 
-    const handleInputChange = (field: keyof EmailConfig, value: string) => {
+    const handleInputChange = (field: keyof EmailConfig, value: string, isUserChange = true) => {
         if (emailConfig) {
             setEmailConfig((prevConfig) => ({
                 ...prevConfig!,
                 [field]: value,
             }));
+            if (isUserChange) {
+                setUnsavedChanges(true);
+            }
         }
     };
 
@@ -137,6 +142,7 @@ const AdminEmailConfig: React.FC = () => {
                 ...prevConfig!,
                 [group]: updatedGroup,
             }));
+            setUnsavedChanges(true);
         }
     };
 
@@ -148,6 +154,7 @@ const AdminEmailConfig: React.FC = () => {
                 ...prevConfig!,
                 [group]: updatedGroup,
             }));
+            setUnsavedChanges(true);
         }
     };
 
@@ -159,6 +166,7 @@ const AdminEmailConfig: React.FC = () => {
                 ...prevConfig!,
                 [group]: updatedGroup,
             }));
+            setUnsavedChanges(true);
         }
     };
 
@@ -190,7 +198,15 @@ const AdminEmailConfig: React.FC = () => {
     };
 
     return (
-        <div className="admin-email-config-container">
+        <div className="form-token-container">
+            {unsavedChanges && (
+                <div className="unsaved-banner">
+                    <span>⚠️ Modification en cours veuillez enregistrer</span>
+                    <button className="btn btn-primary" onClick={handleUpdateConfig} style={{ backgroundColor: '#ffc107', color: 'black', border: 'none' }}>
+                        Enregistrer
+                    </button>
+                </div>
+            )}
             <h1 className="title">Gestion des Configurations Email</h1>
 
             {emailConfig ? (
@@ -212,7 +228,7 @@ const AdminEmailConfig: React.FC = () => {
                                         <button onClick={() => removeRecipient(group, 'recipient', index)}>❌</button>
                                     </div>
                                 ))}
-                                <button onClick={() => addRecipient(group, 'recipient')}>➕ Ajouter un destinataire</button>
+                                <button className="btn-add" onClick={() => addRecipient(group, 'recipient')}>➕ Ajouter un destinataire</button>
                             </div>
 
                             <div>
@@ -227,7 +243,7 @@ const AdminEmailConfig: React.FC = () => {
                                         <button onClick={() => removeRecipient(group, 'cc', index)}>❌</button>
                                     </div>
                                 ))}
-                                <button onClick={() => addRecipient(group, 'cc')}>➕ Ajouter en CC</button>
+                                <button className="btn-add" onClick={() => addRecipient(group, 'cc')}>➕ Ajouter en CC</button>
                             </div>
                         </div>
                     ))}
@@ -297,7 +313,7 @@ const AdminEmailConfig: React.FC = () => {
                                 <ReactQuill
                                     theme="snow"
                                     value={emailConfig[field] as string}
-                                    onChange={(value) => handleInputChange(field, value)}
+                                    onChange={(value, delta, source) => handleInputChange(field, value, source === 'user')}
                                     style={{ backgroundColor: "#fff", borderRadius: "8px", minHeight: "200px" }} // ✅ Corrige les styles
                                 />
                             </div>

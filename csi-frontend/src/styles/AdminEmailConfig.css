@@ -1,144 +1,234 @@
+/* Shared styles from AdminQuestionConfig.css */
+.form-token-container,
 .admin-email-config-container {
     max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-}
-
-.title {
-    text-align: center;
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
-.email-group {
-    background: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.email-group h2 {
-    font-size: 20px;
+    margin: 40px auto;
+    padding: 0 20px;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
     color: #333;
-    margin-bottom: 10px;
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 5px;
 }
 
+.form-header,
+.title-container {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.form-header h1,
+.title {
+    font-size: 2.5em;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+/* Card System */
+.form-section,
+.email-group,
+.email-content-fields {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    /* Slightly softer shadow */
+    border: 1px solid #eaeaea;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.form-section:hover,
+.email-group:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    /* Hoover effect */
+}
+
+/* Headings within cards */
+.form-section h2,
+.email-group h2,
+.email-content-fields h2 {
+    font-size: 1.5em;
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f2f5;
+    font-weight: 600;
+}
+
+.email-group h3,
+.email-content h3 {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 15px;
+    margin-top: 20px;
+}
+
+/* Inputs */
+.select-input,
+.text-input,
+textarea,
+.email-entry input {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    background-color: #f8f9fa;
+    /* Slight grey background */
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.select-input:focus,
+.text-input:focus,
+textarea:focus,
+.email-entry input:focus {
+    outline: none;
+    border-color: #007bff;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.1);
+}
+
+/* Email Entry Rows */
 .email-entry {
     display: flex;
     align-items: center;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
-.email-entry input {
-    flex: 1;
-    padding: 10px;
-    font-size: 18px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    outline: none;
-    transition: border 0.3s ease-in-out;
-    width: 100%;
-}
-
-.email-entry input:focus {
-    border: 1px solid #007bff;
-}
-
-.email-entry button {
-    background: #dc3545;
+/* Buttons */
+.btn,
+button {
+    padding: 10px 20px;
+    border-radius: 8px;
     border: none;
-    color: white;
-    font-size: 16px;
-    padding: 8px;
-    margin-left: 10px;
     cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.3s ease-in-out;
+    font-weight: 600;
+    font-size: 0.95em;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-primary,
+button.btn-success {
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);
+}
+
+.btn-primary:hover,
+button.btn-success:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* Delete Button (Small Icon style) */
+.email-entry button {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #ffcdd2;
+    transition: all 0.2s;
+    margin-left: 0;
+    /* Override default */
 }
 
 .email-entry button:hover {
-    background: #c82333;
-}
-
-button {
-    padding: 10px 15px;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.3s ease-in-out;
-}
-
-button.btn-success {
-    background: #28a745;
+    background-color: #ef5350;
     color: white;
+    border-color: #ef5350;
 }
 
-button.btn-success:hover {
-    background: #218838;
+/* Add Button */
+button.btn-add {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+    margin-top: 10px;
+    border: 1px dashed #90caf9;
 }
 
-button.btn-primary {
-    background: #007bff;
-    color: white;
+button.btn-add:hover {
+    background-color: #bbdefb;
+    border-style: solid;
 }
 
-button.btn-primary:hover {
-    background: #0056b3;
+
+/* Quill Editor */
+.ql-container {
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #ced4da;
+    border-top: none;
 }
 
-.email-content-fields {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-top: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.email-content-fields h2 {
-    font-size: 22px;
-    margin-bottom: 15px;
-}
-
-.email-content {
-    margin-bottom: 15px;
-}
-
-.email-content h3 {
-    font-size: 18px;
-    margin-bottom: 5px;
-}
-
-.email-content textarea {
-    width: 100%;
-    height: 250px;
-    font-size: 16px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    resize: vertical;
-    outline: none;
-    transition: border 0.3s ease-in-out;
-}
-
-.email-content textarea:focus {
-    border: 1px solid #007bff;
+.ql-toolbar {
+    border-radius: 8px 8px 0 0;
+    border: 1px solid #ced4da;
+    background-color: #f8f9fa;
 }
 
 .ql-editor {
-    min-height: 200px; /* ✅ Hauteur minimale pour éviter que Quill affiche des boutons de navigation */
+    min-height: 200px;
     max-height: 500px;
     overflow-y: auto;
     font-size: 16px;
     line-height: 1.6;
+    background-color: white;
 }
 
-.ql-container {
-    border-radius: 8px;
-    border: 1px solid #ccc;
+/* Unsaved Changes Banner */
+.unsaved-banner {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2d3436;
+    color: white;
+    padding: 15px 40px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.unsaved-banner span {
+    font-weight: 500;
+    font-size: 1.1em;
+}
+
+.unsaved-banner button {
+    padding: 8px 20px;
+    background-color: #f1c40f !important;
+    /* Premium Yellow */
+    color: #2d3436 !important;
+    font-weight: 700;
+    border-radius: 30px;
+}
+
+.unsaved-banner button:hover {
+    background-color: #f39c12 !important;
+    transform: scale(1.05);
+}
+
+@keyframes popUp {
+    from {
+        transform: translate(-50%, 100px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }

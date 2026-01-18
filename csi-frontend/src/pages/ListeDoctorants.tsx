@@ -136,7 +136,8 @@ const ListeDoctorants: React.FC = () => {
       alert(response.data.message || 'Email envoyé avec succès !');
     } catch (error: any) {
       console.error("Erreur lors de l'envoi de l'email :", error);
-      alert(error.message || "Erreur lors de l'envoi de l'email.");
+      const backendMessage = error?.response?.data?.message || error?.message || "Erreur lors de l'envoi de l'email.";
+      alert(backendMessage);
     } finally {
       toggleLoading(id, 'invite-doc', false);
     }

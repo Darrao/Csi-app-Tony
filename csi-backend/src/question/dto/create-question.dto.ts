@@ -11,7 +11,7 @@ export class CreateQuestionDto {
     @IsString()
     section: string;
 
-    @IsEnum(['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system'])
+    @IsEnum(['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system', 'chapter_title'])
     type: string;
 
     @IsNumber()

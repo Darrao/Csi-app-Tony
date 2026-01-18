@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine } from 'react-icons/fa';
+import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine, FaSpinner } from 'react-icons/fa';
 
 // Fix for React 18 type mismatch with react-icons
 // Fix for React 18 type mismatch with react-icons
@@ -16,6 +16,7 @@ const IconClipboardList = FaClipboardList as any;
 const IconBullhorn = FaBullhorn as any;
 const IconQuestionCircle = FaQuestionCircle as any;
 const IconChartLine = FaChartLine as any;
+const IconSpinner = FaSpinner as any;
 
 const ModifierDoctorantAdmin: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -28,6 +29,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
     const [message, setMessage] = useState<string | null>(null);
     const [isDirty, setIsDirty] = useState(false); // ⚠️ Unsaved Changes Tracker
     const [submitting, setSubmitting] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -134,18 +136,18 @@ const ModifierDoctorantAdmin: React.FC = () => {
         }
     };
 
-    const handleRegeneratePDF = async () => {
-        if (!window.confirm("⚠️ Régénérer le PDF écrasera l'ancien avec les données actuelles. Continuer ?")) return;
+    const handleExportPDF = async () => {
+        setPdfLoading(true);
         try {
-            await api.post(`/doctorant/regenerate-pdf/${doctorant._id}`);
-            alert("✅ PDF régénéré avec succès !");
-            const response = await api.get(`/doctorant/admin/${id}`, {
-                headers: { Authorization: localStorage.getItem('adminToken') }
-            });
-            setDoctorant(response.data);
-        } catch (err) {
-            console.error(err);
-            alert("❌ Erreur lors de la régénération du PDF.");
+            const response = await api.get(`/doctorant/export/pdf/${doctorant._id}`, { responseType: 'blob' });
+            const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            window.open(pdfUrl, '_blank');
+        } catch (error) {
+            console.error("❌ Erreur lors de l'export du PDF :", error);
+            alert("Échec de l'export du PDF.");
+        } finally {
+            setPdfLoading(false);
         }
     };
 
@@ -168,6 +170,20 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 }
             }
         });
+
+        // 🧹 Nettoyage spécifique pour les réponses (suppression des _id des sous-documents qui bloquent le DTO)
+        if (sanitizedDoctorant.responses && Array.isArray(sanitizedDoctorant.responses)) {
+            sanitizedDoctorant.responses = sanitizedDoctorant.responses.map((resp: any) => {
+                const { _id, ...rest } = resp;
+                return rest;
+            });
+        }
+
+        // 🧹 Nettoyage du rapport (suppression URL si présente car non accepté par DTO parfois)
+        if (sanitizedDoctorant.rapport) {
+            const { url, ...restRapport } = sanitizedDoctorant.rapport;
+            sanitizedDoctorant.rapport = restRapport;
+        }
 
         try {
             await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
@@ -396,16 +412,32 @@ const ModifierDoctorantAdmin: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         <label style={{ ...labelStyle, color: '#2b6cb0' }}>Documents :</label>
-                        <button type="button" onClick={handleRegeneratePDF} style={{ backgroundColor: '#3182ce', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(49, 130, 206, 0.3)' }}>
-                            <IconFilePdf /> Régénérer le Rapport PDF
+
+                        <button
+                            type="button"
+                            onClick={handleExportPDF}
+                            disabled={pdfLoading}
+                            style={{
+                                backgroundColor: '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 15px',
+                                borderRadius: '4px',
+                                cursor: pdfLoading ? 'not-allowed' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontSize: '0.9rem',
+                                fontWeight: 'bold'
+                            }}
+                            title="Afficher PDF en fonction de l'avancement"
+                        >
+                            {pdfLoading ? <IconSpinner className="icon-spin" /> : <IconFilePdf />} Voir PDF
                         </button>
-                        {doctorant.rapport?.url && (
-                            <a href={doctorant.rapport.url} target="_blank" rel="noreferrer" style={{ textAlign: 'center', color: '#3182ce', textDecoration: 'none', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                                <IconFilePdf /> Voir le PDF actuel
-                            </a>
-                        )}
                     </div>
                 </div>
+
+
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
                     {[

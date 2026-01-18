@@ -15,7 +15,7 @@ export class Question {
   @Prop({ required: true })
   section: string;
 
-  @Prop({ required: true, enum: ['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system'] })
+  @Prop({ required: true, enum: ['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system', 'chapter_title'] })
   type: string;
 
   @Prop({ required: true })

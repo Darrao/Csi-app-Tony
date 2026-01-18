@@ -338,6 +338,49 @@ const ModifierDoctorant: React.FC = () => {
                     ⚠️ Do not reuse last year’s CSI form. All required information is now entered directly into the online form. Please upload only your current scientific report as a separate PDF.
                 </p>
                 <span style={{ fontSize: '0.8em', color: '#666' }}>(Max: 5 MB, format PDF)</span>
+
+                {/* Existing File Display */}
+                {doctorant?.fichiersExternes && doctorant.fichiersExternes.length > 0 && !scientificReport && (
+                    <div className="file-preview" style={{ marginTop: '10px', marginBottom: '10px', padding: '8px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', width: 'fit-content' }}>
+                        <span style={{ fontWeight: 'bold' }}>📄 Current File:</span>
+                        {/* We assume the first file is the report or we iterate. For now, take the last one or just lists them? usually only 1 */}
+                        {doctorant.fichiersExternes.map((file: any, index: number) => (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span>{file.originalname || file.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Construct URL - assuming backend serves uploads or we use a specific endpoint
+                                        // If path is relative, prepend backend URL. 
+                                        // If we don't know mechanism, we might try to use the same logic as admin?
+                                        // Admin uses `doctorant.rapport.url`. 
+                                        // For custom files, maybe just open the path if it's public? 
+                                        // Warn: 'fichiersExternes' might just be the DB object.
+                                        // Let's assume there is a route or we can use the path. 
+                                        // Replicating ListeDoctorants logic: window.open(url)
+                                        // But what IS the url? 
+                                        // If file.path exists.
+                                        const url = file.url || (file.path ? `http://localhost:3000/${file.path}` : null); // Hacky fallback
+                                        if (url) window.open(url, '_blank');
+                                        else alert("File URL not found");
+                                    }}
+                                    style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#007bff',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.9em'
+                                    }}
+                                >
+                                    View PDF
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <br />
                 <input
                     className={missingFields.includes("scientificReport") ? 'input-error' : ''}
@@ -347,6 +390,7 @@ const ModifierDoctorant: React.FC = () => {
                     onChange={(e) => handleFileChange(e, "scientificReport")}
                     style={{ marginTop: '10px' }}
                 />
+
                 {scientificReport && (
                     <div className="file-preview" style={{ marginTop: '10px', padding: '5px', background: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: 'fit-content' }}>
                         <span style={{ marginRight: '10px' }}>📄 {scientificReport.name}</span>
@@ -490,7 +534,7 @@ const ModifierDoctorant: React.FC = () => {
                     {/* Dynamic Rendering Loop */}
                     {groupQuestionsBySection(questions).map((group, idx) => (
                         <div key={idx} className="form-section">
-                            <h2>{group.section}</h2>
+                            {group.section !== 'CHAPTER' && <h2>{group.section}</h2>}
 
                             {/* If section uses grid layout (usually yes), unless it's only one big item? Keep grid. */}
                             <div className="info-grid">
@@ -524,7 +568,7 @@ const ModifierDoctorant: React.FC = () => {
                                         const hasError = fieldsToCheck.some(f => missingFields.includes(f));
 
                                         return (
-                                            <div key={q._id} style={{ gridColumn: '1 / -1', border: hasError ? '2px solid #dc3545' : 'none', padding: hasError ? '10px' : '0', borderRadius: '8px' }}>
+                                            <div key={q._id} className={hasError ? 'input-error' : ''} style={{ gridColumn: '1 / -1', border: hasError ? '2px solid #dc3545' : 'none', padding: hasError ? '10px' : '0', borderRadius: '8px' }}>
                                                 {hasError && <p style={{ color: '#dc3545', fontWeight: 'bold', marginBottom: '5px' }}>⚠️ Missing information in this section</p>}
                                                 <SystemBlockRenderer
                                                     systemId={q.systemId}
@@ -532,6 +576,12 @@ const ModifierDoctorant: React.FC = () => {
                                                     onChange={handleChange}
                                                     handleHoursChange={handleHoursChange} // Pass specific handler for hours
                                                 />
+                                            </div>
+                                        );
+                                    } else if (q.type === 'chapter_title') {
+                                        return (
+                                            <div key={q._id} style={{ gridColumn: '1 / -1', marginTop: '20px', marginBottom: '20px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '10px' }}>
+                                                <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
                                             </div>
                                         );
                                     } else {
@@ -572,7 +622,14 @@ const ModifierDoctorant: React.FC = () => {
                             disabled={submitting}
                             style={{ width: '100%', maxWidth: '400px' }}
                         >
-                            {submitting ? "⏳ Saving..." : "Submit Report"}
+                            {submitting ? (
+                                <>
+                                    <span className="spinner"></span>
+                                    Saving...
+                                </>
+                            ) : (
+                                "Submit Report"
+                            )}
                         </button>
                     </div>
                 </form>

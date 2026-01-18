@@ -16,10 +16,12 @@ import {
   Headers,
   UnauthorizedException,
   Req,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { DoctorantService } from './doctorant.service';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
+import { UpdateDoctorantDto } from './dto/update-doctorant.dto';
 import { sendMail } from '../email/email.service';
 import { generateToken } from '../email/email.service';
 import { TokenService } from '../token/token.service';
@@ -149,7 +151,7 @@ export class DoctorantController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateDoctorantDto: CreateDoctorantDto,
+    @Body() updateDoctorantDto: UpdateDoctorantDto,
   ) {
     console.log(`🔄 Mise à jour du doctorant ${id} avec`, updateDoctorantDto);
     return this.doctorantService.update(id, updateDoctorantDto);
@@ -230,6 +232,14 @@ export class DoctorantController {
         throw new NotFoundException('Configuration email introuvable.');
       }
 
+      const strippedContent = emailConfig.firstDoctorantEmail.replace(/<[^>]*>/g, '').trim();
+
+      if (!emailConfig.firstDoctorantEmail || strippedContent === '') {
+        throw new BadRequestException(
+          "Le modèle d'email 'Invitation au doctorant' n'est pas configuré. Veuillez le configurer dans l'administration.",
+        );
+      }
+
       console.log(`✅ Configuration email récupérée.`);
       console.log(
         `📧 Envoi de l'email à ${email} pour le doctorant ${prenom} ${nom} (ID: ${id})`,
@@ -278,9 +288,18 @@ export class DoctorantController {
       }
 
       return { message: 'Email envoyé avec succès.' };
+      return { message: 'Email envoyé avec succès.' };
     } catch (error) {
       console.error('❌ Erreur lors de l’envoi de l’email avec sendLink :', error);
-      return { message: "Erreur lors de l'envoi de l'email.", error };
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+
+      if (error.message === 'No recipients defined') {
+        throw new BadRequestException("L'adresse email du destinataire est invalide ou manquante.");
+      }
+
+      throw new InternalServerErrorException("Erreur lors de l'envoi de l'email.");
     }
   }
 

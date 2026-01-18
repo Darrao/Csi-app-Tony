@@ -9,8 +9,13 @@ export class QuestionController {
     constructor(private readonly questionService: QuestionService) { }
 
     @Post()
-    create(@Body() createQuestionDto: CreateQuestionDto) {
-        return this.questionService.create(createQuestionDto);
+    async create(@Body() createQuestionDto: CreateQuestionDto) {
+        try {
+            return await this.questionService.create(createQuestionDto);
+        } catch (error) {
+            console.error("❌ ERROR CREATING QUESTION:", error);
+            throw error;
+        }
     }
 
     @Get()

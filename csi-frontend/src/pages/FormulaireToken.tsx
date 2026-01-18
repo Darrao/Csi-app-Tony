@@ -47,7 +47,7 @@ const FormulaireToken: React.FC = () => {
     const [doctorant, setDoctorant] = useState<any>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [sharedQuestions, setSharedQuestions] = useState<Question[]>([]);
-    const [showSharedQuestions, setShowSharedQuestions] = useState(false); // Toggle for the section
+    const [showSharedQuestions, setShowSharedQuestions] = useState(true); // Toggle for the section
 
     // Group questions by section
     const sections: { [key: string]: Question[] } = {};
@@ -140,17 +140,7 @@ const FormulaireToken: React.FC = () => {
         conclusion: Yup.string().required('La conclusion est obligatoire'),
         recommendation: Yup.string().required('Veuillez choisir une recommandation'),
         recommendation_comment: Yup.string().required('Veuillez ajouter un commentaire'),
-        referentValidation: Yup.string().required("Veuillez valider ou non l'auto-évaluation"),
-        referentRating: Yup.number().when('referentValidation', {
-            is: 'false',
-            then: (schema) => schema.required("Veuillez attribuer une note").min(1).max(5),
-            otherwise: (schema) => schema.notRequired(),
-        }),
-        referentComment: Yup.string().when('referentValidation', {
-            is: 'false',
-            then: (schema) => schema.required("Veuillez expliquer votre désaccord"),
-            otherwise: (schema) => schema.notRequired(),
-        }),
+        // referentValidation & Rating removed as per request
         responses: Yup.object().shape({
             ...questions.reduce((acc, q) => {
                 const valueSchema = q.required
@@ -212,7 +202,7 @@ const FormulaireToken: React.FC = () => {
                         // My key is "QID_corrected". Let's use that as questionId.
                         formattedResponses.push({
                             questionId: `${originalId}_corrected_referent`, // As requested
-                            value: responseData.value,
+                            value: String(responseData.value || ''),
                             comment: responseData.comment
                         });
                     }
@@ -224,11 +214,22 @@ const FormulaireToken: React.FC = () => {
                     if (typeof responseData === 'object' && responseData !== null) {
                         formattedResponses.push({
                             questionId: key,
-                            value: responseData.value,
+                            value: String(responseData.value || ''),
                             comment: responseData.comment
                         });
                     }
                 }
+            });
+
+            // ⚠️ PRESERVE EXISTING ANSWERS (Student Answers)
+            // Filter out existing responses that are:
+            // 1. In the current 'questions' list (Referent questions we are submitting now)
+            // 2. Corrections (which we are regenerating)
+            // Keep everything else (i.e., Student answers)
+            const responsesToKeep = (doctorant.responses || []).filter((r: any) => {
+                const isReferentQuestion = questions.some(q => q._id === r.questionId);
+                const isCorrection = r.questionId.endsWith('_corrected_referent');
+                return !isReferentQuestion && !isCorrection;
             });
 
             const payload = {
@@ -242,12 +243,10 @@ const FormulaireToken: React.FC = () => {
                 conclusion: values.conclusion,
                 recommendation: values.recommendation,
                 recommendation_comment: values.recommendation_comment,
-                referentValidation: values.referentValidation === 'true',
-                referentRating: values.referentValidation === 'false' ? Number(values.referentRating) : undefined,
-                referentComment: values.referentValidation === 'false' ? values.referentComment : undefined,
+                // referentValidation removed
 
-                // New Responses Field
-                responses: formattedResponses,
+                // MERGE RESPONSES: Keep old (Student) + Add new (Referent)
+                responses: [...responsesToKeep, ...formattedResponses],
 
                 // Validate Flags
                 representantValide: true,
@@ -320,54 +319,11 @@ const FormulaireToken: React.FC = () => {
                     return (
                         <Form>
                             <FormAutoScroll />
-                            {/* SELF EVALUATION */}
-                            <div className="form-section">
-                                <h2>Student Self-Evaluation</h2>
-                                <p style={{ marginBottom: '20px' }}>The student rated their progress as: <strong style={{ color: '#007bff', fontSize: '1.2em' }}>{doctorant.selfEvaluation ? `${doctorant.selfEvaluation}/5` : "Not provided"}</strong></p>
-
-                                <div className={`input-group ${errors.referentValidation && touched.referentValidation ? 'input-error' : ''}`} style={{ padding: '10px', borderRadius: '4px' }}>
-                                    <label className="question-text">Do you agree with this evaluation? <span className="red">*</span></label>
-                                    <div className="radio-options">
-                                        <label><Field type="radio" name="referentValidation" value="true" /> Yes</label>
-                                        <label><Field type="radio" name="referentValidation" value="false" /> No</label>
-                                    </div>
-                                    <ErrorMessage name="referentValidation" component="div" className="error-msg" />
-                                </div>
-
-                                <Field name="referentValidation">
-                                    {({ field }: any) => field.value === 'false' && (
-                                        <div className="question-block" style={{ marginTop: '20px', backgroundColor: '#fff3cd', borderLeftColor: '#ffc107' }}>
-                                            <label className="question-text">Your Rating (1-5) <span className="red">*</span></label>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                                                <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
-                                                <div style={{ flex: 1, position: 'relative' }}>
-                                                    <Field
-                                                        type="range"
-                                                        name="referentRating"
-                                                        min="1"
-                                                        max="5"
-                                                        step="1"
-                                                        style={{ width: '100%', cursor: 'pointer', accentColor: '#ffc107' }}
-                                                    />
-                                                    <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
-                                                        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-                                                    </div>
-                                                </div>
-                                                <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
-                                            </div>
-                                            <ErrorMessage name="referentRating" component="div" className="error-msg" />
-
-                                            <label className="question-text" style={{ marginTop: '15px' }}>Explanation <span className="red">*</span></label>
-                                            <Field as="textarea" name="referentComment" className="comment-box" placeholder="Please explain why you disagree..." />
-                                            <ErrorMessage name="referentComment" component="div" className="error-msg" />
-                                        </div>
-                                    )}
-                                </Field>
-                            </div>
+                            {/* SELF EVALUATION REMOVED */}
 
                             <div className="form-section">
                                 <h2>Interview Details</h2>
-                                <div className="input-group">
+                                <div className={`input-group ${errors.dateEntretien && touched.dateEntretien ? 'input-error' : ''}`}>
                                     <label className="question-text">Date of interview <span className="red">*</span></label>
                                     <Field type="date" name="dateEntretien" className="select-input" />
                                     <ErrorMessage name="dateEntretien" component="div" className="error-msg" />
@@ -377,8 +333,16 @@ const FormulaireToken: React.FC = () => {
                             {/* DYNAMIC QUESTIONS RENDERED BY SECTION */}
                             {Object.keys(sections).map(section => (
                                 <div key={section} className="form-section">
-                                    <h2>{section}</h2>
+                                    {section !== 'CHAPTER' && <h2>{section}</h2>}
                                     {sections[section].filter(q => !q.systemId).map(q => {
+                                        if (q.type === 'chapter_title') {
+                                            return (
+                                                <div key={q._id} style={{ marginTop: '20px', marginBottom: '20px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '10px' }}>
+                                                    <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
+                                                </div>
+                                            );
+                                        }
+
                                         const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
                                         return (
                                             <div className="question-block" key={q._id}>
@@ -453,6 +417,109 @@ const FormulaireToken: React.FC = () => {
                                 </div>
                             ))}
 
+                            {/* REVIEW SHARED ANSWERS (Moved) */}
+                            {sharedQuestions.length > 0 && (
+                                <div className="form-section" style={{ border: '2px dashed #6f42c1', backgroundColor: '#f8f4ff' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowSharedQuestions(!showSharedQuestions)}>
+                                        <h2 style={{ color: '#6f42c1', margin: 0 }}>Review Student Answers</h2>
+                                        <button type="button" className="btn" style={{ background: 'transparent', color: '#6f42c1', border: '1px solid #6f42c1' }}>
+                                            {showSharedQuestions ? "Hide" : "Show"}
+                                        </button>
+                                    </div>
+
+                                    {showSharedQuestions && (
+                                        <div style={{ marginTop: '20px' }}>
+                                            <p>Please review the student's answers below. If you disagree, provide a corrected answer.</p>
+                                            {sharedQuestions.map(q => {
+                                                const originalResponse = doctorant.responses.find((r: any) => r.questionId === q._id);
+                                                const originalValue = originalResponse ? originalResponse.value : "Not answered";
+                                                const originalComment = originalResponse ? originalResponse.comment : "";
+
+                                                return (
+                                                    <div key={q._id} className="question-block" style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                                                        <h4 style={{ margin: '0 0 10px 0' }}>{q.content}</h4>
+
+                                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: 'row-reverse' }}>
+                                                            {/* Right: Student Answer (Read-only) */}
+                                                            <div style={{ flex: 1, backgroundColor: '#e9ecef', padding: '15px', borderRadius: '4px' }}>
+                                                                <strong style={{ display: 'block', marginBottom: '8px', color: '#6f42c1' }}>Student's Answer:</strong>
+                                                                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{originalValue}</p>
+                                                                {originalComment && (
+                                                                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #d1d9e6' }}>
+                                                                        <strong style={{ fontSize: '0.9em', color: '#666' }}>Comment:</strong>
+                                                                        <p style={{ margin: '4px 0 0 0', fontStyle: 'italic', fontSize: '0.95em' }}>{originalComment}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Left: Interaction */}
+                                                            <div style={{ flex: 1 }}>
+                                                                <label className="question-text" style={{ marginTop: 0 }}>Do you agree with this answer?</label>
+                                                                <div className="radio-options" style={{ marginBottom: '15px' }}>
+                                                                    <label><Field type="radio" name={`responses.${q._id}_validation`} value="true" /> Yes</label>
+                                                                    <label><Field type="radio" name={`responses.${q._id}_validation`} value="false" /> No (Correction)</label>
+                                                                </div>
+
+                                                                {/* Conditional Render for Correction */}
+                                                                <Field name={`responses.${q._id}_validation`}>
+                                                                    {({ field }: any) => field.value === 'false' && (
+                                                                        <div
+                                                                            style={{ marginTop: '10px', padding: '10px', borderLeft: '3px solid #dc3545', backgroundColor: '#fff8f8' }}
+                                                                            className={(errors.responses as any)?.[`${q._id}_corrected`]?.value && (touched.responses as any)?.[`${q._id}_corrected`]?.value ? 'input-error' : ''}
+                                                                        >
+                                                                            <label className="question-text" style={{ color: '#dc3545' }}>Corrected Answer</label>
+
+                                                                            {(q.type === 'scale_1_5' || q.type === 'rating_comment') ? (
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                                    <span style={{ fontSize: '0.8em', color: '#666' }}>1</span>
+                                                                                    <div style={{ flex: 1 }}>
+                                                                                        <Field
+                                                                                            type="range"
+                                                                                            name={`responses.${q._id}_corrected.value`}
+                                                                                            min="1"
+                                                                                            max="5"
+                                                                                            step="1"
+                                                                                            style={{ width: '100%', cursor: 'pointer', accentColor: '#dc3545' }}
+                                                                                        />
+                                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                                                                                            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <span style={{ fontSize: '0.8em', color: '#666' }}>5</span>
+                                                                                </div>
+                                                                            ) : (q.type === 'select' || q.type === 'plus_minus_comment') ? (
+                                                                                <Field as="select" name={`responses.${q._id}_corrected.value`} className="select-input">
+                                                                                    <option value="">Choose...</option>
+                                                                                    {q.type === 'plus_minus_comment' && <>
+                                                                                        <option value="+">+ (Strong/Yes)</option>
+                                                                                        <option value="-">- (Weak/No)</option>
+                                                                                        <option value="±">± (Moderate/Mixed)</option>
+                                                                                        <option value="NotAddressed">Not Addressed</option>
+                                                                                    </>}
+                                                                                    {q.type === 'select' && <>
+                                                                                        <option value="Yes">Yes</option>
+                                                                                        <option value="No">No</option>
+                                                                                    </>}
+                                                                                </Field>
+                                                                            ) : (
+                                                                                <Field type="text" name={`responses.${q._id}_corrected.value`} className="select-input" placeholder="Your corrected answer..." />
+                                                                            )}
+
+                                                                            <label className="question-text" style={{ marginTop: '10px' }}>Comment (Optional)</label>
+                                                                            <Field type="text" name={`responses.${q._id}_corrected.comment`} className="select-input" placeholder="Why this correction?" />
+                                                                        </div>
+                                                                    )}
+                                                                </Field>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="form-section">
                                 <h2>Conclusion & Recommendations</h2>
 
@@ -488,82 +555,18 @@ const FormulaireToken: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* REVIEW SHARED ANSWERS */}
-                            {sharedQuestions.length > 0 && (
-                                <div className="form-section" style={{ border: '2px dashed #6f42c1', backgroundColor: '#f8f4ff' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowSharedQuestions(!showSharedQuestions)}>
-                                        <h2 style={{ color: '#6f42c1', margin: 0 }}>Review Student Answers</h2>
-                                        <button type="button" className="btn" style={{ background: 'transparent', color: '#6f42c1', border: '1px solid #6f42c1' }}>
-                                            {showSharedQuestions ? "Hide" : "Show"}
-                                        </button>
-                                    </div>
 
-                                    {showSharedQuestions && (
-                                        <div style={{ marginTop: '20px' }}>
-                                            <p>Please review the student's answers below. If you disagree, provide a corrected answer.</p>
-                                            {sharedQuestions.map(q => {
-                                                const originalResponse = doctorant.responses.find((r: any) => r.questionId === q._id);
-                                                const originalValue = originalResponse ? originalResponse.value : "Not answered";
-
-                                                return (
-                                                    <div key={q._id} className="question-block" style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-                                                        <h4 style={{ margin: '0 0 10px 0' }}>{q.content}</h4>
-                                                        <div style={{ backgroundColor: '#e9ecef', padding: '10px', borderRadius: '4px', fontStyle: 'italic', marginBottom: '15px' }}>
-                                                            <strong>Student's Answer:</strong> {originalValue}
-                                                        </div>
-
-                                                        <div className="input-group">
-                                                            <label className="question-text">Do you agree with this answer?</label>
-                                                            <div className="radio-options">
-                                                                <label><Field type="radio" name={`responses.${q._id}_validation`} value="true" /> Yes</label>
-                                                                <label><Field type="radio" name={`responses.${q._id}_validation`} value="false" /> No (Propose Correction)</label>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Conditional Render for Correction */}
-                                                        <Field name={`responses.${q._id}_validation`}>
-                                                            {({ field }: any) => field.value === 'false' && (
-                                                                <div
-                                                                    style={{ marginTop: '15px', padding: '10px', borderLeft: '3px solid #dc3545', backgroundColor: '#fff8f8' }}
-                                                                    className={(errors.responses as any)?.[`${q._id}_corrected`]?.value && (touched.responses as any)?.[`${q._id}_corrected`]?.value ? 'input-error' : ''}
-                                                                >
-                                                                    <label className="question-text" style={{ color: '#dc3545' }}>Corrected Answer</label>
-                                                                    {q.type === 'select' || q.type === 'plus_minus_comment' ? (
-                                                                        // Simplified for now, just text for correction is usually safest unless we map types fully
-                                                                        // But let's try to match type?
-                                                                        <Field as="select" name={`responses.${q._id}_corrected.value`} className="select-input">
-                                                                            <option value="">Choose...</option>
-                                                                            {q.type === 'plus_minus_comment' && <>
-                                                                                <option value="+">+ (Strong/Yes)</option>
-                                                                                <option value="-">- (Weak/No)</option>
-                                                                                <option value="±">± (Moderate/Mixed)</option>
-                                                                                <option value="NotAddressed">Not Addressed</option>
-                                                                            </>}
-                                                                            {q.type === 'select' && <>
-                                                                                <option value="Yes">Yes</option>
-                                                                                <option value="No">No</option>
-                                                                            </>}
-                                                                        </Field>
-                                                                    ) : (
-                                                                        <Field type="text" name={`responses.${q._id}_corrected.value`} className="select-input" placeholder="Your corrected answer..." />
-                                                                    )}
-
-                                                                    <label className="question-text" style={{ marginTop: '10px' }}>Comment (Optional)</label>
-                                                                    <Field type="text" name={`responses.${q._id}_corrected.comment`} className="select-input" placeholder="Why this correction?" />
-                                                                </div>
-                                                            )}
-                                                        </Field>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
 
                             <div className="submit-row" style={{ marginTop: '40px', paddingBottom: '40px' }}>
                                 <button type="submit" disabled={submitting} onClick={() => setFormSubmitted(true)} className="submit-btn" style={{ opacity: submitting ? 0.7 : 1 }}>
-                                    {submitting ? "Submitting..." : "Submit Evaluation"}
+                                    {submitting ? (
+                                        <>
+                                            <span className="spinner"></span>
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        "Submit Evaluation"
+                                    )}
                                 </button>
                                 {formSubmitted && Object.keys(errors).length > 0 && (
                                     <div className="missing-fields">
