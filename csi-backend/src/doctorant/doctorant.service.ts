@@ -744,12 +744,12 @@ export class DoctorantService {
     };
 
     const addSectionTitle = (title: string) => {
-      y -= 35;
+      y -= 25; // Reduced from 35
       if (y <= marginBottom) newPage();
 
       const cleanedTitle = cleanText(title);
-      const lines = wrapText(cleanedTitle, 16, boldFont, maxWidth - 20);
-      const lineHeight = 20;
+      const lines = wrapText(cleanedTitle, 14, boldFont, maxWidth - 20); // Size 16 -> 14
+      const lineHeight = 18; // Reduced line height
       const titleHeight = lines.length * lineHeight + 10;
 
       if (y - titleHeight <= marginBottom) newPage();
@@ -764,7 +764,7 @@ export class DoctorantService {
 
       y -= 5;
       for (const l of lines) {
-        page.drawText(l, { x: marginLeft, y, size: 16, font: boldFont, color: sectionTitleColor });
+        page.drawText(l, { x: marginLeft, y, size: 14, font: boldFont, color: sectionTitleColor }); // Size 16 -> 14
         y -= 20;
       }
 
@@ -775,7 +775,7 @@ export class DoctorantService {
         color: sectionTitleColor,
       });
 
-      y -= 20;
+      y -= 10; // Reduced from 20 (space after blue title)
     };
 
     const addWrappedText = (label: string, value: string | null) => {
@@ -881,6 +881,33 @@ export class DoctorantService {
         y -= 16;
       }
       y -= 5;
+    };
+
+    const renderCompetencyQuestion = (content: string) => {
+      // Split by first question mark to separate Title and Description
+      const parts = content.split('?');
+      let title = content;
+      let description = '';
+
+      if (parts.length > 1) {
+        title = parts[0] + '?';
+        description = parts.slice(1).join('?').trim();
+      }
+
+      // Render Title using standard addTitle (Bold, 12)
+      addTitle(title);
+
+      // Render Description (Regular, 10, Gray)
+      if (description) {
+        y += 5; // Reduce gap slightly
+        const lines = wrapText(description, 10, font, maxWidth);
+        for (const l of lines) {
+          if (y <= marginBottom) newPage();
+          page.drawText(l, { x: marginLeft, y, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) });
+          y -= 12;
+        }
+        y -= 10;
+      }
     };
 
     // --- RENDERERS FOR SYSTEM BLOCKS ---
@@ -1056,9 +1083,9 @@ export class DoctorantService {
       if (q.type === 'chapter_title') {
         if (y <= marginBottom + 100) newPage();
         y -= 40;
-        page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryTitleColor });
+        page.drawText(q.content, { x: marginLeft, y, size: 16, font: boldFont, color: primaryTitleColor }); // Size 20 -> 16
         page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
-        y -= 40;
+        y -= 20; // Reduced from 40
         currentSection = ''; // Reset section context
         continue;
       }
@@ -1074,7 +1101,12 @@ export class DoctorantService {
 
       // Render Question
       if (y - 50 <= marginBottom) newPage();
-      addTitle(q.content);
+
+      if (q.section && (q.section.toLowerCase().includes('skill') || q.section.toLowerCase().includes('compétence'))) {
+        renderCompetencyQuestion(q.content);
+      } else {
+        addTitle(q.content);
+      }
 
       // Student Answer
       if (y - 40 <= marginBottom) newPage();
@@ -1170,9 +1202,9 @@ export class DoctorantService {
         if (q.type === 'chapter_title') {
           if (y <= marginBottom + 100) newPage();
           y -= 40;
-          page.drawText(q.content, { x: marginLeft, y, size: 20, font: boldFont, color: primaryTitleColor });
+          page.drawText(q.content, { x: marginLeft, y, size: 16, font: boldFont, color: primaryTitleColor }); // Size 20 -> 16
           page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
-          y -= 40;
+          y -= 20; // Reduced from 40
           currentSection = '';
           continue;
         }
@@ -1191,7 +1223,12 @@ export class DoctorantService {
 
         // Render Question
         if (y - 50 <= marginBottom) newPage();
-        addTitle(q.content);
+
+        if (q.section && (q.section.toLowerCase().includes('skill') || q.section.toLowerCase().includes('compétence'))) {
+          renderCompetencyQuestion(q.content);
+        } else {
+          addTitle(q.content);
+        }
 
         // Referent Answer (Label should differ?)
         // "Referent Answer" or just "Answer"?
