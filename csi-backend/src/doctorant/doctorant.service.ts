@@ -663,6 +663,7 @@ export class DoctorantService {
     // 🔥 Importation des polices standard
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
     // 🎨 Couleurs Uniformes (Updated)
     const burgundyColor = rgb(0.545, 0.082, 0.220); // Burgundy #8B1538 (Chapter Titles & Main Report Title)
@@ -674,6 +675,7 @@ export class DoctorantService {
 
     const textColor = rgb(0, 0, 0);       // Noir
     const grayColor = rgb(0.4, 0.4, 0.4); // Gris
+    const descriptionColor = rgb(0.2, 0.2, 0.2); // Dark Gray for descriptions
     const accentColor = rgb(0.8, 0.1, 0.1); // Rouge discret (Corrections)
 
     let y = 730; // 📌 Position initiale
@@ -1061,7 +1063,14 @@ export class DoctorantService {
     for (const q of doctorantQuestions) {
 
       // 1. Global Section Handling
-      if (q.type !== 'chapter_title' && q.section && q.section !== 'Uncategorized' && q.section !== currentSection) {
+      if (
+        q.type !== 'chapter_title' && 
+        q.type !== 'description' && 
+        q.section && 
+        q.section !== 'Uncategorized' && 
+        q.section !== 'CHAPTER' && 
+        q.section !== currentSection
+      ) {
         addSectionTitle(q.section);
         currentSection = q.section;
       }
@@ -1087,6 +1096,52 @@ export class DoctorantService {
         page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
         y -= 20; // Reduced from 40
         currentSection = ''; // Reset section context
+        continue;
+      }
+
+        // B2. DESCRIPTION BLOCK
+      if (q.type === 'description') {
+        if (y <= marginBottom + 50) newPage();
+        y -= 10;
+        
+        // Custom cleaner that preserves special chars but might still need some cleanup if pure raw input
+        // But for descriptions, we want to keep most things. 
+        // Let's just normalize but NOT strip newlines globally.
+        // Actually, we process paragraph by paragraph.
+        
+        const paragraphs = q.content.split(/\r?\n/);
+
+        for (const rawPara of paragraphs) {
+            // Clean paragraph individually
+            // We can reuse 'cleanText' logic effectively if we removed the newline replacement there, 
+            // OR we just duplicate the safe char replacement here for descriptions.
+            // Let's copy cleaning logic MINUS newline stripping.
+            
+            // Note: NFD normalization was used in cleanText.
+             const cleanedPara = cleanText(rawPara);
+             
+             if (!cleanedPara) {
+                 // Empty line -> add space
+                 y -= 10;
+                 continue;
+             }
+             
+             const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
+             for (const l of lines) {
+                if (y <= marginBottom) newPage();
+                page.drawText(l, {
+                    x: marginLeft,
+                    y,
+                    size: 12,
+                    font: italicFont,
+                    color: descriptionColor,
+                });
+                y -= 14; 
+             }
+             // Add a bit of space after paragraph?
+             // y -= 5; 
+        }
+        y -= 10;
         continue;
       }
 
@@ -1182,7 +1237,14 @@ export class DoctorantService {
       for (const q of referentQuestions) {
 
         // 1. Global Section Handling
-        if (q.type !== 'chapter_title' && q.section && q.section !== 'Uncategorized' && q.section !== currentSection) {
+        if (
+          q.type !== 'chapter_title' &&
+          q.type !== 'description' &&
+          q.section &&
+          q.section !== 'Uncategorized' &&
+          q.section !== 'CHAPTER' && 
+          q.section !== currentSection
+        ) {
           addSectionTitle(q.section);
           currentSection = q.section;
         }
@@ -1206,6 +1268,38 @@ export class DoctorantService {
           page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
           y -= 20; // Reduced from 40
           currentSection = '';
+        continue;
+        }
+
+        // B2. DESCRIPTION BLOCK
+        if (q.type === 'description') {
+          if (y <= marginBottom + 50) newPage();
+          y -= 10;
+          
+          const paragraphs = q.content.split(/\r?\n/);
+
+          for (const rawPara of paragraphs) {
+             const cleanedPara = cleanText(rawPara);
+             
+             if (!cleanedPara) {
+                 y -= 10; // Empty line
+                 continue;
+             }
+             
+             const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
+             for (const l of lines) {
+                if (y <= marginBottom) newPage();
+                page.drawText(l, {
+                  x: marginLeft,
+                  y,
+                  size: 12,
+                  font: italicFont,
+                  color: descriptionColor,
+                });
+                y -= 14;
+             }
+          }
+          y -= 10;
           continue;
         }
 

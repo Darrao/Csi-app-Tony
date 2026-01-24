@@ -72,6 +72,10 @@ const AdminQuestionConfig: React.FC = () => {
         placeholder: ''
     });
 
+    // 🆕 State for Description Modal
+    const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+    const [descriptionText, setDescriptionText] = useState('');
+
     const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
     // Fetch questions
@@ -215,6 +219,36 @@ const AdminQuestionConfig: React.FC = () => {
         setUnsavedChanges(true);
     };
 
+    const handleAddDescription = () => {
+        setDescriptionText('');
+        setShowDescriptionModal(true);
+    };
+
+    const handleConfirmDescription = () => {
+        if (!descriptionText.trim()) return;
+
+        const tempId = `temp_desc_${Date.now()}`;
+        // Logic: Find last question's section to keep flow
+        const lastSection = questions.length > 0 ? questions[questions.length - 1].section : 'Uncategorized';
+
+        const newQ: Question = {
+            _id: tempId,
+            target: target,
+            section: lastSection,
+            type: "description",
+            content: descriptionText,
+            order: questions.length + 1,
+            active: true,
+            visibleInPdf: true,
+            required: false
+        } as Question;
+
+        setQuestions(prev => [...prev, newQ]);
+        setUnsavedChanges(true);
+        setShowDescriptionModal(false);
+        setDescriptionText('');
+    };
+
     const handleSaveChanges = async () => {
         try {
             // 1. Process Insertions and Updates
@@ -305,6 +339,7 @@ const AdminQuestionConfig: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
+                    <button className="btn" onClick={handleAddDescription} style={{ backgroundColor: '#17a2b8', color: 'white' }}>➕ Description</button>
                     {target === 'doctorant' && !questions.some(q => q.systemId) && (
                         <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
                     )}
@@ -371,7 +406,7 @@ const AdminQuestionConfig: React.FC = () => {
                             <div className="card-header">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontWeight: 600, color: group.questions[0].type === 'chapter_title' ? '#007bff' : '#2c3e50' }}>
-                                        {group.questions[0].type === 'chapter_title' ? '─── CHAPTER SEPARATOR ───' : (group.section || 'Uncategorized')}
+                                        {group.questions[0].type === 'chapter_title' ? '─── CHAPTER SEPARATOR ───' : (group.section === 'CHAPTER' ? '' : (group.section || 'Uncategorized'))}
                                     </span>
                                     {group.section && group.questions[0].type !== 'chapter_title' && (
                                         <button
@@ -418,6 +453,10 @@ const AdminQuestionConfig: React.FC = () => {
                                                     <h3 style={{ margin: '5px 0', color: '#0056b3', textTransform: 'uppercase' }}>
                                                         {q.content}
                                                     </h3>
+                                                ) : q.type === 'description' ? (
+                                                    <p style={{ margin: '5px 0', color: '#555', fontStyle: 'italic', fontSize: '0.9em', whiteSpace: 'pre-wrap' }}>
+                                                        ℹ️ {q.content}
+                                                    </p>
                                                 ) : (
                                                     <h4 style={{ margin: '0 0 5px 0', fontSize: '1em' }}>
                                                         <span style={{ marginRight: '10px', color: '#aaa', fontSize: '0.8em' }}>#{q.order}</span>
@@ -428,7 +467,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                     </h4>
                                                 )}
 
-                                                {!q.systemId && q.type !== 'chapter_title' && (
+                                                {!q.systemId && q.type !== 'chapter_title' && q.type !== 'description' && (
                                                     <div className="type-indicator" style={{ fontSize: '0.8em', color: '#888' }}>
                                                         {q.type}
                                                     </div>
@@ -486,7 +525,7 @@ const AdminQuestionConfig: React.FC = () => {
                                         <div className="modal-content">
                                             <h2>Edit {editingQuestion.systemId ? 'System Block' : 'Question'}</h2>
 
-                                            {editingQuestion.type !== 'chapter_title' && (
+                                            {editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description' && (
                                                 <div className="form-group">
                                                     <label>Section Header</label>
                                                     <input
@@ -507,7 +546,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                 />
                                             </div>
 
-                                            {!editingQuestion.systemId && editingQuestion.type !== 'chapter_title' && (
+                                            {(!editingQuestion.systemId && editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description') && (
                                                 <>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                                         <div className="form-group">
@@ -630,6 +669,7 @@ const AdminQuestionConfig: React.FC = () => {
                             <option value="rating_comment">Rating (1-5) + Comment</option>
                             <option value="select">Yes/No Select</option>
                             <option value="text">Text Input</option>
+                            <option value="description">Description Block</option>
                         </select>
                     </div>
 
@@ -694,6 +734,45 @@ const AdminQuestionConfig: React.FC = () => {
                     <button className="btn btn-primary" onClick={handleCreate} style={{ width: '100%' }}>Create Question</button>
                 </div>
             </div>
+
+            {/* DESCRIPTION MODAL */}
+            {showDescriptionModal && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content" style={{
+                        backgroundColor: 'white', padding: '25px', borderRadius: '8px',
+                        width: '500px', maxWidth: '90%', boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                    }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '15px' }}>Add Description / Sub-Chapter</h2>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>
+                            This text will appear in italics in the PDF report. You can use it to introduce a section or provide instructions.
+                        </p>
+                        <textarea
+                            autoFocus
+                            value={descriptionText}
+                            onChange={(e) => setDescriptionText(e.target.value)}
+                            placeholder="Enter your description here..."
+                            style={{
+                                width: '100%', height: '120px', padding: '10px',
+                                borderRadius: '4px', border: '1px solid #ccc',
+                                fontFamily: 'inherit', fontSize: '1rem', resize: 'vertical'
+                            }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                            <button className="btn" onClick={() => setShowDescriptionModal(false)}
+                                style={{ backgroundColor: '#ccc', color: 'black', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" onClick={handleConfirmDescription}
+                                style={{ backgroundColor: '#17a2b8', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                                Add Description
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
