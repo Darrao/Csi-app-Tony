@@ -1065,7 +1065,6 @@ export class DoctorantService {
       // 1. Global Section Handling
       if (
         q.type !== 'chapter_title' && 
-        q.type !== 'description' && 
         q.section && 
         q.section !== 'Uncategorized' && 
         q.section !== 'CHAPTER' && 
@@ -1239,7 +1238,6 @@ export class DoctorantService {
         // 1. Global Section Handling
         if (
           q.type !== 'chapter_title' &&
-          q.type !== 'description' &&
           q.section &&
           q.section !== 'Uncategorized' &&
           q.section !== 'CHAPTER' && 
