@@ -49,6 +49,9 @@ const InteractiveSystemPreview: React.FC<{ systemId: string }> = ({ systemId }) 
     );
 };
 
+// Helper to auto-assign section to descriptions based on context
+
+
 const AdminQuestionConfig: React.FC = () => {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [target, setTarget] = useState<'doctorant' | 'referent'>('doctorant'); // Changed initial target
@@ -177,10 +180,20 @@ const AdminQuestionConfig: React.FC = () => {
 
 
 
-    const handleRenameSection = (oldSectionName: string) => {
-        const newSectionName = window.prompt("Enter new section name:", oldSectionName);
-        if (newSectionName && newSectionName !== oldSectionName) {
-            setQuestions(prev => prev.map(q => q.section === oldSectionName ? { ...q, section: newSectionName } : q));
+    const handleRenameSection = (targetQuestion: Question) => {
+        const oldSectionName = targetQuestion.section;
+        const newSectionName = window.prompt("Enter new section name:", oldSectionName === 'CHAPTER' ? '' : oldSectionName);
+        
+        if (newSectionName !== null && newSectionName !== oldSectionName) {
+            // Smart Rename Logic:
+            // 1. If it's a Description (or explicit singular target), only rename THAT item.
+            //    This allows "attaching" a description to a specific group.
+            if (targetQuestion.type === 'description') {
+                setQuestions(prev => prev.map(q => q._id === targetQuestion._id ? { ...q, section: newSectionName } : q));
+            } else {
+                // 2. If it's a regular section header, rename the ENTIRE group.
+                setQuestions(prev => prev.map(q => q.section === oldSectionName ? { ...q, section: newSectionName } : q));
+            }
             setUnsavedChanges(true);
         }
     };
@@ -408,11 +421,12 @@ const AdminQuestionConfig: React.FC = () => {
                                     <span style={{ fontWeight: 600, color: group.questions[0].type === 'chapter_title' ? '#007bff' : '#2c3e50' }}>
                                         {group.questions[0].type === 'chapter_title' ? '─── CHAPTER SEPARATOR ───' : (group.section === 'CHAPTER' ? '' : (group.section || 'Uncategorized'))}
                                     </span>
-                                    {group.section && group.questions[0].type !== 'chapter_title' && (
+                                    {/* Show Rename for regular sections AND descriptions (even if currently untitled/CHAPTER) */}
+                                    {group.questions[0].type !== 'chapter_title' && (
                                         <button
-                                            onClick={() => handleRenameSection(group.section)}
+                                            onClick={() => handleRenameSection(group.questions[0])}
                                             className="btn-icon"
-                                            title="Rename Section"
+                                            title={group.questions[0].type === 'description' ? "Attach to Section / Rename" : "Rename Section"}
                                         >
                                             ✏️
                                         </button>
