@@ -75,10 +75,6 @@ const AdminQuestionConfig: React.FC = () => {
         placeholder: ''
     });
 
-    // 🆕 State for Description Modal
-    const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-    const [descriptionText, setDescriptionText] = useState('');
-
     const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
     // Fetch questions
@@ -180,22 +176,94 @@ const AdminQuestionConfig: React.FC = () => {
 
 
 
-    const handleRenameSection = (targetQuestion: Question) => {
-        const oldSectionName = targetQuestion.section;
-        const newSectionName = window.prompt("Enter new section name:", oldSectionName === 'CHAPTER' ? '' : oldSectionName);
-        
-        if (newSectionName !== null && newSectionName !== oldSectionName) {
-            // Smart Rename Logic:
-            // 1. If it's a Description (or explicit singular target), only rename THAT item.
-            //    This allows "attaching" a description to a specific group.
-            if (targetQuestion.type === 'description') {
-                setQuestions(prev => prev.map(q => q._id === targetQuestion._id ? { ...q, section: newSectionName } : q));
-            } else {
-                // 2. If it's a regular section header, rename the ENTIRE group.
-                setQuestions(prev => prev.map(q => q.section === oldSectionName ? { ...q, section: newSectionName } : q));
-            }
-            setUnsavedChanges(true);
+    // 🆕 Section Editor State
+    const [sectionEditor, setSectionEditor] = useState<{
+        originalName: string;
+        newName: string;
+        descriptionId?: string; // ID if existing description block found
+        descriptionContent: string;
+    } | null>(null);
+
+    const handleEditSection = (sectionName: string, sectionQuestions: Question[]) => {
+        // Find if there is an existing description block at the START of this section
+        // We assume the first question in the group might be a description if grouped correctly
+        const firstQ = sectionQuestions[0];
+        let descId : string | undefined = undefined;
+        let descContent = '';
+
+        if (firstQ.type === 'description') {
+            descId = firstQ._id;
+            descContent = firstQ.content;
         }
+
+        setSectionEditor({
+            originalName: sectionName,
+            newName: sectionName === 'CHAPTER' ? '' : sectionName,
+            descriptionId: descId,
+            descriptionContent: descContent
+        });
+    };
+
+    const handleSaveSectionEditor = () => {
+        if (!sectionEditor) return;
+
+        let updatedQuestions = [...questions];
+        const { originalName, newName, descriptionId, descriptionContent } = sectionEditor;
+        const finalName = newName.trim() || 'CHAPTER'; // Fallback if empty, though unlikely for sections
+
+        // 1. Rename Section (for ALL questions in this section)
+        // If the original name was different, update all
+        if (originalName !== finalName) {
+            updatedQuestions = updatedQuestions.map(q => 
+                q.section === originalName ? { ...q, section: finalName } : q
+            );
+        }
+
+        // 2. Handle Description
+        if (descriptionContent.trim()) {
+            if (descriptionId) {
+                // Update existing
+                updatedQuestions = updatedQuestions.map(q => 
+                    q._id === descriptionId ? { ...q, content: descriptionContent, section: finalName } : q
+                ); 
+                // Note: section update is redundant if covered by step 1, but safe.
+            } else {
+                // Create New Description
+                // Find the minimum order in this section to place it before
+                const sectionQs = updatedQuestions.filter(q => q.section === finalName);
+                const minOrder = sectionQs.length > 0 ? Math.min(...sectionQs.map(q => q.order)) : questions.length;
+                
+                const newDesc: Question = {
+                    _id: `temp_desc_${Date.now()}`,
+                    target: target,
+                    section: finalName,
+                    type: 'description',
+                    content: descriptionContent,
+                    order: minOrder - 1, // Place before first item
+                    active: true,
+                    visibleInPdf: true,
+                    required: false
+                } as Question;
+                
+                updatedQuestions.push(newDesc);
+            }
+        } else {
+            // Content empty - if ID exists, user deleted the description
+            if (descriptionId) {
+                updatedQuestions = updatedQuestions.filter(q => q._id !== descriptionId);
+                // Also add to deletedIds if it's not a temp one
+                if (!descriptionId.startsWith('temp_')) {
+                    setDeletedIds(prev => [...prev, descriptionId]);
+                }
+            }
+        }
+
+        // Re-sort questions by order to ensure visual consistency
+        updatedQuestions.sort((a, b) => a.order - b.order);
+
+        setQuestions(updatedQuestions);
+        setUnsavedChanges(true);
+        setSectionEditor(null);
     };
 
     const handleMoveQuestion = (index: number, direction: -1 | 1) => {
@@ -206,6 +274,12 @@ const AdminQuestionConfig: React.FC = () => {
         const temp = newQuestions[index];
         newQuestions[index] = newQuestions[index + direction];
         newQuestions[index + direction] = temp;
+
+        // Swap orders properly if we want to persist order changes robustly
+        // But simply swapping positions in array works if we blindly trust array index = order on save, 
+        // OR we swap the 'order' property values.
+        // Current save logic in handleSaveChanges payload uses `index + 1` for order.
+        // So swapping array positions IS sufficient.
 
         setQuestions(newQuestions);
         setUnsavedChanges(true);
@@ -219,7 +293,7 @@ const AdminQuestionConfig: React.FC = () => {
         const newQ: Question = {
             _id: tempId,
             target: target,
-            section: "CHAPTER", // Non-empty string to pass backend validation
+            section: "CHAPTER", 
             type: "chapter_title",
             content: title,
             order: questions.length + 1,
@@ -230,36 +304,6 @@ const AdminQuestionConfig: React.FC = () => {
 
         setQuestions(prev => [...prev, newQ]);
         setUnsavedChanges(true);
-    };
-
-    const handleAddDescription = () => {
-        setDescriptionText('');
-        setShowDescriptionModal(true);
-    };
-
-    const handleConfirmDescription = () => {
-        if (!descriptionText.trim()) return;
-
-        const tempId = `temp_desc_${Date.now()}`;
-        // Logic: Find last question's section to keep flow
-        const lastSection = questions.length > 0 ? questions[questions.length - 1].section : 'Uncategorized';
-
-        const newQ: Question = {
-            _id: tempId,
-            target: target,
-            section: lastSection,
-            type: "description",
-            content: descriptionText,
-            order: questions.length + 1,
-            active: true,
-            visibleInPdf: true,
-            required: false
-        } as Question;
-
-        setQuestions(prev => [...prev, newQ]);
-        setUnsavedChanges(true);
-        setShowDescriptionModal(false);
-        setDescriptionText('');
     };
 
     const handleSaveChanges = async () => {
@@ -352,7 +396,7 @@ const AdminQuestionConfig: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
-                    <button className="btn" onClick={handleAddDescription} style={{ backgroundColor: '#17a2b8', color: 'white' }}>➕ Description</button>
+                    {/* Description button removed - use Section Header Edit instead */}
                     {target === 'doctorant' && !questions.some(q => q.systemId) && (
                         <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
                     )}
@@ -392,6 +436,8 @@ const AdminQuestionConfig: React.FC = () => {
 
                     if (lastGroup && lastGroup.section === question.section && !isChapter && !lastIsChapter) {
                         lastGroup.questions.push({ ...question, originalIndex: index });
+                        // If this question is a system block, ensure the group is tagged
+                        if (question.systemId) lastGroup.systemId = question.systemId; 
                     } else {
                         groups.push({
                             section: question.section,
@@ -406,27 +452,18 @@ const AdminQuestionConfig: React.FC = () => {
                         <div
                             key={group.questions[0]._id} // Stable key from first question
                             className="admin-card"
-                        // For DnD, we currently drag individual items. With grouping, it's tricky.
-                        // If we drag the GROUP, we move all items.
-                        // If we drag items INSIDE the group?
-                        // SIMPLIFICATION: For now, we only allow dragging the WHOLE GROUP if it's a system block?
-                        // User wants "same block". Usually that implies they move together.
-                        // Implements GROUP dragging based on the index of the *first* question in the group?
-                        // No, simplest is to allow dragging the "Block" which represents a chunk of questions.
-                        // Limitation: You can't drag a question OUT of a block easily with this UI.
-                        // Let's rely on the original index of the first item for DragStart.
                         >
                             <div className="card-header">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontWeight: 600, color: group.questions[0].type === 'chapter_title' ? '#007bff' : '#2c3e50' }}>
                                         {group.questions[0].type === 'chapter_title' ? '─── CHAPTER SEPARATOR ───' : (group.section === 'CHAPTER' ? '' : (group.section || 'Uncategorized'))}
                                     </span>
-                                    {/* Show Rename for regular sections AND descriptions (even if currently untitled/CHAPTER) */}
+                                    {/* Show Rename (Edit Section) for regular sections AND descriptions */}
                                     {group.questions[0].type !== 'chapter_title' && (
                                         <button
-                                            onClick={() => handleRenameSection(group.questions[0])}
+                                            onClick={() => handleEditSection(group.section, group.questions)}
                                             className="btn-icon"
-                                            title={group.questions[0].type === 'description' ? "Attach to Section / Rename" : "Rename Section"}
+                                            title="Edit Section Name & Description"
                                         >
                                             ✏️
                                         </button>
@@ -532,7 +569,7 @@ const AdminQuestionConfig: React.FC = () => {
                                 ))}
                             </div>
 
-                            {/* EDIT MODAL */}
+                            {/* EDIT QUESTION MODAL */}
                             {
                                 editingQuestion && (
                                     <div className="modal-overlay">
@@ -749,8 +786,8 @@ const AdminQuestionConfig: React.FC = () => {
                 </div>
             </div>
 
-            {/* DESCRIPTION MODAL */}
-            {showDescriptionModal && (
+            {/* NEW SECTION EDITOR MODAL */}
+            {sectionEditor && (
                 <div className="modal-overlay" style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
@@ -759,29 +796,44 @@ const AdminQuestionConfig: React.FC = () => {
                         backgroundColor: 'white', padding: '25px', borderRadius: '8px',
                         width: '500px', maxWidth: '90%', boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
                     }}>
-                        <h2 style={{ marginTop: 0, marginBottom: '15px' }}>Add Description / Sub-Chapter</h2>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>
-                            This text will appear in italics in the PDF report. You can use it to introduce a section or provide instructions.
-                        </p>
-                        <textarea
-                            autoFocus
-                            value={descriptionText}
-                            onChange={(e) => setDescriptionText(e.target.value)}
-                            placeholder="Enter your description here..."
-                            style={{
-                                width: '100%', height: '120px', padding: '10px',
-                                borderRadius: '4px', border: '1px solid #ccc',
-                                fontFamily: 'inherit', fontSize: '1rem', resize: 'vertical'
-                            }}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                            <button className="btn" onClick={() => setShowDescriptionModal(false)}
+                        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>Edit Section</h2>
+                        
+                        <div className="form-group">
+                            <label style={{fontWeight: 600}}>Section Name</label>
+                            <input
+                                type="text"
+                                className="select-input"
+                                value={sectionEditor.newName}
+                                onChange={(e) => setSectionEditor({...sectionEditor, newName: e.target.value})}
+                                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                            />
+                        </div>
+
+                        <div className="form-group" style={{marginTop: '20px'}}>
+                            <label style={{fontWeight: 600}}>Description</label>
+                            <p style={{ fontSize: '0.85em', color: '#666', marginTop: '5px', marginBottom: '5px' }}>
+                                This text will appear below the section header. It can be used for instructions or context.
+                            </p>
+                            <textarea
+                                value={sectionEditor.descriptionContent}
+                                onChange={(e) => setSectionEditor({...sectionEditor, descriptionContent: e.target.value})}
+                                placeholder="Enter section description..."
+                                style={{
+                                    width: '100%', height: '100px', padding: '10px',
+                                    borderRadius: '4px', border: '1px solid #ccc',
+                                    fontFamily: 'inherit', fontSize: '0.95em', resize: 'vertical'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '25px' }}>
+                            <button className="btn" onClick={() => setSectionEditor(null)}
                                 style={{ backgroundColor: '#ccc', color: 'black', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                                 Cancel
                             </button>
-                            <button className="btn btn-primary" onClick={handleConfirmDescription}
-                                style={{ backgroundColor: '#17a2b8', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
-                                Add Description
+                            <button className="btn btn-primary" onClick={handleSaveSectionEditor}
+                                style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                                Save Changes
                             </button>
                         </div>
                     </div>
