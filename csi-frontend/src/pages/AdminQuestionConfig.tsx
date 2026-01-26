@@ -177,11 +177,13 @@ const AdminQuestionConfig: React.FC = () => {
 
 
     // 🆕 Section Editor State
+    // 🆕 Section Editor State
     const [sectionEditor, setSectionEditor] = useState<{
         originalName: string;
         newName: string;
         descriptionId?: string; // ID if existing description block found
         descriptionContent: string;
+        affectedQuestionIds: string[]; // IDs of questions in this block
     } | null>(null);
 
     const handleEditSection = (sectionName: string, sectionQuestions: Question[]) => {
@@ -200,7 +202,8 @@ const AdminQuestionConfig: React.FC = () => {
             originalName: sectionName,
             newName: sectionName === 'CHAPTER' ? '' : sectionName,
             descriptionId: descId,
-            descriptionContent: descContent
+            descriptionContent: descContent,
+            affectedQuestionIds: sectionQuestions.map(q => q._id)
         });
     };
 
@@ -208,14 +211,13 @@ const AdminQuestionConfig: React.FC = () => {
         if (!sectionEditor) return;
 
         let updatedQuestions = [...questions];
-        const { originalName, newName, descriptionId, descriptionContent } = sectionEditor;
+        const { originalName, newName, descriptionId, descriptionContent, affectedQuestionIds } = sectionEditor;
         const finalName = newName.trim() || 'CHAPTER'; // Fallback if empty, though unlikely for sections
 
-        // 1. Rename Section (for ALL questions in this section)
-        // If the original name was different, update all
+        // 1. Rename Section (for ONLY questions in this VISUAL block)
         if (originalName !== finalName) {
             updatedQuestions = updatedQuestions.map(q => 
-                q.section === originalName ? { ...q, section: finalName } : q
+                affectedQuestionIds.includes(q._id) ? { ...q, section: finalName } : q
             );
         }
 
@@ -226,20 +228,27 @@ const AdminQuestionConfig: React.FC = () => {
                 updatedQuestions = updatedQuestions.map(q => 
                     q._id === descriptionId ? { ...q, content: descriptionContent, section: finalName } : q
                 ); 
-                // Note: section update is redundant if covered by step 1, but safe.
             } else {
                 // Create New Description
-                // Find the minimum order in this section to place it before
-                const sectionQs = updatedQuestions.filter(q => q.section === finalName);
-                const minOrder = sectionQs.length > 0 ? Math.min(...sectionQs.map(q => q.order)) : questions.length;
+                // Find the minimum order in this section (using filter on FINAL name) to place it before
                 
+                // We must consider that we just moved the affected questions to 'finalName'.
+                // But there could be other questions already in 'finalName' (merging sections).
+                // Ideally, we place it before the FIRST question of the affected block.
+                
+                const minOrder = updatedQuestions
+                    .filter(q => affectedQuestionIds.includes(q._id))
+                    .reduce((min, q) => Math.min(min, q.order), Infinity);
+                
+                const safeOrder = minOrder === Infinity ? questions.length : minOrder;
+
                 const newDesc: Question = {
                     _id: `temp_desc_${Date.now()}`,
                     target: target,
                     section: finalName,
                     type: 'description',
                     content: descriptionContent,
-                    order: minOrder - 1, // Place before first item
+                    order: safeOrder - 1, // Place before first item of this block
                     active: true,
                     visibleInPdf: true,
                     required: false
