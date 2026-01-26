@@ -214,6 +214,8 @@ const AdminQuestionConfig: React.FC = () => {
         const { originalName, newName, descriptionId, descriptionContent, affectedQuestionIds } = sectionEditor;
         const finalName = newName.trim() || 'CHAPTER'; // Fallback if empty, though unlikely for sections
 
+        console.log('Saving Section Editor:', { originalName, finalName, affectedCount: affectedQuestionIds.length, ids: affectedQuestionIds });
+
         // 1. Rename Section (for ONLY questions in this VISUAL block)
         if (originalName !== finalName) {
             updatedQuestions = updatedQuestions.map(q => 
@@ -805,7 +807,7 @@ const AdminQuestionConfig: React.FC = () => {
                         backgroundColor: 'white', padding: '25px', borderRadius: '8px',
                         width: '500px', maxWidth: '90%', boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
                     }}>
-                        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>Edit Section</h2>
+                        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>Edit Section (Visual Block)</h2>
                         
                         <div className="form-group">
                             <label style={{fontWeight: 600}}>Section Name</label>
