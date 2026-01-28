@@ -580,115 +580,7 @@ const AdminQuestionConfig: React.FC = () => {
                                 ))}
                             </div>
 
-                            {/* EDIT QUESTION MODAL */}
-                            {
-                                editingQuestion && (
-                                    <div className="modal-overlay">
-                                        <div className="modal-content">
-                                            <h2>Edit {editingQuestion.systemId ? 'System Block' : 'Question'}</h2>
-
-                                            {editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description' && (
-                                                <div className="form-group">
-                                                    <label>Section Header</label>
-                                                    <input
-                                                        type="text"
-                                                        className="select-input"
-                                                        value={editingQuestion.section}
-                                                        onChange={e => setEditingQuestion({ ...editingQuestion, section: e.target.value })}
-                                                    />
-                                                </div>
-                                            )}
-
-                                            <div className="form-group">
-                                                <label>Label / Title</label>
-                                                <textarea
-                                                    className="comment-box"
-                                                    value={editingQuestion.content}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, content: e.target.value })}
-                                                />
-                                            </div>
-
-                                            {(!editingQuestion.systemId && editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description') && (
-                                                <>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                                        <div className="form-group">
-                                                            <label>Type</label>
-                                                            <select
-                                                                className="select-input"
-                                                                value={editingQuestion.type}
-                                                                onChange={e => setEditingQuestion({ ...editingQuestion, type: e.target.value as any })}
-                                                            >
-                                                                <option value="plus_minus_comment">+/- with Comment</option>
-                                                                <option value="scale_1_5">Scale 1-5</option>
-                                                                <option value="rating_comment">Rating (1-5) + Comment</option>
-                                                                <option value="select">Yes/No Select</option>
-                                                                <option value="text">Text Input</option>
-                                                            </select>
-                                                        </div>
-                                                        <div className="form-group">
-                                                            <label>Status</label>
-                                                            <select
-                                                                className="select-input"
-                                                                value={editingQuestion.active ? 'true' : 'false'}
-                                                                onChange={e => setEditingQuestion({ ...editingQuestion, active: e.target.value === 'true' })}
-                                                            >
-                                                                <option value="true">Active</option>
-                                                                <option value="false">Inactive</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                                        <div className="form-group">
-                                                            <label>Help Text</label>
-                                                            <input
-                                                                type="text"
-                                                                className="select-input"
-                                                                value={editingQuestion.helpText || ''}
-                                                                onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div className="form-group">
-                                                            <label>Placeholder</label>
-                                                            <input
-                                                                type="text"
-                                                                className="select-input"
-                                                                value={editingQuestion.placeholder || ''}
-                                                                onChange={e => setEditingQuestion({ ...editingQuestion, placeholder: e.target.value })}
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="form-group">
-                                                        <label>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={editingQuestion.required || false}
-                                                                onChange={e => setEditingQuestion({ ...editingQuestion, required: e.target.checked })}
-                                                            /> Required Field
-                                                        </label>
-                                                    </div>
-
-                                                </>
-                                            )}
-
-                                            <div className="form-group">
-                                                <label>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!editingQuestion.visibleInPdf}
-                                                        onChange={e => setEditingQuestion({ ...editingQuestion, visibleInPdf: e.target.checked })}
-                                                    /> Show in PDF?
-                                                </label>
-                                            </div>
-
-                                            <div className="modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                                                <button className="btn btn-cancel" onClick={() => setEditingQuestion(null)}>Cancel</button>
-                                                <button className="btn btn-primary" onClick={handleUpdate}>Save Changes</button>
-                                            </div>
-                                        </div >
-                                    </div >
-                                )}
+                            {/* EDIT QUESTION MODAL MOVED TO ROOT */}
                         </div >
                     );
 
@@ -796,6 +688,138 @@ const AdminQuestionConfig: React.FC = () => {
                     <button className="btn btn-primary" onClick={handleCreate} style={{ width: '100%' }}>Create Question</button>
                 </div>
             </div>
+
+            {/* EDIT QUESTION MODAL */}
+            {
+                editingQuestion && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h2>Edit {editingQuestion.systemId ? 'System Block' : 'Question'}</h2>
+
+                            {editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description' && (
+                                <div className="form-group">
+                                    <label>Section Header</label>
+                                    <input
+                                        type="text"
+                                        className="select-input"
+                                        value={editingQuestion.section}
+                                        onChange={e => setEditingQuestion({ ...editingQuestion, section: e.target.value })}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="form-group">
+                                <label>Label / Title</label>
+                                <textarea
+                                    className="comment-box"
+                                    value={editingQuestion.content}
+                                    onChange={e => setEditingQuestion({ ...editingQuestion, content: e.target.value })}
+                                />
+                            </div>
+
+                            {(!editingQuestion.systemId && editingQuestion.type !== 'description') && (
+                                <>
+                                    {editingQuestion.type !== 'chapter_title' && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                            <div className="form-group">
+                                                <label>Type</label>
+                                                <select
+                                                    className="select-input"
+                                                    value={editingQuestion.type}
+                                                    onChange={e => setEditingQuestion({ ...editingQuestion, type: e.target.value as any })}
+                                                >
+                                                    <option value="plus_minus_comment">+/- with Comment</option>
+                                                    <option value="scale_1_5">Scale 1-5</option>
+                                                    <option value="rating_comment">Rating (1-5) + Comment</option>
+                                                    <option value="select">Yes/No Select</option>
+                                                    <option value="text">Text Input</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Status</label>
+                                                <select
+                                                    className="select-input"
+                                                    value={editingQuestion.active ? 'true' : 'false'}
+                                                    onChange={e => setEditingQuestion({ ...editingQuestion, active: e.target.value === 'true' })}
+                                                >
+                                                    <option value="true">Active</option>
+                                                    <option value="false">Inactive</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                        <div className="form-group">
+                                            <label>{editingQuestion.type === 'chapter_title' ? 'Description (Active under title)' : 'Help Text'}</label>
+                                            {editingQuestion.type === 'chapter_title' ? (
+                                                <>
+                                                    <textarea
+                                                        className="select-input"
+                                                        value={editingQuestion.helpText || ''}
+                                                        onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
+                                                        style={{ height: '80px', fontFamily: 'monospace', fontSize: '0.9em' }}
+                                                    />
+                                                    <div style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                                                        <span style={{ marginRight: '10px' }}>Gras: <b>**text**</b></span>
+                                                        <span>Italic: <i>*text*</i></span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    className="select-input"
+                                                    value={editingQuestion.helpText || ''}
+                                                    onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
+                                                />
+                                            )}
+                                        </div>
+                                        {editingQuestion.type !== 'chapter_title' && (
+                                            <div className="form-group">
+                                                <label>Placeholder</label>
+                                                <input
+                                                    type="text"
+                                                    className="select-input"
+                                                    value={editingQuestion.placeholder || ''}
+                                                    onChange={e => setEditingQuestion({ ...editingQuestion, placeholder: e.target.value })}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {editingQuestion.type !== 'chapter_title' && (
+                                        <div className="form-group">
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingQuestion.required || false}
+                                                    onChange={e => setEditingQuestion({ ...editingQuestion, required: e.target.checked })}
+                                                /> Required Field
+                                            </label>
+                                        </div>
+                                    )}
+
+                                </>
+                            )}
+
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!editingQuestion.visibleInPdf}
+                                        onChange={e => setEditingQuestion({ ...editingQuestion, visibleInPdf: e.target.checked })}
+                                    /> Show in PDF?
+                                </label>
+                            </div>
+
+                            <div className="modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                                <button className="btn btn-cancel" onClick={() => setEditingQuestion(null)}>Cancel</button>
+                                <button className="btn btn-primary" onClick={handleUpdate}>Save Changes</button>
+                            </div>
+                        </div >
+                    </div >
+                )
+            }
 
             {/* NEW SECTION EDITOR MODAL */}
             {sectionEditor && (

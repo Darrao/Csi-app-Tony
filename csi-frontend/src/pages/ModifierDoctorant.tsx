@@ -21,6 +21,18 @@ const ModifierDoctorant: React.FC = () => {
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const scientificReportInputRef = useRef<HTMLInputElement>(null);
 
+    // Helper to improved visual rendering of descriptions
+    const formatDescription = (text: string) => {
+        if (!text) return '';
+        // Bold: **text** -> <b>text</b>
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        // Italic: *text* -> <i>text</i>
+        formatted = formatted.replace(/\*(.*?)\*/g, '<i>$1</i>');
+        // Line breaks: \n -> <br />
+        formatted = formatted.replace(/\n/g, '<br />');
+        return formatted;
+    };
+
     // Dynamic Questions State
     const [questions, setQuestions] = useState<any[]>([]);
 
@@ -556,6 +568,15 @@ const ModifierDoctorant: React.FC = () => {
                                         return (
                                             <div key={q._id} style={{ gridColumn: '1 / -1', marginTop: '20px', marginBottom: '20px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '10px' }}>
                                                 <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
+                                                {q.helpText && (
+                                                    <p style={{ marginTop: '5px', fontSize: '0.9em', color: '#555', fontStyle: 'italic' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.helpText) }}></p>
+                                                )}
+                                            </div>
+                                        );
+                                    } else if (q.type === 'description') {
+                                        return (
+                                            <div key={q._id} style={{ gridColumn: '1 / -1', marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
+                                                <p style={{ margin: 0, fontSize: '0.95em', color: '#333' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.content) }}></p>
                                             </div>
                                         );
                                     } else {
