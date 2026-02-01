@@ -34,4 +34,15 @@ export class EmailConfigController {
     async resetEmailConfig(@Body() emailConfig: Partial<EmailConfig>) {
         return this.emailConfigService.resetAndCreate(emailConfig);
     }
+
+    @Get('export')
+    async export() {
+        return this.emailConfigService.export();
+    }
+
+    @Post('import')
+    async import(@Body() emailConfig: any) { // Using any for simplicity
+        return this.emailConfigService.import(emailConfig);
+    }
+
 }

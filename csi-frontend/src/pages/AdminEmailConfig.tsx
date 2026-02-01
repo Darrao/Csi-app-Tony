@@ -33,6 +33,54 @@ interface EmailConfig {
 const AdminEmailConfig: React.FC = () => {
     const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
     const [unsavedChanges, setUnsavedChanges] = useState(false);
+    
+    // EXPORT / IMPORT LOGIC
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleExport = async () => {
+        try {
+            const response = await api.get<EmailConfig>('/email-config/export');
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(response.data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `email_config_export_${new Date().toISOString()}.json`);
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        } catch (error) {
+            console.error("Export failed:", error);
+            alert("Export failed!");
+        }
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const fileObj = event.target.files && event.target.files[0];
+        if (!fileObj) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const json = JSON.parse(e.target?.result as string);
+                if (!window.confirm(`About to import Email Configuration. This will REPLACE the current configuration. Continue?`)) return;
+                
+                await api.post('/email-config/import', json);
+                alert("Import successful!");
+                fetchEmailConfig(); // Refresh UI
+            } catch (error) {
+                console.error("Import failed:", error);
+                alert("Import failed! Invalid JSON or server error.");
+            }
+        };
+        reader.readAsText(fileObj);
+        // Reset input
+        event.target.value = '';
+    };
 
     const fetchEmailConfig = async () => {
         try {
@@ -207,7 +255,20 @@ const AdminEmailConfig: React.FC = () => {
                     </button>
                 </div>
             )}
-            <h1 className="title">Gestion des Configurations Email</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h1 className="title">Gestion des Configurations Email</h1>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn" onClick={handleExport} style={{ backgroundColor: '#17a2b8', color: 'white' }}>⬇️ Export JSON</button>
+                    <button className="btn" onClick={handleImportClick} style={{ backgroundColor: '#e83e8c', color: 'white' }}>⬆️ Import JSON</button>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        accept="application/json" 
+                        onChange={handleFileChange} 
+                    />
+                </div>
+            </div>
 
             {emailConfig ? (
                 <>

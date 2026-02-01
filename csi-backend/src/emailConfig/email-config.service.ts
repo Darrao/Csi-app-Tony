@@ -48,6 +48,19 @@ export class EmailConfigService {
         return this.emailConfigModel.findOne({ active: true }).exec();
     }
 
+    async export(): Promise<EmailConfig> {
+        // Return the first config found (assuming there's only one active or relevant one)
+        const config = await this.emailConfigModel.findOne().exec();
+        if (!config) throw new NotFoundException('Aucune configuration à exporter');
+        return config;
+    }
+
+    async import(data: Partial<EmailConfig>): Promise<EmailConfig> {
+        // We reuse resetAndCreate because it does exactly what we want:
+        // delete everything and create a new one from data
+        return this.resetAndCreate(data);
+    }
+
     replaceEmailVariables(template: string, variables: Record<string, string>): string {
         return template.replace(/\${(.*?)}/g, (_, key) => variables[key] || '');
     }
