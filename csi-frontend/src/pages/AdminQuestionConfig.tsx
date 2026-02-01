@@ -76,6 +76,54 @@ const AdminQuestionConfig: React.FC = () => {
     });
 
     const [deletedIds, setDeletedIds] = useState<string[]>([]);
+    
+    // EXPORT / IMPORT LOGIC
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleExport = async () => {
+        try {
+            const response = await api.get<Question[]>('/questions/export');
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(response.data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `questions_export_${new Date().toISOString()}.json`);
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        } catch (error) {
+            console.error("Export failed:", error);
+            alert("Export failed!");
+        }
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const fileObj = event.target.files && event.target.files[0];
+        if (!fileObj) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const json = JSON.parse(e.target?.result as string);
+                if (!window.confirm(`About to import ${json.length} questions. This will REPLACE current questions. Continue?`)) return;
+                
+                await api.post('/questions/import', json);
+                alert("Import successful!");
+                fetchQuestions(); // Refresh UI
+            } catch (error) {
+                console.error("Import failed:", error);
+                alert("Import failed! Invalid JSON or server error.");
+            }
+        };
+        reader.readAsText(fileObj);
+        // Reset input
+        event.target.value = '';
+    };
 
     // Fetch questions
     const fetchQuestions = async () => {
@@ -406,6 +454,15 @@ const AdminQuestionConfig: React.FC = () => {
                     <p>Customize the {target === 'doctorant' ? 'Doctoral Student' : 'Referent'} form structure.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn" onClick={handleExport} style={{ backgroundColor: '#17a2b8', color: 'white' }}>⬇️ Export JSON</button>
+                    <button className="btn" onClick={handleImportClick} style={{ backgroundColor: '#e83e8c', color: 'white' }}>⬆️ Import JSON</button>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        accept="application/json" 
+                        onChange={handleFileChange} 
+                    />
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
                     {/* Description button removed - use Section Header Edit instead */}
                     {target === 'doctorant' && !questions.some(q => q.systemId) && (

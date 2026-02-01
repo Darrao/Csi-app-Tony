@@ -18,6 +18,16 @@ export class QuestionController {
         }
     }
 
+    @Get('export')
+    async export() {
+        return this.questionService.export();
+    }
+
+    @Post('import')
+    async import(@Body() questions: any[]) { // Using any[] for simplicity, but ideally Question[]
+        return this.questionService.import(questions);
+    }
+
     @Get()
     findAll(@Query('target') target?: string) {
         return this.questionService.findAll(target);
