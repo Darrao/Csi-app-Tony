@@ -44,8 +44,26 @@ async function bootstrap() {
   );
 
   // ✅ Activer CORS
+  const allowedOrigins = [
+    config.FRONTEND_URL,
+    'http://localhost:3001',
+    'https://csi-app-tony.vercel.app',
+    'https://csi-app-tony.vercel.app/', // au cas où
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: config.FRONTEND_URL.endsWith('/') ? config.FRONTEND_URL.slice(0, -1) : config.FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Check if the origin is in the allowed list
+      if (allowedOrigins.includes(origin) || allowedOrigins.some(o => origin.startsWith(o))) {
+        return callback(null, true);
+      } else {
+        console.log('❌ CORS Blocked Origin:', origin);
+        return callback(new Error('Not allowed by CORS'), false);
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
