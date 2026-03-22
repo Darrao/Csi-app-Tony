@@ -94,11 +94,16 @@ const ListeDoctorants: React.FC = () => {
       const response = await api.get('/doctorant');
       const configRes = await api.get('/email-config');
       
-      const activeYear = configRes.data?.[0]?.activeCampaignYear;
+      const config = configRes.data?.[0];
+      const activeYear = config?.activeCampaignYear;
+      const additionalYears = config?.additionalYears || [];
       
       setDoctorants(response.data);
 
-      const years = Array.from(new Set(response.data.map((doc: any) => doc.importDate)))
+      const years = Array.from(new Set([
+        ...response.data.map((doc: any) => doc.importDate),
+        ...additionalYears
+      ]))
         .map(Number)
         .sort((a, b) => b - a);
 
@@ -113,6 +118,26 @@ const ListeDoctorants: React.FC = () => {
       }
     } catch (error) {
       console.error('[FRONTEND] Erreur lors de la récupération des doctorants :', error);
+    }
+  };
+
+  const handleAddManualYear = async () => {
+    const year = window.prompt("Saisissez l'année à ajouter :");
+    if (year && !isNaN(Number(year))) {
+      try {
+        const configRes = await api.get('/email-config');
+        if (configRes.data && configRes.data.length > 0) {
+          const config = configRes.data[0];
+          const newYears = Array.from(new Set([...(config.additionalYears || []), year]));
+          await api.put(`/email-config/${config._id}`, { additionalYears: newYears });
+          fetchDoctorants();
+        } else {
+          alert('Configuration globale introuvable. Veuillez sauvegarder une fois dans les réglages globaux.');
+        }
+      } catch (err) {
+        console.error("Erreur lors de l'ajout de l'année :", err);
+        alert("Une erreur s'est produite lors de l'ajout.");
+      }
     }
   };
 
@@ -1153,6 +1178,15 @@ const ListeDoctorants: React.FC = () => {
             </option>
           ))}
         </select>
+        
+        <button 
+          onClick={handleAddManualYear}
+          className="btn btn-outline-secondary"
+          style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '1.2rem', lineHeight: '1' }}
+          title="Ajouter une année manuellement"
+        >
+          +
+        </button>
 
         {/* 🔽 Filtre simple (conserve l'existant) */}
         <select

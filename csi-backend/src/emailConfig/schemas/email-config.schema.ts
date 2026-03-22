@@ -59,6 +59,9 @@ export class EmailConfig {
     @Prop({ type: String, default: new Date().getFullYear().toString() })
     activeCampaignYear: string;
 
+    @Prop({ type: [String], default: [] })
+    additionalYears: string[];
+
     @Prop({ default: true })
     active: boolean;
 }
