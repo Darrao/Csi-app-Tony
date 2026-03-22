@@ -92,12 +92,25 @@ const ListeDoctorants: React.FC = () => {
     try {
       await api.get('/doctorant/refresh-statuses');
       const response = await api.get('/doctorant');
+      const configRes = await api.get('/email-config');
+      
+      const activeYear = configRes.data?.[0]?.activeCampaignYear;
+      
       setDoctorants(response.data);
 
       const years = Array.from(new Set(response.data.map((doc: any) => doc.importDate)))
         .map(Number)
         .sort((a, b) => b - a);
+
+      if (activeYear && !years.includes(Number(activeYear))) {
+        years.unshift(Number(activeYear));
+      }
+
       setAvailableYears(years);
+
+      if (activeYear) {
+        setFilterYear(prev => prev === 'Tous' ? activeYear : prev);
+      }
     } catch (error) {
       console.error('[FRONTEND] Erreur lors de la récupération des doctorants :', error);
     }

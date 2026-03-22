@@ -28,6 +28,7 @@ interface EmailConfig {
     CsiMemberHasSubmitForDoctorant: string;
     CsiMemberHasSubmitForDirector: string;
     finalEmail: string;
+    activeCampaignYear: string;
 }
 
 const AdminEmailConfig: React.FC = () => {
@@ -111,6 +112,7 @@ const AdminEmailConfig: React.FC = () => {
                     CsiMemberHasSubmitForDoctorant: '',
                     CsiMemberHasSubmitForDirector: '',
                     finalEmail: '',
+                    activeCampaignYear: new Date().getFullYear().toString(),
                 });
             }
         } catch (error) {
@@ -272,6 +274,20 @@ const AdminEmailConfig: React.FC = () => {
 
             {emailConfig ? (
                 <>
+                    <div className="email-group" style={{ border: '2px solid #007bff', padding: '15px', marginBottom: '20px' }}>
+                        <h2>🌍 Configuration Globale</h2>
+                        <p><strong>Année de campagne active :</strong> Cette année sera sélectionnée par défaut sur la liste des doctorants, permettant de filtrer et d'exporter uniquement cette campagne.</p>
+                        <div className="email-entry">
+                            <input
+                                type="text"
+                                value={emailConfig.activeCampaignYear || ''}
+                                onChange={(e) => handleInputChange('activeCampaignYear', e.target.value)}
+                                placeholder="ex: 2026"
+                                style={{ width: '200px', fontWeight: 'bold', fontSize: '1.2rem', textAlign: 'center' }}
+                            />
+                        </div>
+                    </div>
+
                     {/* 🔧 Champs pour les emails des groupes */}
                     {(['MECA', 'PP', 'IM', 'IMMUNO', 'GENYX'] as (keyof EmailConfig)[]).map((group) => (
                         <div key={group} className="email-group">
