@@ -847,13 +847,14 @@ const ListeDoctorants: React.FC = () => {
   });
 
   // 🔢 STATISTIQUES
-  const totalDoctorants = doctorants.length;
-  const totalEnvoyesDoctorant = doctorants.filter((doc) => doc.sendToDoctorant).length;
-  const totalValidDoctorant = doctorants.filter((doc) => doc.doctorantValide).length;
-  const totalEnvoyesReferents = doctorants.filter((doc) => doc.sendToRepresentants).length;
-  const totalValidReferents = doctorants.filter((doc) => doc.representantValide).length;
-  const totalEnvoyesDirecteurDept = doctorants.filter((doc) => doc.gestionnaireDirecteurValide).length;
-  const totalRapportFinal = doctorants.filter((doc) => doc.finalSend).length;
+  const doctorantsByYear = doctorants.filter(doc => filterYear === 'Tous' || doc.importDate === Number(filterYear));
+  const totalDoctorants = doctorantsByYear.length;
+  const totalEnvoyesDoctorant = doctorantsByYear.filter((doc) => doc.sendToDoctorant).length;
+  const totalValidDoctorant = doctorantsByYear.filter((doc) => doc.doctorantValide).length;
+  const totalEnvoyesReferents = doctorantsByYear.filter((doc) => doc.sendToRepresentants).length;
+  const totalValidReferents = doctorantsByYear.filter((doc) => doc.representantValide).length;
+  const totalEnvoyesDirecteurDept = doctorantsByYear.filter((doc) => doc.gestionnaireDirecteurValide).length;
+  const totalRapportFinal = doctorantsByYear.filter((doc) => doc.finalSend).length;
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= Math.ceil(filteredDoctorants.length / itemsPerPage)) {
