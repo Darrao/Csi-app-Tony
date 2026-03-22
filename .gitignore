@@ -7,3 +7,5 @@ build
 .env
 csi-frontend/public/logo512.png
 *.pem
+csi-frontend/src/services/api.ts
+csi-backend/src/config.ts
