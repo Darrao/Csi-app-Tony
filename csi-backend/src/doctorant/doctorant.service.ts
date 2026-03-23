@@ -14,11 +14,9 @@ import { Question } from '../question/schemas/question.schema';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csvParser from 'csv-parser';
-import { ObjectId } from 'mongodb';
 import 'dotenv/config';
 import * as archiver from 'archiver';
 import { Readable } from 'stream';
-import * as XLSX from 'xlsx';
 import { FastifyReply } from 'fastify';
 import { Workbook } from 'exceljs';
 
@@ -27,13 +25,15 @@ export class DoctorantService implements OnModuleInit {
   constructor(
     @InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>,
     @InjectModel(Question.name) private questionModel: Model<Question>,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     try {
       await this.doctorantModel.collection.dropIndex('email_1');
-      console.log('✅ Index unique email_1 supprimé pour autoriser les doublons par année');
-    } catch (_e) {
+      console.log(
+        '✅ Index unique email_1 supprimé pour autoriser les doublons par année',
+      );
+    } catch {
       // Ignoré si l'index n'existe pas ou a déjà été supprimé
     }
   }
@@ -401,8 +401,6 @@ export class DoctorantService implements OnModuleInit {
     console.log(`Mise à jour du doctorant avec ID : ${id}`);
     console.log('Données de mise à jour reçues :', updateData);
 
-    const objectId = typeof id === 'string' ? new ObjectId(id) : id;
-
     // Vérifiez si le doctorant existe
     const existingDoctorant = await this.doctorantModel.findById(id).exec();
     if (!existingDoctorant) {
@@ -421,7 +419,10 @@ export class DoctorantService implements OnModuleInit {
     updateData: any,
   ): Promise<Doctorant> {
     return this.doctorantModel
-      .findOneAndUpdate({ email }, updateData, { new: true, sort: { importDate: -1 } })
+      .findOneAndUpdate({ email }, updateData, {
+        new: true,
+        sort: { importDate: -1 },
+      })
       .exec();
   }
 
@@ -530,24 +531,31 @@ export class DoctorantService implements OnModuleInit {
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
-  async importDoctorantsFromCSV(input: string | Buffer, importYear?: number, force = false): Promise<any> {
+  async importDoctorantsFromCSV(
+    input: string | Buffer,
+    importYear?: number,
+    force = false,
+  ): Promise<any> {
     let csvData = '';
     let detectedEncoding = 'UTF-8';
 
     if (Buffer.isBuffer(input)) {
       // Détection de l'encodage par BOM (Byte Order Mark)
-      if (input[0] === 0xFF && input[1] === 0xFE) {
+      if (input[0] === 0xff && input[1] === 0xfe) {
         csvData = input.toString('utf16le');
         detectedEncoding = 'UTF-16LE';
-      } else if (input[0] === 0xFE && input[1] === 0xFF) {
-        csvData = input.toString('utf16be'); // Plus rare mais possible
-        detectedEncoding = 'UTF-16BE';
-      } else if (input[0] === 0xEF && input[1] === 0xBB && input[2] === 0xBF) {
+      } else if (input[0] === 0xfe && input[1] === 0xff) {
+        // UTF-16BE : Node ne le supporte pas nativement en toString, on swap les octets pour lire en LE
+        const swapped = Buffer.from(input);
+        swapped.swap16();
+        csvData = swapped.toString('utf16le');
+        detectedEncoding = 'UTF-16BE (Swapped to LE)';
+      } else if (input[0] === 0xef && input[1] === 0xbb && input[2] === 0xbf) {
         csvData = input.toString('utf8'); // UTF-8 avec BOM
         detectedEncoding = 'UTF-8-BOM';
       } else {
         // Fallback : on vérifie s'il y a des octets nuls (typiquement UTF-16 sans BOM)
-        const hasNulls = input.slice(0, 100).some(b => b === 0);
+        const hasNulls = input.slice(0, 100).some((b) => b === 0);
         if (hasNulls) {
           csvData = input.toString('utf16le');
           detectedEncoding = 'UTF-16LE (Detected by nulls)';
@@ -559,17 +567,19 @@ export class DoctorantService implements OnModuleInit {
       csvData = input;
     }
 
-    console.log(`📂 [IMPORT] Taille CSV brute : ${csvData?.length || 0} caractères (Encodage: ${detectedEncoding})`);
+    console.log(
+      `📂 [IMPORT] Taille CSV brute : ${csvData?.length || 0} caractères (Encodage: ${detectedEncoding})`,
+    );
     if (!csvData || csvData.length < 5) {
-      return { 
-        totalRowsParsed: 0, 
-        inserted: 0, 
-        skippedDuplicate: 0, 
-        skippedNoEmail: 0, 
-        skippedMissingData: 0, 
-        errors: 0, 
+      return {
+        totalRowsParsed: 0,
+        inserted: 0,
+        skippedDuplicate: 0,
+        skippedNoEmail: 0,
+        skippedMissingData: 0,
+        errors: 0,
         message: 'Fichier vide ou trop court.',
-        debug: { size: input.length, version: 'v2.1-buffer-support' }
+        debug: { size: input.length, version: 'v2.1-buffer-support' },
       };
     }
 
@@ -583,20 +593,24 @@ export class DoctorantService implements OnModuleInit {
     const currentYear = importYear ?? new Date().getFullYear();
 
     // Détection robuste du séparateur
-    const lines = csvData.split(/\r?\n/).filter(l => l.trim().length > 0);
+    const lines = csvData.split(/\r?\n/).filter((l) => l.trim().length > 0);
     const firstLine = lines[0] || '';
-    
+
     // On compte le nombre de colonnes produites par chaque séparateur potentiel
     const commaCount = (firstLine.match(/,/g) || []).length;
     const semiCount = (firstLine.match(/;/g) || []).length;
     const tabCount = (firstLine.match(/\t/g) || []).length;
-    
+
     let separator = ',';
     if (semiCount > commaCount && semiCount > tabCount) separator = ';';
     else if (tabCount > commaCount && tabCount > semiCount) separator = '\t';
 
-    console.log(`🔍 [IMPORT] Séparateur détecté : '${separator}' (Commas: ${commaCount}, Semis: ${semiCount}, Tabs: ${tabCount})`);
-    console.log(`🔍 [IMPORT] Première ligne : "${firstLine.substring(0, 100)}..."`);
+    console.log(
+      `🔍 [IMPORT] Séparateur détecté : '${separator}' (Commas: ${commaCount}, Semis: ${semiCount}, Tabs: ${tabCount})`,
+    );
+    console.log(
+      `🔍 [IMPORT] Première ligne : "${firstLine.substring(0, 100)}..."`,
+    );
 
     return new Promise((resolve, reject) => {
       const readableStream = Readable.from(csvData);
@@ -627,22 +641,30 @@ export class DoctorantService implements OnModuleInit {
               version: 'v2.1-buffer-support',
               encoding: detectedEncoding,
               timestamp: new Date().toISOString(),
-            }
+            },
           };
 
           // Si 0 lignes, on donne un message d'aide
           let message = '';
           if (rows.length === 0) {
-            if (stats.debug.isXLSX) message = "Ce fichier semble être un Excel (.xlsx) renommé en .csv. Enregistrez-le bien au format 'CSV (séparateur point-virgule)' dans Excel.";
-            else if (stats.debug.isUTF16) message = "Le fichier semble être en UTF-16. Essayez de l'enregistrer en format 'CSV UTF-8' dans Excel.";
-            else message = "Aucune ligne détectée. Vérifiez que le fichier n'est pas vide et que les colonnes sont correctes.";
+            if (stats.debug.isXLSX)
+              message =
+                "Ce fichier semble être un Excel (.xlsx) renommé en .csv. Enregistrez-le bien au format 'CSV (séparateur point-virgule)' dans Excel.";
+            else if (stats.debug.isUTF16)
+              message =
+                "Le fichier semble être en UTF-16. Essayez de l'enregistrer en format 'CSV UTF-8' dans Excel.";
+            else
+              message =
+                "Aucune ligne détectée. Vérifiez que le fichier n'est pas vide et que les colonnes sont correctes.";
           }
 
           for (const row of rows) {
             const keys = Object.keys(row);
             const findValue = (partials: string[]) => {
-              const key = keys.find(k => partials.some(p => k.toLowerCase().includes(p.toLowerCase())));
-              return key ? (row[key]?.trim() || '') : '';
+              const key = keys.find((k) =>
+                partials.some((p) => k.toLowerCase().includes(p.toLowerCase())),
+              );
+              return key ? row[key]?.trim() || '' : '';
             };
 
             const email = findValue(['email', 'envoi']);
@@ -675,16 +697,28 @@ export class DoctorantService implements OnModuleInit {
                 nom,
                 email,
                 ID_DOCTORANT: findValue(['ID_DOCTORANT', 'id_doc']),
-                departementDoctorant: findValue(['DEPARTEMENT_DOCTORANT', 'département', 'department']),
-                datePremiereInscription: this.safeParseDate(findValue(['Inscription', 'date_inscr'])),
+                departementDoctorant: findValue([
+                  'DEPARTEMENT_DOCTORANT',
+                  'département',
+                  'department',
+                ]),
+                datePremiereInscription: this.safeParseDate(
+                  findValue(['Inscription', 'date_inscr']),
+                ),
                 anneeThese: findValue(['AnnéeThèse', 'thèse', 'year']),
                 typeFinancement: findValue(['Financement', 'funding']),
                 missions: findValue(['Missions']),
                 titreThese: findValue(['Sujet', 'titre', 'subject']),
                 intituleUR: findValue(['UnitésRecherche::Intitulé', 'UR']),
-                directeurUR: findValue(['UnitésRecherche::Nom_Prenom_DU', 'DU']),
+                directeurUR: findValue([
+                  'UnitésRecherche::Nom_Prenom_DU',
+                  'DU',
+                ]),
                 intituleEquipe: findValue(['Equipes::Nom', 'Equipe']),
-                directeurEquipe: findValue(['Equipes::Nom_Prenom_Responsable', 'Responsable']),
+                directeurEquipe: findValue([
+                  'Equipes::Nom_Prenom_Responsable',
+                  'Responsable',
+                ]),
                 nomPrenomHDR: findValue(['HDR::Nom_Prenom_HDR', 'HDR']),
                 email_HDR: findValue(['HDR::Email_HDR']),
                 importDate: currentYear,
@@ -708,13 +742,15 @@ export class DoctorantService implements OnModuleInit {
   }
 
   async findByReferentEmail(email: string) {
-    return this.doctorantModel.findOne({
-      $or: [
-        { emailMembre1: email },
-        { emailMembre2: email },
-        { emailAdditionalMembre: email },
-      ],
-    }).sort({ importDate: -1 });
+    return this.doctorantModel
+      .findOne({
+        $or: [
+          { emailMembre1: email },
+          { emailMembre2: email },
+          { emailAdditionalMembre: email },
+        ],
+      })
+      .sort({ importDate: -1 });
   }
 
   async generateNewPDF(doctorant: Doctorant): Promise<Buffer> {
@@ -749,15 +785,14 @@ export class DoctorantService implements OnModuleInit {
     const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
     // 🎨 Couleurs Uniformes (Updated)
-    const burgundyColor = rgb(0.545, 0.082, 0.220); // Burgundy #8B1538 (Chapter Titles & Main Report Title)
+    const burgundyColor = rgb(0.545, 0.082, 0.22); // Burgundy #8B1538 (Chapter Titles & Main Report Title)
     const blueColor = rgb(0, 0.2, 0.404); // Blue #003367 (Section Titles)
 
     // Mapping for usage
     const primaryTitleColor = burgundyColor;
     const sectionTitleColor = blueColor;
 
-    const textColor = rgb(0, 0, 0);       // Noir
-    const grayColor = rgb(0.4, 0.4, 0.4); // Gris
+    const textColor = rgb(0, 0, 0); // Noir
     const descriptionColor = rgb(0.2, 0.2, 0.2); // Dark Gray for descriptions
     const accentColor = rgb(0.8, 0.1, 0.1); // Rouge discret (Corrections)
 
@@ -785,14 +820,26 @@ export class DoctorantService implements OnModuleInit {
         .replace(/\r?\n|\r/g, ' ')
         .replace(/[^\x00-\x7F]/g, (char) => {
           const replacements: Record<string, string> = {
-            '±': '+/-', '•': '-', '×': 'x', '→': '->', '“': '"', '”': '"', '‘': "'", '’': "'"
+            '±': '+/-',
+            '•': '-',
+            '×': 'x',
+            '→': '->',
+            '“': '"',
+            '”': '"',
+            '‘': "'",
+            '’': "'",
           };
           return replacements[char] || '?';
         })
         .trim();
     };
 
-    const wrapText = (text: string, size: number, fontToUse: any, width_: number) => {
+    const wrapText = (
+      text: string,
+      size: number,
+      fontToUse: any,
+      width_: number,
+    ) => {
       const words = text.split(' ');
       let line = '';
       const result = [];
@@ -822,7 +869,13 @@ export class DoctorantService implements OnModuleInit {
         // Center align the main title
         const textWidth = boldFont.widthOfTextAtSize(l, 16);
         const centeredX = (600 - textWidth) / 2;
-        page.drawText(l, { x: centeredX, y, size: 16, font: boldFont, color: primaryTitleColor });
+        page.drawText(l, {
+          x: centeredX,
+          y,
+          size: 16,
+          font: boldFont,
+          color: primaryTitleColor,
+        });
         y -= 25;
       }
       y -= 10;
@@ -849,7 +902,13 @@ export class DoctorantService implements OnModuleInit {
 
       y -= 5;
       for (const l of lines) {
-        page.drawText(l, { x: marginLeft, y, size: 14, font: boldFont, color: sectionTitleColor }); // Size 16 -> 14
+        page.drawText(l, {
+          x: marginLeft,
+          y,
+          size: 14,
+          font: boldFont,
+          color: sectionTitleColor,
+        }); // Size 16 -> 14
         y -= 20;
       }
 
@@ -872,15 +931,16 @@ export class DoctorantService implements OnModuleInit {
       const text = cleanedValue;
 
       const lines = [];
-      let words = text.split(' ');
+      const words = text.split(' ');
       let line = '';
 
-      for (let word of words) {
-        let testLine = line + (line.length ? ' ' : '') + word;
-        let textWidth = font.widthOfTextAtSize(testLine, 10);
+      for (const word of words) {
+        const testLine = line + (line.length ? ' ' : '') + word;
+        const textWidth = font.widthOfTextAtSize(testLine, 10);
 
         // First line accounts for label width
-        let currentLineWidth = (lines.length === 0) ? (maxWidth - labelWidth - 10) : maxWidth;
+        const currentLineWidth =
+          lines.length === 0 ? maxWidth - labelWidth - 10 : maxWidth;
 
         if (textWidth < currentLineWidth) {
           line = testLine;
@@ -894,7 +954,8 @@ export class DoctorantService implements OnModuleInit {
       page.drawText(label, { x: marginLeft, y, size: 10, font: boldFont });
 
       lines.forEach((line, index) => {
-        const xPosition = index === 0 ? marginLeft + labelWidth + 10 : marginLeft;
+        const xPosition =
+          index === 0 ? marginLeft + labelWidth + 10 : marginLeft;
         if (y <= marginBottom) newPage();
         page.drawText(line, { x: xPosition, y, size: 10, font });
         y -= 10;
@@ -903,7 +964,11 @@ export class DoctorantService implements OnModuleInit {
       y -= 5;
     };
 
-    const addWrappedText3 = (label: string, value1: string | null, value2: string | null) => {
+    const addWrappedText3 = (
+      label: string,
+      value1: string | null,
+      value2: string | null,
+    ) => {
       if (y <= marginBottom) newPage();
       if (!value1 && !value2) return;
 
@@ -921,7 +986,8 @@ export class DoctorantService implements OnModuleInit {
         const testLine = line.length ? line + ' ' + word : word;
         // Optimization: simplified wrapping check (perfect wrapping requires index awareness inside loop like above)
         // Re-using strict logic:
-        let currentMaxWidth = (lines.length === 0) ? (maxWidth - labelWidth) : maxWidth;
+        const currentMaxWidth =
+          lines.length === 0 ? maxWidth - labelWidth : maxWidth;
         if (font.widthOfTextAtSize(testLine, 10) < currentMaxWidth) {
           line = testLine;
         } else {
@@ -962,7 +1028,13 @@ export class DoctorantService implements OnModuleInit {
       const lines = wrapText(cleanedTitle, 12, boldFont, maxWidth);
       for (const l of lines) {
         if (y <= marginBottom) newPage();
-        page.drawText(l, { x: marginLeft, y, size: 12, font: boldFont, color: textColor });
+        page.drawText(l, {
+          x: marginLeft,
+          y,
+          size: 12,
+          font: boldFont,
+          color: textColor,
+        });
         y -= 16;
       }
       y -= 5;
@@ -988,7 +1060,13 @@ export class DoctorantService implements OnModuleInit {
         const lines = wrapText(description, 10, font, maxWidth);
         for (const l of lines) {
           if (y <= marginBottom) newPage();
-          page.drawText(l, { x: marginLeft, y, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) });
+          page.drawText(l, {
+            x: marginLeft,
+            y,
+            size: 10,
+            font: font,
+            color: rgb(0.4, 0.4, 0.4),
+          });
           y -= 12;
         }
         y -= 10;
@@ -998,7 +1076,7 @@ export class DoctorantService implements OnModuleInit {
     // --- RENDERERS FOR SYSTEM BLOCKS ---
 
     const renderers: Record<string, () => void> = {
-      'identity': () => {
+      identity: () => {
         // Title handled dynamically
         addWrappedText('First Name :', doctorant.prenom);
         addWrappedText('Family Name :', doctorant.nom);
@@ -1008,91 +1086,174 @@ export class DoctorantService implements OnModuleInit {
           doctorant.datePremiereInscription?.toISOString().split('T')[0],
         );
         addWrappedText('Unique ID :', doctorant.ID_DOCTORANT);
-        addWrappedText("Doctoral student's department :", doctorant.departementDoctorant);
+        addWrappedText(
+          "Doctoral student's department :",
+          doctorant.departementDoctorant,
+        );
         addWrappedText('Your ORCID identification number :', doctorant.orcid);
 
         let interviewDate: Date | null = null;
-        if (doctorant.dateEntretien instanceof Date && !isNaN(doctorant.dateEntretien.getTime())) {
+        if (
+          doctorant.dateEntretien instanceof Date &&
+          !isNaN(doctorant.dateEntretien.getTime())
+        ) {
           interviewDate = doctorant.dateEntretien;
         } else if (doctorant.dateEntretien === null) {
           interviewDate = doctorant.dateValidation;
         }
         if (interviewDate) {
-          addWrappedText('Date of interview :', interviewDate.toISOString().split('T')[0]);
+          addWrappedText(
+            'Date of interview :',
+            interviewDate.toISOString().split('T')[0],
+          );
         }
       },
-      'thesis_info': () => {
+      thesis_info: () => {
         addWrappedText('Thesis Title :', doctorant.titreThese);
         addWrappedText('Funding :', doctorant.typeFinancement);
       },
-      'research_unit': () => {
+      research_unit: () => {
         addWrappedText('Research unit :', doctorant.intituleUR);
-        addWrappedText('Director of the research unit :', doctorant.directeurUR);
+        addWrappedText(
+          'Director of the research unit :',
+          doctorant.directeurUR,
+        );
       },
-      'team_info': () => {
+      team_info: () => {
         addWrappedText('Team :', doctorant.intituleEquipe);
         addWrappedText('Team leader :', doctorant.directeurEquipe);
-        addWrappedText3('Thesis supervisor :', doctorant.nomPrenomHDR, doctorant.email_HDR);
-        addWrappedText('Thesis co-supervisor (optional) :', doctorant.coDirecteurThese);
+        addWrappedText3(
+          'Thesis supervisor :',
+          doctorant.nomPrenomHDR,
+          doctorant.email_HDR,
+        );
+        addWrappedText(
+          'Thesis co-supervisor (optional) :',
+          doctorant.coDirecteurThese,
+        );
       },
-      'csi_members': () => {
-        addWrappedText3('Member #1 :', doctorant.nomMembre1, doctorant.emailMembre1);
-        addWrappedText3('Member #2 :', doctorant.nomMembre2, doctorant.emailMembre2);
-        addWrappedText3('Additional member :', doctorant.nomAdditionalMembre, doctorant.emailAdditionalMembre);
+      csi_members: () => {
+        addWrappedText3(
+          'Member #1 :',
+          doctorant.nomMembre1,
+          doctorant.emailMembre1,
+        );
+        addWrappedText3(
+          'Member #2 :',
+          doctorant.nomMembre2,
+          doctorant.emailMembre2,
+        );
+        addWrappedText3(
+          'Additional member :',
+          doctorant.nomAdditionalMembre,
+          doctorant.emailAdditionalMembre,
+        );
       },
-      'scientific_activities': () => {
+      scientific_activities: () => {
         addWrappedText('Missions :', doctorant.missions);
         addWrappedText('Publications :', doctorant.publications);
         addWrappedText('Conferences :', doctorant.conferencePapers);
         addWrappedText('Posters :', doctorant.posters);
-        addWrappedText('Public communications :', doctorant.publicCommunication);
+        addWrappedText(
+          'Public communications :',
+          doctorant.publicCommunication,
+        );
       },
-      'training_modules': () => {
-        addWrappedText('Scientific modules (cumulated hours) :', `${doctorant.nbHoursScientificModules || 0}h`);
-        addWrappedText('Cross-disciplinary modules (cumulated hours) :', `${doctorant.nbHoursCrossDisciplinaryModules || 0}h`);
-        addWrappedText('Professional integration and career development modules (cumulated hours) :', `${doctorant.nbHoursProfessionalIntegrationModules || 0}h`);
-        addWrappedText('Total number of hours (all modules) :', `${doctorant.totalNbHours || 0}h`);
+      training_modules: () => {
+        addWrappedText(
+          'Scientific modules (cumulated hours) :',
+          `${doctorant.nbHoursScientificModules || 0}h`,
+        );
+        addWrappedText(
+          'Cross-disciplinary modules (cumulated hours) :',
+          `${doctorant.nbHoursCrossDisciplinaryModules || 0}h`,
+        );
+        addWrappedText(
+          'Professional integration and career development modules (cumulated hours) :',
+          `${doctorant.nbHoursProfessionalIntegrationModules || 0}h`,
+        );
+        addWrappedText(
+          'Total number of hours (all modules) :',
+          `${doctorant.totalNbHours || 0}h`,
+        );
         if (doctorant.selfEvaluation) {
-          addWrappedText('Self-assessment of competency acquisition :', `${doctorant.selfEvaluation} / 5`);
+          addWrappedText(
+            'Self-assessment of competency acquisition :',
+            `${doctorant.selfEvaluation} / 5`,
+          );
         }
-        addWrappedText('Additional information :', doctorant.additionalInformation);
+        addWrappedText(
+          'Additional information :',
+          doctorant.additionalInformation,
+        );
       },
-      'documents_upload': () => {
-        if (doctorant.fichiersExternes && doctorant.fichiersExternes.length > 0) {
+      documents_upload: () => {
+        if (
+          doctorant.fichiersExternes &&
+          doctorant.fichiersExternes.length > 0
+        ) {
           if (y - 50 <= marginBottom) newPage();
           y -= 30;
-          page.drawText('Annual Scientific Report', { x: marginLeft, y, size: 14, font: boldFont, color: primaryTitleColor });
+          page.drawText('Annual Scientific Report', {
+            x: marginLeft,
+            y,
+            size: 14,
+            font: boldFont,
+            color: primaryTitleColor,
+          });
           y -= 20;
-          page.drawText('Please see on next pages', { x: marginLeft, y, size: 12, font });
+          page.drawText('Please see on next pages', {
+            x: marginLeft,
+            y,
+            size: 12,
+            font,
+          });
           y -= 40;
         }
       },
-      'conclusion_recommendations': () => {
-        if (doctorant.referentRating || (doctorant.referentComment && doctorant.referentComment !== 'N/A')) {
+      conclusion_recommendations: () => {
+        if (
+          doctorant.referentRating ||
+          (doctorant.referentComment && doctorant.referentComment !== 'N/A')
+        ) {
           addSectionTitle("Director's Opinion (Referent)");
-          if (doctorant.referentRating) addWrappedText('Global Rating :', `${doctorant.referentRating} / 5`);
-          if (doctorant.referentComment) addWrappedText('Comment :', doctorant.referentComment);
+          if (doctorant.referentRating)
+            addWrappedText(
+              'Global Rating :',
+              `${doctorant.referentRating} / 5`,
+            );
+          if (doctorant.referentComment)
+            addWrappedText('Comment :', doctorant.referentComment);
         }
 
         if (doctorant.conclusion || doctorant.recommendation) {
           if (y - 100 <= marginBottom) newPage();
           addSectionTitle('Conclusion and recommendations');
-          if (doctorant.conclusion) addWrappedText('Conclusion :', doctorant.conclusion);
+          if (doctorant.conclusion)
+            addWrappedText('Conclusion :', doctorant.conclusion);
 
           const recommendationLabels: Record<string, string> = {
             approve: 'The committee approves the re-registration',
             disapprove: 'The committee disapproves of the re-registration',
-            exemption: 'The committee supports the request for an exemption for an additional registration',
-            unfavourable: 'The committee issues an unfavourable opinion on the request for a derogation for additional registration',
-            new_meeting: 'The committee advises scheduling a new meeting with the CSI',
+            exemption:
+              'The committee supports the request for an exemption for an additional registration',
+            unfavourable:
+              'The committee issues an unfavourable opinion on the request for a derogation for additional registration',
+            new_meeting:
+              'The committee advises scheduling a new meeting with the CSI',
           };
 
           if (doctorant.recommendation) {
-            const readableRecommendation = recommendationLabels[doctorant.recommendation] || doctorant.recommendation;
+            const readableRecommendation =
+              recommendationLabels[doctorant.recommendation] ||
+              doctorant.recommendation;
             addWrappedText('Recommendation :', readableRecommendation);
           }
           if (doctorant.recommendation_comment) {
-            addWrappedText('Comment on the recommandation :', doctorant.recommendation_comment);
+            addWrappedText(
+              'Comment on the recommandation :',
+              doctorant.recommendation_comment,
+            );
           }
         }
 
@@ -1101,9 +1262,8 @@ export class DoctorantService implements OnModuleInit {
           addSectionTitle('Administrative Follow-up');
           addWrappedTextContent(doctorant.suiviComment);
         }
-      }
+      },
     };
-
 
     // 🔥 MAIN RENDERING LOOP 🔥
 
@@ -1111,14 +1271,25 @@ export class DoctorantService implements OnModuleInit {
     addTitleWidthVar('Rapport Annuel - CSI Year ', doctorant.anneeThese);
 
     // 2. Fetch all questions sorted
-    const allQuestions = await this.questionModel.find({}).sort({ order: 1 }).lean();
+    const allQuestions = await this.questionModel
+      .find({})
+      .sort({ order: 1 })
+      .lean();
 
-    const doctorantQuestions = allQuestions.filter(q => q.target === 'doctorant');
-    const referentQuestions = allQuestions.filter(q => q.target === 'referent');
+    const doctorantQuestions = allQuestions.filter(
+      (q) => q.target === 'doctorant',
+    );
+    const referentQuestions = allQuestions.filter(
+      (q) => q.target === 'referent',
+    );
 
     // 3. Helper to handle embedding files ASYNC
     const embedFiles = async () => {
-      if (!doctorant.fichiersExternes || doctorant.fichiersExternes.length === 0) return;
+      if (
+        !doctorant.fichiersExternes ||
+        doctorant.fichiersExternes.length === 0
+      )
+        return;
       for (const fichier of doctorant.fichiersExternes) {
         const filePath = path.join(__dirname, '../../', fichier.cheminStockage);
         if (!fs.existsSync(filePath) || !filePath.endsWith('.pdf')) continue;
@@ -1144,13 +1315,12 @@ export class DoctorantService implements OnModuleInit {
     // --- RENDER DOCTORANT QUESTIONS ---
 
     for (const q of doctorantQuestions) {
-
       // 1. Global Section Handling
       if (
-        q.type !== 'chapter_title' && 
-        q.section && 
-        q.section !== 'Uncategorized' && 
-        q.section !== 'CHAPTER' && 
+        q.type !== 'chapter_title' &&
+        q.section &&
+        q.section !== 'Uncategorized' &&
+        q.section !== 'CHAPTER' &&
         q.section !== currentSection
       ) {
         addSectionTitle(q.section);
@@ -1162,7 +1332,7 @@ export class DoctorantService implements OnModuleInit {
         if (renderers[q.systemId]) {
           if (q.systemId === 'documents_upload') {
             renderers[q.systemId](); // Render header text
-            await embedFiles();      // Async embed files
+            await embedFiles(); // Async embed files
           } else {
             renderers[q.systemId](); // Render text fields
           }
@@ -1174,54 +1344,65 @@ export class DoctorantService implements OnModuleInit {
       if (q.type === 'chapter_title') {
         if (y <= marginBottom + 100) newPage();
         y -= 40;
-        page.drawText(q.content, { x: marginLeft, y, size: 16, font: boldFont, color: primaryTitleColor }); // Size 20 -> 16
-        page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
+        page.drawText(q.content, {
+          x: marginLeft,
+          y,
+          size: 16,
+          font: boldFont,
+          color: primaryTitleColor,
+        }); // Size 20 -> 16
+        page.drawLine({
+          start: { x: marginLeft, y: y - 5 },
+          end: { x: marginRight, y: y - 5 },
+          thickness: 3,
+          color: primaryTitleColor,
+        });
         y -= 20; // Reduced from 40
         currentSection = ''; // Reset section context
         continue;
       }
 
-        // B2. DESCRIPTION BLOCK
+      // B2. DESCRIPTION BLOCK
       if (q.type === 'description') {
         if (y <= marginBottom + 50) newPage();
         y -= 10;
-        
+
         // Custom cleaner that preserves special chars but might still need some cleanup if pure raw input
-        // But for descriptions, we want to keep most things. 
+        // But for descriptions, we want to keep most things.
         // Let's just normalize but NOT strip newlines globally.
         // Actually, we process paragraph by paragraph.
-        
+
         const paragraphs = q.content.split(/\r?\n/);
 
         for (const rawPara of paragraphs) {
-            // Clean paragraph individually
-            // We can reuse 'cleanText' logic effectively if we removed the newline replacement there, 
-            // OR we just duplicate the safe char replacement here for descriptions.
-            // Let's copy cleaning logic MINUS newline stripping.
-            
-            // Note: NFD normalization was used in cleanText.
-             const cleanedPara = cleanText(rawPara);
-             
-             if (!cleanedPara) {
-                 // Empty line -> add space
-                 y -= 10;
-                 continue;
-             }
-             
-             const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
-             for (const l of lines) {
-                if (y <= marginBottom) newPage();
-                page.drawText(l, {
-                    x: marginLeft,
-                    y,
-                    size: 12,
-                    font: italicFont,
-                    color: descriptionColor,
-                });
-                y -= 14; 
-             }
-             // Add a bit of space after paragraph?
-             // y -= 5; 
+          // Clean paragraph individually
+          // We can reuse 'cleanText' logic effectively if we removed the newline replacement there,
+          // OR we just duplicate the safe char replacement here for descriptions.
+          // Let's copy cleaning logic MINUS newline stripping.
+
+          // Note: NFD normalization was used in cleanText.
+          const cleanedPara = cleanText(rawPara);
+
+          if (!cleanedPara) {
+            // Empty line -> add space
+            y -= 10;
+            continue;
+          }
+
+          const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
+          for (const l of lines) {
+            if (y <= marginBottom) newPage();
+            page.drawText(l, {
+              x: marginLeft,
+              y,
+              size: 12,
+              font: italicFont,
+              color: descriptionColor,
+            });
+            y -= 14;
+          }
+          // Add a bit of space after paragraph?
+          // y -= 5;
         }
         y -= 10;
         continue;
@@ -1230,16 +1411,22 @@ export class DoctorantService implements OnModuleInit {
       // C. REGULAR QUESTION
       if (q.visibleInPdf === false) continue;
 
-      const response = doctorant.responses?.find(r => r.questionId === q._id.toString());
+      const response = doctorant.responses?.find(
+        (r) => r.questionId === q._id.toString(),
+      );
       let val = response?.value;
-      let comment = response?.comment;
+      const comment = response?.comment;
 
       if (!val) val = 'N/A';
 
       // Render Question
       if (y - 50 <= marginBottom) newPage();
 
-      if (q.section && (q.section.toLowerCase().includes('skill') || q.section.toLowerCase().includes('compétence'))) {
+      if (
+        q.section &&
+        (q.section.toLowerCase().includes('skill') ||
+          q.section.toLowerCase().includes('compétence'))
+      ) {
         renderCompetencyQuestion(q.content);
       } else {
         addTitle(q.content);
@@ -1257,7 +1444,9 @@ export class DoctorantService implements OnModuleInit {
 
       // Referent Correction
       const correctionId = `${q._id}_corrected_referent`;
-      const correction = doctorant.responses?.find(r => r.questionId === correctionId);
+      const correction = doctorant.responses?.find(
+        (r) => r.questionId === correctionId,
+      );
       if (correction) {
         if (y - 50 <= marginBottom) newPage();
         y -= 15;
@@ -1270,22 +1459,41 @@ export class DoctorantService implements OnModuleInit {
           prenomMembre2: doctorant.prenomMembre2,
           nomAdditionalMembre: doctorant.nomAdditionalMembre,
           prenomAdditionalMembre: doctorant.prenomAdditionalMembre,
-          nomPrenomHDR: doctorant.nomPrenomHDR
+          nomPrenomHDR: doctorant.nomPrenomHDR,
         });
 
         const referents: string[] = [];
-        if (doctorant.nomMembre1) referents.push(`${doctorant.prenomMembre1 || ''} ${doctorant.nomMembre1}`.trim());
-        if (doctorant.nomMembre2) referents.push(`${doctorant.prenomMembre2 || ''} ${doctorant.nomMembre2}`.trim());
-        if (doctorant.nomAdditionalMembre) referents.push(`${doctorant.prenomAdditionalMembre || ''} ${doctorant.nomAdditionalMembre}`.trim());
+        if (doctorant.nomMembre1)
+          referents.push(
+            `${doctorant.prenomMembre1 || ''} ${doctorant.nomMembre1}`.trim(),
+          );
+        if (doctorant.nomMembre2)
+          referents.push(
+            `${doctorant.prenomMembre2 || ''} ${doctorant.nomMembre2}`.trim(),
+          );
+        if (doctorant.nomAdditionalMembre)
+          referents.push(
+            `${doctorant.prenomAdditionalMembre || ''} ${doctorant.nomAdditionalMembre}`.trim(),
+          );
 
         console.log('DEBUG: constructed referents array:', referents);
 
         // Fallback: if no members found, use existing HDR field or generic
-        if (referents.length === 0 && doctorant.nomPrenomHDR) referents.push(doctorant.nomPrenomHDR);
+        if (referents.length === 0 && doctorant.nomPrenomHDR)
+          referents.push(doctorant.nomPrenomHDR);
 
-        const correctedByLabel = referents.length > 0 ? `Corrected by ${referents.join(' & ')}:` : "Corrected by Referent:";
+        const correctedByLabel =
+          referents.length > 0
+            ? `Corrected by ${referents.join(' & ')}:`
+            : 'Corrected by Referent:';
 
-        page.drawText(correctedByLabel, { x: marginLeft, y, size: 10, font: boldFont, color: accentColor });
+        page.drawText(correctedByLabel, {
+          x: marginLeft,
+          y,
+          size: 10,
+          font: boldFont,
+          color: accentColor,
+        });
         y -= 12;
         addWrappedTextContent(correction.value, accentColor);
         if (correction.comment) {
@@ -1299,13 +1507,17 @@ export class DoctorantService implements OnModuleInit {
     // --- RENDER REFERENT QUESTIONS (If any) ---
     // Check if there are any answers for referent questions
     // If NOT, we skip the entire block (First PDF case)
-    const hasReferentAnswers = referentQuestions.some(q => {
-      const r = doctorant.responses?.find((res: any) => res.questionId === q._id.toString());
-      return r && r.value && r.value !== '' && r.value !== 'N/A';
-    }) || !!doctorant.conclusion || !!doctorant.recommendation;
+    const hasReferentAnswers =
+      referentQuestions.some((q) => {
+        const r = doctorant.responses?.find(
+          (res: any) => res.questionId === q._id.toString(),
+        );
+        return r && r.value && r.value !== '' && r.value !== 'N/A';
+      }) ||
+      !!doctorant.conclusion ||
+      !!doctorant.recommendation;
 
     if (referentQuestions.length > 0 && hasReferentAnswers) {
-
       // Add a separator or specific title?
       // Maybe "Referent Evaluation" or similar if not provided by section/chapter
       // BUT: Referent questions might have their own Chapter Titles!
@@ -1317,13 +1529,12 @@ export class DoctorantService implements OnModuleInit {
       currentSection = '';
 
       for (const q of referentQuestions) {
-
         // 1. Global Section Handling
         if (
           q.type !== 'chapter_title' &&
           q.section &&
           q.section !== 'Uncategorized' &&
-          q.section !== 'CHAPTER' && 
+          q.section !== 'CHAPTER' &&
           q.section !== currentSection
         ) {
           addSectionTitle(q.section);
@@ -1345,40 +1556,51 @@ export class DoctorantService implements OnModuleInit {
         if (q.type === 'chapter_title') {
           if (y <= marginBottom + 100) newPage();
           y -= 40;
-          page.drawText(q.content, { x: marginLeft, y, size: 16, font: boldFont, color: primaryTitleColor }); // Size 20 -> 16
-          page.drawLine({ start: { x: marginLeft, y: y - 5 }, end: { x: marginRight, y: y - 5 }, thickness: 3, color: primaryTitleColor });
+          page.drawText(q.content, {
+            x: marginLeft,
+            y,
+            size: 16,
+            font: boldFont,
+            color: primaryTitleColor,
+          }); // Size 20 -> 16
+          page.drawLine({
+            start: { x: marginLeft, y: y - 5 },
+            end: { x: marginRight, y: y - 5 },
+            thickness: 3,
+            color: primaryTitleColor,
+          });
           y -= 20; // Reduced from 40
           currentSection = '';
-        continue;
+          continue;
         }
 
         // B2. DESCRIPTION BLOCK
         if (q.type === 'description') {
           if (y <= marginBottom + 50) newPage();
           y -= 10;
-          
+
           const paragraphs = q.content.split(/\r?\n/);
 
           for (const rawPara of paragraphs) {
-             const cleanedPara = cleanText(rawPara);
-             
-             if (!cleanedPara) {
-                 y -= 10; // Empty line
-                 continue;
-             }
-             
-             const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
-             for (const l of lines) {
-                if (y <= marginBottom) newPage();
-                page.drawText(l, {
-                  x: marginLeft,
-                  y,
-                  size: 12,
-                  font: italicFont,
-                  color: descriptionColor,
-                });
-                y -= 14;
-             }
+            const cleanedPara = cleanText(rawPara);
+
+            if (!cleanedPara) {
+              y -= 10; // Empty line
+              continue;
+            }
+
+            const lines = wrapText(cleanedPara, 12, italicFont, maxWidth);
+            for (const l of lines) {
+              if (y <= marginBottom) newPage();
+              page.drawText(l, {
+                x: marginLeft,
+                y,
+                size: 12,
+                font: italicFont,
+                color: descriptionColor,
+              });
+              y -= 14;
+            }
           }
           y -= 10;
           continue;
@@ -1387,9 +1609,11 @@ export class DoctorantService implements OnModuleInit {
         // C. REGULAR QUESTION
         if (q.visibleInPdf === false) continue;
 
-        const response = doctorant.responses?.find(r => r.questionId === q._id.toString());
+        const response = doctorant.responses?.find(
+          (r) => r.questionId === q._id.toString(),
+        );
         let val = response?.value;
-        let comment = response?.comment;
+        const comment = response?.comment;
 
         // IMPORTANT: For REFERENT questions, "val" is the REFERENT's Answer.
         // Is it stored in the same 'responses' array? Yes.
@@ -1399,7 +1623,11 @@ export class DoctorantService implements OnModuleInit {
         // Render Question
         if (y - 50 <= marginBottom) newPage();
 
-        if (q.section && (q.section.toLowerCase().includes('skill') || q.section.toLowerCase().includes('compétence'))) {
+        if (
+          q.section &&
+          (q.section.toLowerCase().includes('skill') ||
+            q.section.toLowerCase().includes('compétence'))
+        ) {
           renderCompetencyQuestion(q.content);
         } else {
           addTitle(q.content);

@@ -23,16 +23,13 @@ import { DoctorantService } from './doctorant.service';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
 import { UpdateDoctorantDto } from './dto/update-doctorant.dto';
 import { sendMail } from '../email/email.service';
-import { generateToken } from '../email/email.service';
 import { TokenService } from '../token/token.service';
 import { Doctorant } from './schemas/doctorant.schema';
 import { Response, Request } from 'express';
-import PDFDocument = require('pdfkit');
 import * as fs from 'fs';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as multer from 'multer';
-import { Multer, diskStorage, File } from 'multer';
+import { diskStorage, File, Multer } from 'multer';
 import * as path from 'path';
 import { format } from 'fast-csv';
 import { EmailConfigService } from '../emailConfig/email-config.service';
@@ -47,7 +44,7 @@ export class DoctorantController {
     private readonly emailConfigService: EmailConfigService,
     @InjectModel(Doctorant.name)
     private readonly doctorantModel: Model<Doctorant>,
-  ) { }
+  ) {}
 
   @Get('refresh-statuses')
   async refreshStatuses(): Promise<any> {
@@ -165,17 +162,22 @@ export class DoctorantController {
   // }
 
   @Get('admin/:id')
-  async findOneAdmin(@Param('id') id: string, @Headers('authorization') authHeader: string) {
+  async findOneAdmin(
+    @Param('id') id: string,
+    @Headers('authorization') authHeader: string,
+  ) {
     if (!authHeader) {
       throw new UnauthorizedException('Token manquant');
     }
 
     // Vérification simplifiée du token (AdminSecretKey pour l'instant ou JWT décodé si possible)
     // Comme AuthGuard n'est pas dispo facilement, on check si c'est le ADMIN_SECRET ou un token valide
-    // TODO: Implémenter une vraie vérif JWT ici si on injecte JwtService, 
+    // TODO: Implémenter une vraie vérif JWT ici si on injecte JwtService,
     // ou se baser sur le fait que le frontend envoie le token stocké.
     // Pour l'instant on log l'accès.
-    console.log(`👮‍♂️ Admin viewing doctorant ${id} with token prefix: ${authHeader.substring(0, 10)}...`);
+    console.log(
+      `👮‍♂️ Admin viewing doctorant ${id} with token prefix: ${authHeader.substring(0, 10)}...`,
+    );
 
     const doctorant = await this.doctorantService.findOne(id);
     if (!doctorant) {
@@ -232,7 +234,9 @@ export class DoctorantController {
         throw new NotFoundException('Configuration email introuvable.');
       }
 
-      const strippedContent = emailConfig.firstDoctorantEmail.replace(/<[^>]*>/g, '').trim();
+      const strippedContent = emailConfig.firstDoctorantEmail
+        .replace(/<[^>]*>/g, '')
+        .trim();
 
       if (!emailConfig.firstDoctorantEmail || strippedContent === '') {
         throw new BadRequestException(
@@ -290,16 +294,26 @@ export class DoctorantController {
       return { message: 'Email envoyé avec succès.' };
       return { message: 'Email envoyé avec succès.' };
     } catch (error) {
-      console.error('❌ Erreur lors de l’envoi de l’email avec sendLink :', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      console.error(
+        '❌ Erreur lors de l’envoi de l’email avec sendLink :',
+        error,
+      );
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
       if (error.message === 'No recipients defined') {
-        throw new BadRequestException("L'adresse email du destinataire est invalide ou manquante.");
+        throw new BadRequestException(
+          "L'adresse email du destinataire est invalide ou manquante.",
+        );
       }
 
-      throw new InternalServerErrorException("Erreur lors de l'envoi de l'email.");
+      throw new InternalServerErrorException(
+        "Erreur lors de l'envoi de l'email.",
+      );
     }
   }
 
@@ -782,10 +796,15 @@ export class DoctorantController {
 
       // Force l'utilisation d'une méthode publique qui génère et sauvegarde
       const pdfPath = await this.doctorantService.generateNewPDF(doctorant);
-      return res.status(200).json({ message: 'PDF régénéré avec succès.', path: pdfPath });
+      return res
+        .status(200)
+        .json({ message: 'PDF régénéré avec succès.', path: pdfPath });
     } catch (error) {
       console.error('❌ Erreur lors de la régénération du PDF :', error);
-      return res.status(500).json({ message: 'Erreur lors de la régénération.', error: error.message });
+      return res.status(500).json({
+        message: 'Erreur lors de la régénération.',
+        error: error.message,
+      });
     }
   }
 
@@ -816,7 +835,11 @@ export class DoctorantController {
       const buffer = fs.readFileSync(file.path); // ⚠️ Lu comme Buffer pour éviter de casser l'encodage (UTF-16, etc.)
       const year = importYear ? parseInt(importYear, 10) : undefined;
       const forceReimport = force === 'true';
-      const result = await this.doctorantService.importDoctorantsFromCSV(buffer, year, forceReimport);
+      const result = await this.doctorantService.importDoctorantsFromCSV(
+        buffer,
+        year,
+        forceReimport,
+      );
       return res.status(200).json({ message: 'Importation terminée.', result });
     } catch (error) {
       console.error('Erreur lors de l’importation CSV :', error);
@@ -824,7 +847,7 @@ export class DoctorantController {
         .status(500)
         .json({ message: 'Erreur interne', error: error.message });
     } finally {
-      fs.unlink(file.path, () => { }); // 🔁 Supprime le fichier temporaire
+      fs.unlink(file.path, () => {}); // 🔁 Supprime le fichier temporaire
     }
   }
 
