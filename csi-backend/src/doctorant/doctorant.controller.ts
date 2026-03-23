@@ -813,7 +813,7 @@ export class DoctorantController {
     }
 
     try {
-      const buffer = fs.readFileSync(file.path, 'utf8');
+      const buffer = fs.readFileSync(file.path); // ⚠️ Lu comme Buffer pour éviter de casser l'encodage (UTF-16, etc.)
       const year = importYear ? parseInt(importYear, 10) : undefined;
       const forceReimport = force === 'true';
       const result = await this.doctorantService.importDoctorantsFromCSV(buffer, year, forceReimport);

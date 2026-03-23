@@ -530,10 +530,47 @@ export class DoctorantService implements OnModuleInit {
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
-  async importDoctorantsFromCSV(csvData: string, importYear?: number, force = false): Promise<any> {
-    console.log(`📂 [IMPORT] Taille CSV brute : ${csvData?.length || 0} caractères`);
-    if (!csvData || csvData.length < 10) {
-      return { totalRowsParsed: 0, inserted: 0, skippedDuplicate: 0, skippedNoEmail: 0, skippedMissingData: 0, errors: 0, message: 'Fichier vide ou trop court.' };
+  async importDoctorantsFromCSV(input: string | Buffer, importYear?: number, force = false): Promise<any> {
+    let csvData = '';
+    let detectedEncoding = 'UTF-8';
+
+    if (Buffer.isBuffer(input)) {
+      // Détection de l'encodage par BOM (Byte Order Mark)
+      if (input[0] === 0xFF && input[1] === 0xFE) {
+        csvData = input.toString('utf16le');
+        detectedEncoding = 'UTF-16LE';
+      } else if (input[0] === 0xFE && input[1] === 0xFF) {
+        csvData = input.toString('utf16be'); // Plus rare mais possible
+        detectedEncoding = 'UTF-16BE';
+      } else if (input[0] === 0xEF && input[1] === 0xBB && input[2] === 0xBF) {
+        csvData = input.toString('utf8'); // UTF-8 avec BOM
+        detectedEncoding = 'UTF-8-BOM';
+      } else {
+        // Fallback : on vérifie s'il y a des octets nuls (typiquement UTF-16 sans BOM)
+        const hasNulls = input.slice(0, 100).some(b => b === 0);
+        if (hasNulls) {
+          csvData = input.toString('utf16le');
+          detectedEncoding = 'UTF-16LE (Detected by nulls)';
+        } else {
+          csvData = input.toString('utf8');
+        }
+      }
+    } else {
+      csvData = input;
+    }
+
+    console.log(`📂 [IMPORT] Taille CSV brute : ${csvData?.length || 0} caractères (Encodage: ${detectedEncoding})`);
+    if (!csvData || csvData.length < 5) {
+      return { 
+        totalRowsParsed: 0, 
+        inserted: 0, 
+        skippedDuplicate: 0, 
+        skippedNoEmail: 0, 
+        skippedMissingData: 0, 
+        errors: 0, 
+        message: 'Fichier vide ou trop court.',
+        debug: { size: input.length, version: 'v2.1-buffer-support' }
+      };
     }
 
     const rows = [];
@@ -587,7 +624,8 @@ export class DoctorantService implements OnModuleInit {
               isUTF16: csvData.includes('\u0000'),
               isXLSX: csvData.startsWith('PK'),
               separator,
-              version: 'v2.0-robust-parsing',
+              version: 'v2.1-buffer-support',
+              encoding: detectedEncoding,
               timestamp: new Date().toISOString(),
             }
           };
