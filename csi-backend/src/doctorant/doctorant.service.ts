@@ -575,13 +575,28 @@ export class DoctorantService implements OnModuleInit {
         })
         .on('end', async () => {
           const stats = {
-            totalRowsParsed: rows.length, // 🔥 Combien de lignes le parser a vu
+            totalRowsParsed: rows.length,
             inserted: 0,
             skippedDuplicate: 0,
             skippedNoEmail: 0,
-            skippedMissingData: 0, // Nouveau: données obligatoires manquantes
+            skippedMissingData: 0,
             errors: 0,
+            debug: {
+              size: csvData.length,
+              preview: csvData.substring(0, 50).replace(/[\r\n]/g, ' '),
+              isUTF16: csvData.includes('\u0000'),
+              isXLSX: csvData.startsWith('PK'),
+              separator,
+            }
           };
+
+          // Si 0 lignes, on donne un message d'aide
+          let message = '';
+          if (rows.length === 0) {
+            if (stats.debug.isXLSX) message = "Ce fichier semble être un Excel (.xlsx) renommé en .csv. Enregistrez-le bien au format 'CSV (séparateur point-virgule)' dans Excel.";
+            else if (stats.debug.isUTF16) message = "Le fichier semble être en UTF-16. Essayez de l'enregistrer en format 'CSV UTF-8' dans Excel.";
+            else message = "Aucune ligne détectée. Vérifiez que le fichier n'est pas vide et que les colonnes sont correctes.";
+          }
 
           for (const row of rows) {
             const keys = Object.keys(row);
@@ -643,7 +658,7 @@ export class DoctorantService implements OnModuleInit {
           }
 
           console.log('✅ Import terminé :', stats);
-          resolve(stats);
+          resolve({ ...stats, message });
         })
         .on('error', (error) => {
           console.error('❌ Erreur lors du parsing CSV :', error);

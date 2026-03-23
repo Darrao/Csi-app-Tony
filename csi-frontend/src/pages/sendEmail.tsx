@@ -12,7 +12,16 @@ const ImportCSVAndSendEmail: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [forceReimport, setForceReimport] = useState(false);
-    const [importStats, setImportStats] = useState<{ totalRowsParsed: number; inserted: number; skippedDuplicate: number; skippedNoEmail: number; skippedMissingData: number; errors: number } | null>(null);
+    const [importStats, setImportStats] = useState<{ 
+        totalRowsParsed: number; 
+        inserted: number; 
+        skippedDuplicate: number; 
+        skippedNoEmail: number; 
+        skippedMissingData: number; 
+        errors: number;
+        message?: string;
+        debug?: { size: number; preview: string; isUTF16: boolean; isXLSX: boolean; separator: string };
+    } | null>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -158,6 +167,18 @@ const ImportCSVAndSendEmail: React.FC = () => {
                     <strong>Résultat de l'import pour {importYear} :</strong>
                     <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
                         <li>📊 <strong>{importStats.totalRowsParsed}</strong> ligne(s) détectée(s) dans le fichier</li>
+                        
+                        {importStats.totalRowsParsed === 0 && importStats.message && (
+                            <li style={{ color: '#d32f2f', fontWeight: 'bold' }}>❌ {importStats.message}</li>
+                        )}
+
+                        {importStats.totalRowsParsed === 0 && importStats.debug && (
+                            <li style={{ fontSize: '0.8em', color: '#666', listStyle: 'none', marginTop: '5px' }}>
+                                🛠 Debug: Size {importStats.debug.size}B | SEP: '{importStats.debug.separator}' | {importStats.debug.isUTF16 ? 'UTF-16' : 'UTF-8?'} | {importStats.debug.isXLSX ? 'XLSX!' : 'CSV?'}
+                                <br/>Preview: <code style={{ background: '#eee' }}>{importStats.debug.preview}</code>
+                            </li>
+                        )}
+
                         <li>✅ <strong>{importStats.inserted}</strong> doctorant(s) ajouté(s)</li>
                         {importStats.skippedDuplicate > 0 && (
                             <li>⚠️ <strong>{importStats.skippedDuplicate}</strong> doublon(s) ignoré(s) (déjà présent(s) en {importYear}) — coche "Forcer" pour les réimporter</li>
