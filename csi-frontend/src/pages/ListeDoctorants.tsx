@@ -894,30 +894,33 @@ const ListeDoctorants: React.FC = () => {
   );
 
   const handleDeleteAll = async () => {
+    const isFilteredByYear = filterYear && filterYear !== 'Tous';
+    const yearLabel = isFilteredByYear ? `de l'année ${filterYear}` : 'TOUS (toutes années confondues)';
+
     if (
       !window.confirm(
-        '⚠️ ATTENTION : Cette action supprimera TOUS les doctorants !\n\nVoulez-vous vraiment continuer ?'
+        `⚠️ ATTENTION : Cette action supprimera ${yearLabel} les doctorants !\n\nVoulez-vous vraiment continuer ?`
       )
     ) {
       return;
     }
     if (
       !window.confirm(
-        '🚨 DERNIÈRE CHANCE : Cette suppression est IRRÉVERSIBLE !\n\nÊtes-vous VRAIMENT sûr(e) de vouloir tout supprimer ?'
+        `🚨 DERNIÈRE CHANCE : Cette suppression ${yearLabel} est IRRÉVERSIBLE !\n\nÊtes-vous VRAIMENT sûr(e) de vouloir supprimer ces données ?`
       )
     ) {
       return;
     }
     if (
       !window.confirm(
-        '🔥 ULTIME CONFIRMATION : Vous allez supprimer **TOUS** les doctorants.\n\nIl sera impossible de récupérer les données après cette action.\n\nContinuer ?'
+        `🔥 ULTIME CONFIRMATION : Vous allez supprimer les doctorants ${yearLabel}.\n\nIl sera impossible de récupérer les données après cette action.\n\nContinuer ?`
       )
     ) {
       return;
     }
 
     const confirmationText = prompt(
-      '❌ TAPEZ "SUPPRIMER" POUR CONFIRMER ❌\n\nCette action est DÉFINITIVE !\n\nSi vous ne souhaitez pas supprimer, cliquez sur "Annuler".'
+      `❌ TAPEZ "SUPPRIMER" POUR CONFIRMER LA SUPPRESSION ${yearLabel.toUpperCase()} ❌\n\nCette action est DÉFINITIVE !\n\nSi vous ne souhaitez pas supprimer, cliquez sur "Annuler".`
     );
     if (confirmationText !== 'SUPPRIMER') {
       alert("❎ Suppression annulée. Aucun doctorant n'a été supprimé.");
@@ -925,12 +928,21 @@ const ListeDoctorants: React.FC = () => {
     }
 
     try {
-      await api.delete('/doctorant');
-      setDoctorants([]);
-      alert('✅ Tous les doctorants ont été supprimés avec succès !');
+      const params = isFilteredByYear ? { year: filterYear } : {};
+      await api.delete('/doctorant', { params });
+      
+      if (isFilteredByYear) {
+        // Supprime seulement les doctorants de cette année de l'état local
+        setDoctorants(prev => prev.filter(doc => String(doc.importDate) !== String(filterYear)));
+        alert(`✅ Les doctorants de l'année ${filterYear} ont été supprimés avec succès !`);
+      } else {
+        // Tout supprimé
+        setDoctorants([]);
+        alert('✅ Tous les doctorants ont été supprimés avec succès !');
+      }
     } catch (error) {
-      console.error('❌ Erreur lors de la suppression des doctorants :', error);
-      alert('⚠️ Échec de la suppression. Vérifiez la connexion et réessayez.');
+      console.error('Erreur lors de la suppression des doctorants :', error);
+      alert("Échec de la suppression.");
     }
   };
 

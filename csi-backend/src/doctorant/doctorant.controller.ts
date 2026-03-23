@@ -1141,11 +1141,14 @@ export class DoctorantController {
   }
 
   @Delete()
-  async deleteAll() {
+  async deleteAll(@Query('year') year?: string) {
     try {
-      const result = await this.doctorantService.deleteAll(); // 🔥 Appel au service pour supprimer tous les doctorants
+      const yearNum = year && year !== 'Tous' ? Number(year) : undefined;
+      const result = await this.doctorantService.deleteAll(yearNum); // 🔥 Appel au service
       return {
-        message: 'Tous les doctorants ont été supprimés avec succès.',
+        message: yearNum 
+          ? `Tous les doctorants pour l'année ${yearNum} ont été supprimés avec succès.`
+          : 'Tous les doctorants ont été supprimés avec succès.',
         deletedCount: result.deletedCount,
       };
     } catch (error) {

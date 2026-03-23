@@ -311,9 +311,13 @@ export class DoctorantService implements OnModuleInit {
     return this.doctorantModel.findById(id);
   }
 
-  async deleteAll() {
-    console.log('🔥 Suppression de tous les doctorants...');
-    return await this.doctorantModel.deleteMany({}); // 🔥 Supprime tous les doctorants
+  async deleteAll(year?: number) {
+    if (year) {
+      console.log(`🔥 Suppression des doctorants pour l'année : ${year}...`);
+      return await this.doctorantModel.deleteMany({ importDate: year });
+    }
+    console.log('🔥 Suppression de TOUS les doctorants...');
+    return await this.doctorantModel.deleteMany({}); // 🔥 Supprime TOUS les doctorants
   }
 
   async create(createDoctorantDto: CreateDoctorantDto): Promise<Doctorant> {
