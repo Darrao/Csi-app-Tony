@@ -17,7 +17,7 @@ export class Doctorant extends Document {
   @Prop({ required: false, default: '' })
   nom?: string;
 
-  @Prop({ required: false, unique: true, default: '' })
+  @Prop({ required: false, default: '' })
   email?: string;
 
   @Prop({ required: false, default: '' })

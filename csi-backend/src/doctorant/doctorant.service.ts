@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   InternalServerErrorException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,11 +23,20 @@ import { FastifyReply } from 'fastify';
 import { Workbook } from 'exceljs';
 
 @Injectable()
-export class DoctorantService {
+export class DoctorantService implements OnModuleInit {
   constructor(
     @InjectModel(Doctorant.name) private doctorantModel: Model<Doctorant>,
     @InjectModel(Question.name) private questionModel: Model<Question>,
   ) { }
+
+  async onModuleInit() {
+    try {
+      await this.doctorantModel.collection.dropIndex('email_1');
+      console.log('✅ Index unique email_1 supprimé pour autoriser les doublons par année');
+    } catch (_e) {
+      // Ignoré si l'index n'existe pas ou a déjà été supprimé
+    }
+  }
 
   async findDoctorantByAnyEmail(email: string): Promise<Doctorant | null> {
     return this.doctorantModel
@@ -361,6 +371,7 @@ export class DoctorantService {
     } else {
       return this.doctorantModel
         .findOne({ email: idOrEmail.toLowerCase().trim() })
+        .sort({ importDate: -1 })
         .exec();
     }
   }
@@ -372,6 +383,7 @@ export class DoctorantService {
     }
     return this.doctorantModel
       .findOne({ email: email.trim().toLowerCase() })
+      .sort({ importDate: -1 })
       .exec();
   }
 
@@ -409,7 +421,7 @@ export class DoctorantService {
     updateData: any,
   ): Promise<Doctorant> {
     return this.doctorantModel
-      .findOneAndUpdate({ email }, updateData, { new: true })
+      .findOneAndUpdate({ email }, updateData, { new: true, sort: { importDate: -1 } })
       .exec();
   }
 
@@ -497,6 +509,7 @@ export class DoctorantService {
       .findOne({
         email: { $regex: `^${cleanedEmail}$`, $options: 'i' }, // ✅ insensible à la casse
       })
+      .sort({ importDate: -1 })
       .exec();
 
     if (!doctorant) {
@@ -517,10 +530,10 @@ export class DoctorantService {
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
-  async importDoctorantsFromCSV(csvData: string): Promise<any> {
+  async importDoctorantsFromCSV(csvData: string, importYear?: number): Promise<any> {
     const rows = [];
     const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
-    const currentYear = new Date().getFullYear(); // 🔥 Obtenir l'année actuelle
+    const currentYear = importYear ?? new Date().getFullYear(); // 🔥 Année d'import choisie ou année courante
 
     // Détection du séparateur (virgule ou point-virgule)
     const firstLine = csvData.split(/\r?\n/)[0];
@@ -553,11 +566,11 @@ export class DoctorantService {
             }
 
             const existingDoctorant = await this.doctorantModel
-              .findOne({ email })
+              .findOne({ email, importDate: currentYear })
               .exec();
             if (existingDoctorant) {
               console.log(
-                `⚠️ Doctorant avec email ${email} existe déjà, ignoré.`,
+                `⚠️ Doctorant ${email} déjà présent pour l'année ${currentYear}, ignoré.`,
               );
               continue;
             }
@@ -631,7 +644,7 @@ export class DoctorantService {
         { emailMembre2: email },
         { emailAdditionalMembre: email },
       ],
-    });
+    }).sort({ importDate: -1 });
   }
 
   async generateNewPDF(doctorant: Doctorant): Promise<Buffer> {

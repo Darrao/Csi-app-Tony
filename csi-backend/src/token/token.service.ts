@@ -43,7 +43,7 @@ export class TokenService {
         }
     
         const doctorant = tokenData.doctorantEmail
-            ? await this.doctorantModel.findOne({ email: tokenData.doctorantEmail }).exec()
+            ? await this.doctorantModel.findOne({ email: tokenData.doctorantEmail }).sort({ importDate: -1 }).exec()
             : null;
     
         console.log('Doctorant associé au token :', doctorant);

@@ -3,8 +3,12 @@ import { useDropzone } from 'react-dropzone';
 import api from '../services/api';
 import '../styles/ImportCSVAndSendEmail.css';
 
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
 const ImportCSVAndSendEmail: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
+    const [importYear, setImportYear] = useState<number>(currentYear);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -28,11 +32,11 @@ const ImportCSVAndSendEmail: React.FC = () => {
         formData.append('file', file);
 
         try {
-            await api.post('/doctorant/import-csv', formData, {
+            await api.post(`/doctorant/import-csv?importYear=${importYear}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            alert('Importation réussie !');
+            alert(`Importation réussie pour l'année ${importYear} !`);
             // console.log('Résultat:', response.data);
         } catch (error) {
             console.error('Erreur lors de l’importation du CSV :', error);
@@ -61,9 +65,33 @@ const ImportCSVAndSendEmail: React.FC = () => {
                 )}
             </div>
 
+            {/* Sélecteur d'année */}
+            <div style={{ margin: '16px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label htmlFor="import-year" style={{ fontWeight: 600, fontSize: '14px' }}>
+                    Année de campagne :
+                </label>
+                <select
+                    id="import-year"
+                    value={importYear}
+                    onChange={(e) => setImportYear(Number(e.target.value))}
+                    style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ccc',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                    }}
+                >
+                    {yearOptions.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
+            </div>
+
             {/* Bouton d'importation */}
             <button className="upload-btn" onClick={handleUpload}>
-                Importer
+                Importer en {importYear}
             </button>
             <div className="csv-info-box">
                 <h2>Format attendu du fichier CSV :</h2>
