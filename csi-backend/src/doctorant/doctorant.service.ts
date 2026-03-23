@@ -531,8 +531,12 @@ export class DoctorantService implements OnModuleInit {
   }
 
   async importDoctorantsFromCSV(csvData: string, importYear?: number, force = false): Promise<any> {
+    console.log(`📂 [IMPORT] Taille CSV brute : ${csvData?.length || 0} caractères`);
+    if (!csvData || csvData.length < 10) {
+      return { totalRowsParsed: 0, inserted: 0, skippedDuplicate: 0, skippedNoEmail: 0, skippedMissingData: 0, errors: 0, message: 'Fichier vide ou trop court.' };
+    }
+
     const rows = [];
-    // Normalise les apostrophes/guillemets typographiques et le BOM
     const cleanKey = (key: string) =>
       key
         .replace(/^\ufeff/, '')
@@ -541,13 +545,24 @@ export class DoctorantService implements OnModuleInit {
         .trim();
     const currentYear = importYear ?? new Date().getFullYear();
 
-    // Détection du séparateur (virgule ou point-virgule)
-    const firstLine = csvData.split(/\r?\n/)[0];
-    const separator = firstLine && firstLine.includes(';') ? ';' : ',';
-    console.log(`🔍 Séparateur détecté : '${separator}'`);
+    // Détection robuste du séparateur
+    const lines = csvData.split(/\r?\n/).filter(l => l.trim().length > 0);
+    const firstLine = lines[0] || '';
+    
+    // On compte le nombre de colonnes produites par chaque séparateur potentiel
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semiCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    
+    let separator = ',';
+    if (semiCount > commaCount && semiCount > tabCount) separator = ';';
+    else if (tabCount > commaCount && tabCount > semiCount) separator = '\t';
+
+    console.log(`🔍 [IMPORT] Séparateur détecté : '${separator}' (Commas: ${commaCount}, Semis: ${semiCount}, Tabs: ${tabCount})`);
+    console.log(`🔍 [IMPORT] Première ligne : "${firstLine.substring(0, 100)}..."`);
 
     return new Promise((resolve, reject) => {
-      const readableStream = require('stream').Readable.from(csvData);
+      const readableStream = Readable.from(csvData);
 
       readableStream
         .pipe(csvParser({ separator }))
