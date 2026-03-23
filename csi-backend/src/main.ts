@@ -10,6 +10,7 @@ import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 
 async function bootstrap() {
+  console.log('🚀 BACKEND VERSION v2.1 (RAW BUFFER + UTF-16) STARTING...');
   const app = await NestFactory.create(AppModule);
 
   // 🔧 Augmenter les limites de taille des requêtes (utile pour gros CSV ou PDF)
