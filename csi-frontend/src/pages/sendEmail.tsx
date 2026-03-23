@@ -20,7 +20,15 @@ const ImportCSVAndSendEmail: React.FC = () => {
         skippedMissingData: number; 
         errors: number;
         message?: string;
-        debug?: { size: number; preview: string; isUTF16: boolean; isXLSX: boolean; separator: string };
+        debug?: { 
+            size: number; 
+            preview: string; 
+            isUTF16: boolean; 
+            isXLSX: boolean; 
+            separator: string;
+            version?: string;
+            timestamp?: string;
+        };
     } | null>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -166,16 +174,17 @@ const ImportCSVAndSendEmail: React.FC = () => {
                 }}>
                     <strong>Résultat de l'import pour {importYear} :</strong>
                     <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                        <li>📊 <strong>{importStats.totalRowsParsed}</strong> ligne(s) détectée(s) dans le fichier</li>
+                        <li>📊 <strong>{importStats.totalRowsParsed ?? (importStats as any).total ?? 0}</strong> ligne(s) détectée(s) dans le fichier</li>
                         
                         {importStats.totalRowsParsed === 0 && importStats.message && (
                             <li style={{ color: '#d32f2f', fontWeight: 'bold' }}>❌ {importStats.message}</li>
                         )}
 
-                        {importStats.totalRowsParsed === 0 && importStats.debug && (
+                        {importStats.debug && (
                             <li style={{ fontSize: '0.8em', color: '#666', listStyle: 'none', marginTop: '5px' }}>
-                                🛠 Debug: Size {importStats.debug.size}B | SEP: '{importStats.debug.separator}' | {importStats.debug.isUTF16 ? 'UTF-16' : 'UTF-8?'} | {importStats.debug.isXLSX ? 'XLSX!' : 'CSV?'}
-                                <br/>Preview: <code style={{ background: '#eee' }}>{importStats.debug.preview}</code>
+                                🛠 Debug: {importStats.debug.version || 'v1.0'} | {importStats.debug.timestamp || ''}
+                                <br/>Size {importStats.debug.size}B | SEP: '{importStats.debug.separator}' | {importStats.debug.isUTF16 ? 'UTF-16' : 'UTF-8?'} | {importStats.debug.isXLSX ? 'XLSX!' : 'CSV?'}
+                                <br/>Preview: <code style={{ background: '#eee', fontSize: '10px' }}>{importStats.debug.preview}</code>
                             </li>
                         )}
 

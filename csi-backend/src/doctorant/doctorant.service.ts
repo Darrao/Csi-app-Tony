@@ -587,6 +587,8 @@ export class DoctorantService implements OnModuleInit {
               isUTF16: csvData.includes('\u0000'),
               isXLSX: csvData.startsWith('PK'),
               separator,
+              version: 'v2.0-robust-parsing',
+              timestamp: new Date().toISOString(),
             }
           };
 
