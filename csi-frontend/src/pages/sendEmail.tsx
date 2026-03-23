@@ -9,6 +9,8 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const ImportCSVAndSendEmail: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
     const [importYear, setImportYear] = useState<number>(currentYear);
+    const [isLoading, setIsLoading] = useState(false);
+    const [progress, setProgress] = useState(0);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -30,17 +32,27 @@ const ImportCSVAndSendEmail: React.FC = () => {
 
         const formData = new FormData();
         formData.append('file', file);
+        setIsLoading(true);
+        setProgress(0);
 
         try {
             await api.post(`/doctorant/import-csv?importYear=${importYear}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (event) => {
+                    if (event.total) {
+                        const pct = Math.round((event.loaded * 100) / event.total);
+                        setProgress(pct);
+                    }
+                },
             });
-
+            setProgress(100);
             alert(`Importation réussie pour l'année ${importYear} !`);
-            // console.log('Résultat:', response.data);
         } catch (error) {
             console.error('Erreur lors de l’importation du CSV :', error);
             alert('Échec de l’importation.');
+        } finally {
+            setIsLoading(false);
+            setProgress(0);
         }
     };
 
@@ -90,9 +102,33 @@ const ImportCSVAndSendEmail: React.FC = () => {
             </div>
 
             {/* Bouton d'importation */}
-            <button className="upload-btn" onClick={handleUpload}>
-                Importer en {importYear}
+            <button className="upload-btn" onClick={handleUpload} disabled={isLoading}>
+                {isLoading ? `Importation... ${progress}%` : `Importer en ${importYear}`}
             </button>
+
+            {/* Barre de progression */}
+            {isLoading && (
+                <div style={{ margin: '16px 0' }}>
+                    <div style={{
+                        width: '100%',
+                        height: '10px',
+                        background: '#e0e0e0',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            width: `${progress}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #4f46e5, #818cf8)',
+                            borderRadius: '8px',
+                            transition: 'width 0.3s ease'
+                        }} />
+                    </div>
+                    <p style={{ textAlign: 'center', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
+                        {progress < 100 ? `Envoi du fichier : ${progress}%` : 'Traitement en cours...'}
+                    </p>
+                </div>
+            )}
             <div className="csv-info-box">
                 <h2>Format attendu du fichier CSV :</h2>
                 <p>Le fichier doit contenir les colonnes suivantes <strong>dans cet ordre exact</strong> :</p>
