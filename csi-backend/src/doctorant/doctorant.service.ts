@@ -559,24 +559,33 @@ export class DoctorantService implements OnModuleInit {
           rows.push(cleanedRow);
         })
         .on('end', async () => {
-          // Log des clés de la première ligne pour debug
-          if (rows.length > 0) {
-            console.log(`🔓 Clés CSV détectées :`, Object.keys(rows[0]));
-          }
           const stats = {
-            total: rows.length,
+            totalRowsParsed: rows.length, // 🔥 Combien de lignes le parser a vu
             inserted: 0,
             skippedDuplicate: 0,
             skippedNoEmail: 0,
+            skippedMissingData: 0, // Nouveau: données obligatoires manquantes
             errors: 0,
           };
 
           for (const row of rows) {
-            // Détection de la clé email : cherche une clé contenant 'envoi' (insensible aux variantes d'apostrophe)
-            const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('envoi'));
-            const email = emailKey ? (row[emailKey]?.trim() || '') : '';
+            const keys = Object.keys(row);
+            const findValue = (partials: string[]) => {
+              const key = keys.find(k => partials.some(p => k.toLowerCase().includes(p.toLowerCase())));
+              return key ? (row[key]?.trim() || '') : '';
+            };
+
+            const email = findValue(['email', 'envoi']);
+            const prenom = findValue(['prénom', 'prenom', 'first name']);
+            const nom = findValue(['nom', 'last name', 'surname']);
+
             if (!email) {
               stats.skippedNoEmail++;
+              continue;
+            }
+
+            if (!prenom && !nom) {
+              stats.skippedMissingData++;
               continue;
             }
 
@@ -591,31 +600,23 @@ export class DoctorantService implements OnModuleInit {
             }
 
             try {
-              const prenom = row[cleanKey('Prénom')]?.trim() || '';
               const newDoctorant = new this.doctorantModel({
                 prenom,
-                nom: row[cleanKey('Nom')]?.trim() || '',
+                nom,
                 email,
-                ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
-                departementDoctorant:
-                  row[cleanKey('DEPARTEMENT_DOCTORANT_DIRECT::Nom Département')] || '',
-                datePremiereInscription: this.safeParseDate(
-                  row[cleanKey('Date 1ère Inscription')],
-                ),
-                anneeThese: row[cleanKey('AnnéeThèse')] || '',
-                typeFinancement: row[cleanKey('Type Financement Clean')] || '',
-                missions: row[cleanKey('Missions')] || '',
-                titreThese: row[cleanKey("Sujet Thèse à l'inscription")] || '',
-                intituleUR:
-                  row[cleanKey('UnitésRecherche::Intitulé Unité Recherche')] || '',
-                directeurUR:
-                  row[cleanKey('UnitésRecherche::Nom_Prenom_DU')] || '',
-                intituleEquipe:
-                  row[cleanKey('Equipes::Nom Equipe Affichée')] || '',
-                directeurEquipe:
-                  row[cleanKey('Equipes::Nom_Prenom_Responsable')] || '',
-                nomPrenomHDR: row[cleanKey('HDR::Nom_Prenom_HDR')] || '',
-                email_HDR: row[cleanKey('HDR::Email_HDR')] || '',
+                ID_DOCTORANT: findValue(['ID_DOCTORANT', 'id_doc']),
+                departementDoctorant: findValue(['DEPARTEMENT_DOCTORANT', 'département', 'department']),
+                datePremiereInscription: this.safeParseDate(findValue(['Inscription', 'date_inscr'])),
+                anneeThese: findValue(['AnnéeThèse', 'thèse', 'year']),
+                typeFinancement: findValue(['Financement', 'funding']),
+                missions: findValue(['Missions']),
+                titreThese: findValue(['Sujet', 'titre', 'subject']),
+                intituleUR: findValue(['UnitésRecherche::Intitulé', 'UR']),
+                directeurUR: findValue(['UnitésRecherche::Nom_Prenom_DU', 'DU']),
+                intituleEquipe: findValue(['Equipes::Nom', 'Equipe']),
+                directeurEquipe: findValue(['Equipes::Nom_Prenom_Responsable', 'Responsable']),
+                nomPrenomHDR: findValue(['HDR::Nom_Prenom_HDR', 'HDR']),
+                email_HDR: findValue(['HDR::Email_HDR']),
                 importDate: currentYear,
               });
               await newDoctorant.save();

@@ -12,7 +12,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [forceReimport, setForceReimport] = useState(false);
-    const [importStats, setImportStats] = useState<{ total: number; inserted: number; skippedDuplicate: number; skippedNoEmail: number; errors: number } | null>(null);
+    const [importStats, setImportStats] = useState<{ totalRowsParsed: number; inserted: number; skippedDuplicate: number; skippedNoEmail: number; skippedMissingData: number; errors: number } | null>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -157,12 +157,16 @@ const ImportCSVAndSendEmail: React.FC = () => {
                 }}>
                     <strong>Résultat de l'import pour {importYear} :</strong>
                     <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                        <li>📊 <strong>{importStats.totalRowsParsed}</strong> ligne(s) détectée(s) dans le fichier</li>
                         <li>✅ <strong>{importStats.inserted}</strong> doctorant(s) ajouté(s)</li>
                         {importStats.skippedDuplicate > 0 && (
                             <li>⚠️ <strong>{importStats.skippedDuplicate}</strong> doublon(s) ignoré(s) (déjà présent(s) en {importYear}) — coche "Forcer" pour les réimporter</li>
                         )}
                         {importStats.skippedNoEmail > 0 && (
                             <li>⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)</li>
+                        )}
+                        {importStats.skippedMissingData > 0 && (
+                            <li>⚠️ <strong>{importStats.skippedMissingData}</strong> ligne(s) ignorée(s) (Prénom/Nom manquants)</li>
                         )}
                         {importStats.errors > 0 && (
                             <li>❌ <strong>{importStats.errors}</strong> erreur(s) lors de l'insertion</li>
