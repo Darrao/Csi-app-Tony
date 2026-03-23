@@ -530,7 +530,7 @@ export class DoctorantService implements OnModuleInit {
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
-  async importDoctorantsFromCSV(csvData: string, importYear?: number): Promise<any> {
+  async importDoctorantsFromCSV(csvData: string, importYear?: number, force = false): Promise<any> {
     const rows = [];
     const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
     const currentYear = importYear ?? new Date().getFullYear(); // 🔥 Année d'import choisie ou année courante
@@ -554,81 +554,69 @@ export class DoctorantService implements OnModuleInit {
           console.log(`🔍 [DEBUG] Ligne CSV nettoyée :`, cleanedRow);
         })
         .on('end', async () => {
-          const insertedDoctorants = [];
+          const stats = {
+            total: rows.length,
+            inserted: 0,
+            skippedDuplicate: 0,
+            skippedNoEmail: 0,
+            errors: 0,
+          };
 
           for (const row of rows) {
-            console.log(`🔍 [DEBUG] Clés détectées :`, Object.keys(row));
-
             const email = row[cleanKey("Email d'envoi")]?.trim() || '';
             if (!email) {
-              console.warn(`⚠️ Email manquant, ligne ignorée.`);
+              stats.skippedNoEmail++;
               continue;
             }
 
-            const existingDoctorant = await this.doctorantModel
-              .findOne({ email, importDate: currentYear })
-              .exec();
-            if (existingDoctorant) {
-              console.log(
-                `⚠️ Doctorant ${email} déjà présent pour l'année ${currentYear}, ignoré.`,
-              );
-              continue;
+            if (!force) {
+              const existingDoctorant = await this.doctorantModel
+                .findOne({ email, importDate: currentYear })
+                .exec();
+              if (existingDoctorant) {
+                stats.skippedDuplicate++;
+                continue;
+              }
             }
 
-            let prenom = row[cleanKey('Prénom')]?.trim() || '';
-            console.log(
-              `🔍 [DEBUG] Prénom après nettoyage pour ${email} : '${prenom}'`,
-            );
-
-            if (!prenom) {
-              console.warn(
-                `⚠️ Prénom manquant pour ${email}, vérifie ton CSV.`,
-              );
+            try {
+              const prenom = row[cleanKey('Prénom')]?.trim() || '';
+              const newDoctorant = new this.doctorantModel({
+                prenom,
+                nom: row[cleanKey('Nom')]?.trim() || '',
+                email,
+                ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
+                departementDoctorant:
+                  row[cleanKey('DEPARTEMENT_DOCTORANT_DIRECT::Nom Département')] || '',
+                datePremiereInscription: this.safeParseDate(
+                  row[cleanKey('Date 1ère Inscription')],
+                ),
+                anneeThese: row[cleanKey('AnnéeThèse')] || '',
+                typeFinancement: row[cleanKey('Type Financement Clean')] || '',
+                missions: row[cleanKey('Missions')] || '',
+                titreThese: row[cleanKey("Sujet Thèse à l'inscription")] || '',
+                intituleUR:
+                  row[cleanKey('UnitésRecherche::Intitulé Unité Recherche')] || '',
+                directeurUR:
+                  row[cleanKey('UnitésRecherche::Nom_Prenom_DU')] || '',
+                intituleEquipe:
+                  row[cleanKey('Equipes::Nom Equipe Affichée')] || '',
+                directeurEquipe:
+                  row[cleanKey('Equipes::Nom_Prenom_Responsable')] || '',
+                nomPrenomHDR: row[cleanKey('HDR::Nom_Prenom_HDR')] || '',
+                email_HDR: row[cleanKey('HDR::Email_HDR')] || '',
+                importDate: currentYear,
+              });
+              await newDoctorant.save();
+              stats.inserted++;
+            } catch (err) {
+              stats.errors++;
+              console.error(`❌ Erreur insertion ${email}:`, err.message);
             }
-
-            // Création de l'objet Doctorant avec importDate
-            const newDoctorant = new this.doctorantModel({
-              prenom,
-              nom: row[cleanKey('Nom')]?.trim() || '',
-              email,
-              ID_DOCTORANT: row[cleanKey('ID_DOCTORANT')]?.trim() || '',
-              departementDoctorant:
-                row[
-                cleanKey('DEPARTEMENT_DOCTORANT_DIRECT::Nom Département')
-                ] || '',
-              datePremiereInscription: this.safeParseDate(
-                row[cleanKey('Date 1ère Inscription')],
-              ),
-              anneeThese: row[cleanKey('AnnéeThèse')] || '',
-              typeFinancement: row[cleanKey('Type Financement Clean')] || '',
-              missions: row[cleanKey('Missions')] || '',
-              titreThese: row[cleanKey("Sujet Thèse à l'inscription")] || '',
-              intituleUR:
-                row[cleanKey('UnitésRecherche::Intitulé Unité Recherche')] ||
-                '',
-              directeurUR:
-                row[cleanKey('UnitésRecherche::Nom_Prenom_DU')] || '',
-              intituleEquipe:
-                row[cleanKey('Equipes::Nom Equipe Affichée')] || '',
-              directeurEquipe:
-                row[cleanKey('Equipes::Nom_Prenom_Responsable')] || '',
-              nomPrenomHDR: row[cleanKey('HDR::Nom_Prenom_HDR')] || '',
-              email_HDR: row[cleanKey('HDR::Email_HDR')] || '',
-              importDate: currentYear, // 🆕 Ajout de l'année d'importation
-            });
-
-            console.log(
-              `📝 [DEBUG] Objet Doctorant avant insertion:`,
-              newDoctorant,
-            );
-            await newDoctorant.save();
-            insertedDoctorants.push(newDoctorant);
           }
 
-          console.log(
-            `✅ Importation terminée : ${insertedDoctorants.length} doctorants ajoutés.`,
-          );
-          resolve(insertedDoctorants);
+          console.log('✅ Import terminé :', stats);
+          resolve(stats);
         })
         .on('error', (error) => {
           console.error('❌ Erreur lors du parsing CSV :', error);

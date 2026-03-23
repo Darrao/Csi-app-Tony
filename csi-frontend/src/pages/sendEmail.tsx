@@ -11,6 +11,8 @@ const ImportCSVAndSendEmail: React.FC = () => {
     const [importYear, setImportYear] = useState<number>(currentYear);
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [forceReimport, setForceReimport] = useState(false);
+    const [importStats, setImportStats] = useState<{ total: number; inserted: number; skippedDuplicate: number; skippedNoEmail: number; errors: number } | null>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -36,7 +38,8 @@ const ImportCSVAndSendEmail: React.FC = () => {
         setProgress(0);
 
         try {
-            await api.post(`/doctorant/import-csv?importYear=${importYear}`, formData, {
+            const url = `/doctorant/import-csv?importYear=${importYear}${forceReimport ? '&force=true' : ''}`;
+            const response = await api.post(url, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (event) => {
                     if (event.total) {
@@ -46,7 +49,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
                 },
             });
             setProgress(100);
-            alert(`Importation réussie pour l'année ${importYear} !`);
+            setImportStats(response.data.result);
         } catch (error) {
             console.error('Erreur lors de l’importation du CSV :', error);
             alert('Échec de l’importation.');
@@ -101,6 +104,19 @@ const ImportCSVAndSendEmail: React.FC = () => {
                 </select>
             </div>
 
+            {/* Force reimport */}
+            <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                    id="force-reimport"
+                    type="checkbox"
+                    checked={forceReimport}
+                    onChange={(e) => setForceReimport(e.target.checked)}
+                />
+                <label htmlFor="force-reimport" style={{ fontSize: '13px', color: '#6b7280' }}>
+                    Forcer la réimportation (ignore les doublons)
+                </label>
+            </div>
+
             {/* Bouton d'importation */}
             <button className="upload-btn" onClick={handleUpload} disabled={isLoading}>
                 {isLoading ? `Importation... ${progress}%` : `Importer en ${importYear}`}
@@ -127,6 +143,31 @@ const ImportCSVAndSendEmail: React.FC = () => {
                     <p style={{ textAlign: 'center', marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
                         {progress < 100 ? `Envoi du fichier : ${progress}%` : 'Traitement en cours...'}
                     </p>
+                </div>
+            )}
+            {/* Résultat de l'import */}
+            {importStats && (
+                <div style={{
+                    margin: '16px 0',
+                    padding: '16px',
+                    background: importStats.errors > 0 ? '#fff3cd' : '#d1fae5',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    border: `1px solid ${importStats.errors > 0 ? '#ffc107' : '#10b981'}`
+                }}>
+                    <strong>Résultat de l'import pour {importYear} :</strong>
+                    <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                        <li>✅ <strong>{importStats.inserted}</strong> doctorant(s) ajouté(s)</li>
+                        {importStats.skippedDuplicate > 0 && (
+                            <li>⚠️ <strong>{importStats.skippedDuplicate}</strong> doublon(s) ignoré(s) (déjà présent(s) en {importYear}) — coche "Forcer" pour les réimporter</li>
+                        )}
+                        {importStats.skippedNoEmail > 0 && (
+                            <li>⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)</li>
+                        )}
+                        {importStats.errors > 0 && (
+                            <li>❌ <strong>{importStats.errors}</strong> erreur(s) lors de l'insertion</li>
+                        )}
+                    </ul>
                 </div>
             )}
             <div className="csv-info-box">

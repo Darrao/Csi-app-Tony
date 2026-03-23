@@ -805,6 +805,7 @@ export class DoctorantController {
   async importDoctorantsCSV(
     @UploadedFile() file: File,
     @Query('importYear') importYear: string,
+    @Query('force') force: string,
     @Res() res: Response,
   ) {
     if (!file) {
@@ -814,8 +815,8 @@ export class DoctorantController {
     try {
       const buffer = fs.readFileSync(file.path, 'utf8');
       const year = importYear ? parseInt(importYear, 10) : undefined;
-      const result =
-        await this.doctorantService.importDoctorantsFromCSV(buffer, year);
+      const forceReimport = force === 'true';
+      const result = await this.doctorantService.importDoctorantsFromCSV(buffer, year, forceReimport);
       return res.status(200).json({ message: 'Importation terminée.', result });
     } catch (error) {
       console.error('Erreur lors de l’importation CSV :', error);
