@@ -532,13 +532,19 @@ export class DoctorantService implements OnModuleInit {
 
   async importDoctorantsFromCSV(csvData: string, importYear?: number, force = false): Promise<any> {
     const rows = [];
-    const cleanKey = (key: string) => key.replace(/^\ufeff/, '').trim();
-    const currentYear = importYear ?? new Date().getFullYear(); // 🔥 Année d'import choisie ou année courante
+    // Normalise les apostrophes/guillemets typographiques et le BOM
+    const cleanKey = (key: string) =>
+      key
+        .replace(/^\ufeff/, '')
+        .replace(/[\u2018\u2019\u02bc]/g, "'")
+        .replace(/[\u201c\u201d]/g, '"')
+        .trim();
+    const currentYear = importYear ?? new Date().getFullYear();
 
     // Détection du séparateur (virgule ou point-virgule)
     const firstLine = csvData.split(/\r?\n/)[0];
     const separator = firstLine && firstLine.includes(';') ? ';' : ',';
-    console.log(`🔍 [DEBUG] Séparateur détecté : '${separator}'`);
+    console.log(`🔍 Séparateur détecté : '${separator}'`);
 
     return new Promise((resolve, reject) => {
       const readableStream = require('stream').Readable.from(csvData);
@@ -547,13 +553,16 @@ export class DoctorantService implements OnModuleInit {
         .pipe(csvParser({ separator }))
         .on('data', (row) => {
           const cleanedRow = {};
-          for (let key in row) {
+          for (const key in row) {
             cleanedRow[cleanKey(key)] = row[key];
           }
           rows.push(cleanedRow);
-          console.log(`🔍 [DEBUG] Ligne CSV nettoyée :`, cleanedRow);
         })
         .on('end', async () => {
+          // Log des clés de la première ligne pour debug
+          if (rows.length > 0) {
+            console.log(`🔓 Clés CSV détectées :`, Object.keys(rows[0]));
+          }
           const stats = {
             total: rows.length,
             inserted: 0,
@@ -563,7 +572,9 @@ export class DoctorantService implements OnModuleInit {
           };
 
           for (const row of rows) {
-            const email = row[cleanKey("Email d'envoi")]?.trim() || '';
+            // Détection de la clé email : cherche une clé contenant 'envoi' (insensible aux variantes d'apostrophe)
+            const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('envoi'));
+            const email = emailKey ? (row[emailKey]?.trim() || '') : '';
             if (!email) {
               stats.skippedNoEmail++;
               continue;
