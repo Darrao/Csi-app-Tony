@@ -18,6 +18,8 @@ interface Question {
     systemId?: string; // New field for system blocks
     visibleToReferent?: boolean;
     visibleInPdf?: boolean; // ✅ New field
+    options?: string[]; // Array of strings for choices
+    allowMultipleSelection?: boolean; // False by default -> Radio; True -> Checkboxes
 }
 
 const DEFAULT_SYSTEM_BLOCKS: Partial<Question>[] = [
@@ -72,7 +74,9 @@ const AdminQuestionConfig: React.FC = () => {
         visibleToReferent: false,
         visibleInPdf: true, // ✅ Default true
         helpText: '',
-        placeholder: ''
+        placeholder: '',
+        options: [],
+        allowMultipleSelection: false
     });
 
     const [deletedIds, setDeletedIds] = useState<string[]>([]);
@@ -380,7 +384,11 @@ const AdminQuestionConfig: React.FC = () => {
                     required: !!q.required,
                     visibleToReferent: !!q.visibleToReferent,
                     visibleInPdf: !!q.visibleInPdf, // ✅ Include in payload
+                    allowMultipleSelection: !!q.allowMultipleSelection,
                 };
+                if (q.type === 'multiple_choice') {
+                    payload.options = q.options || [];
+                }
                 if (q.helpText) payload.helpText = q.helpText;
                 if (q.placeholder) payload.placeholder = q.placeholder;
                 if (q.systemId) payload.systemId = q.systemId;
@@ -582,7 +590,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                         {q.content}
                                                         {q.required && <span className="red"> *</span>}
                                                         {/* 🆕 PDF Icon (Undefined = True default) */}
-                                                        {(q.visibleInPdf !== false) ? <span title="Visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em' }}>📄</span> : <span title="Not visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em', opacity: 0.3 }}>🚫📄</span>}
+                                                        {(q.visibleInPdf !== false) ? <span title="Visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em', color: '#6c757d' }}>📄 In PDF</span> : <span title="Confidential (Not in PDF)" style={{ marginLeft: '8px', fontSize: '0.85em', fontWeight: 'bold', color: '#dc3545' }}>🔒 CONFIDENTIAL</span>}
                                                     </h4>
                                                 )}
 
@@ -630,6 +638,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                     {q.type === 'rating_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Rating (1-5) + Comment</div>}
                                                     {q.type === 'plus_minus_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>+/- with Comment</div>}
                                                     {q.type === 'select' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Yes/No Select</div>}
+                                                    {q.type === 'multiple_choice' && <div style={{ padding: '5px', background: '#e0f7fa', fontSize: '0.8em', color: '#006064', fontWeight: 'bold' }}>Multiple Choice: {q.allowMultipleSelection ? 'Checkboxes' : 'Radio Buttons'} ({q.options?.length || 0} options)</div>}
                                                 </div>
                                             )
                                         )}
@@ -679,12 +688,50 @@ const AdminQuestionConfig: React.FC = () => {
                             <option value="scale_1_5">Scale 1-5</option>
                             <option value="rating_comment">Rating (1-5) + Comment</option>
                             <option value="select">Yes/No Select</option>
+                            <option value="multiple_choice">Multiple Choice (Radio/Checkboxes)</option>
                             <option value="text">Text Input</option>
                             <option value="description">Description Block</option>
                         </select>
                     </div>
 
-                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '30px' }}>
+                    {newQuestion.type === 'multiple_choice' && (
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label>Choices / Options</label>
+                            {(newQuestion.options || []).map((opt, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                                    <input 
+                                        type="text" 
+                                        className="select-input" 
+                                        value={opt} 
+                                        placeholder={`Option ${i+1}`}
+                                        onChange={e => {
+                                            const newOpts = [...(newQuestion.options || [])];
+                                            newOpts[i] = e.target.value;
+                                            setNewQuestion({...newQuestion, options: newOpts});
+                                        }} 
+                                    />
+                                    <button className="btn" style={{ background: '#dc3545', color: 'white', padding: '0 10px', border: 'none', borderRadius: '4px' }} onClick={() => {
+                                        const newOpts = (newQuestion.options || []).filter((_, idx) => idx !== i);
+                                        setNewQuestion({...newQuestion, options: newOpts});
+                                    }}>🗑</button>
+                                </div>
+                            ))}
+                            <button className="btn" style={{ marginTop: '5px', background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px' }} onClick={() => {
+                                setNewQuestion({...newQuestion, options: [...(newQuestion.options || []), ""]});
+                            }}>➕ Add Option</button>
+                            
+                            <label style={{ display: 'flex', alignItems: 'center', marginTop: '15px', gap: '8px', fontWeight: 'bold' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={newQuestion.allowMultipleSelection || false} 
+                                    onChange={e => setNewQuestion({...newQuestion, allowMultipleSelection: e.target.checked})} 
+                                /> 
+                                Allow Multiple Selection (Display checkboxes instead of radio buttons)
+                            </label>
+                        </div>
+                    )}
+
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '30px', gridColumn: '1 / -1' }}>
                         <label>
                             <input
                                 type="checkbox"
@@ -713,7 +760,7 @@ const AdminQuestionConfig: React.FC = () => {
                                 type="checkbox"
                                 checked={!!newQuestion.visibleInPdf}
                                 onChange={e => setNewQuestion({ ...newQuestion, visibleInPdf: e.target.checked })}
-                            /> Show in PDF?
+                            /> Show in PDF? <span style={{fontSize: '0.8em', color: '#dc3545'}}>(Uncheck for Confidential)</span>
                         </label>
                     </div>
                 </div>
@@ -789,6 +836,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                     <option value="scale_1_5">Scale 1-5</option>
                                                     <option value="rating_comment">Rating (1-5) + Comment</option>
                                                     <option value="select">Yes/No Select</option>
+                                                    <option value="multiple_choice">Multiple Choice (Radio/Checkboxes)</option>
                                                     <option value="text">Text Input</option>
                                                 </select>
                                             </div>
@@ -803,6 +851,42 @@ const AdminQuestionConfig: React.FC = () => {
                                                     <option value="false">Inactive</option>
                                                 </select>
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {editingQuestion.type === 'multiple_choice' && (
+                                        <div className="form-group" style={{ marginBottom: '15px' }}>
+                                            <label>Choices / Options</label>
+                                            {(editingQuestion.options || []).map((opt, i) => (
+                                                <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                                                    <input 
+                                                        type="text" 
+                                                        className="select-input" 
+                                                        value={opt} 
+                                                        onChange={e => {
+                                                            const newOpts = [...(editingQuestion.options || [])];
+                                                            newOpts[i] = e.target.value;
+                                                            setEditingQuestion({...editingQuestion, options: newOpts});
+                                                        }} 
+                                                    />
+                                                    <button className="btn" style={{ background: '#dc3545', color: 'white', padding: '0 10px', border: 'none', borderRadius: '4px' }} onClick={() => {
+                                                        const newOpts = (editingQuestion.options || []).filter((_, idx) => idx !== i);
+                                                        setEditingQuestion({...editingQuestion, options: newOpts});
+                                                    }}>🗑</button>
+                                                </div>
+                                            ))}
+                                            <button className="btn" style={{ marginTop: '5px', background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px' }} onClick={() => {
+                                                setEditingQuestion({...editingQuestion, options: [...(editingQuestion.options || []), ""]});
+                                            }}>➕ Add Option</button>
+                                            
+                                            <label style={{ display: 'flex', alignItems: 'center', marginTop: '15px', gap: '8px', fontWeight: 'bold' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={editingQuestion.allowMultipleSelection || false} 
+                                                    onChange={e => setEditingQuestion({...editingQuestion, allowMultipleSelection: e.target.checked})} 
+                                                /> 
+                                                Allow Multiple Selection (Display checkboxes instead of radio buttons)
+                                            </label>
                                         </div>
                                     )}
 
@@ -865,7 +949,7 @@ const AdminQuestionConfig: React.FC = () => {
                                         type="checkbox"
                                         checked={!!editingQuestion.visibleInPdf}
                                         onChange={e => setEditingQuestion({ ...editingQuestion, visibleInPdf: e.target.checked })}
-                                    /> Show in PDF?
+                                    /> Show in PDF? <span style={{fontSize: '0.8em', color: '#dc3545', fontWeight: 'normal'}}>(Uncheck for Confidential)</span>
                                 </label>
                             </div>
 

@@ -145,6 +145,15 @@ const ListeDoctorants: React.FC = () => {
     fetchDoctorants();
   }, []);
 
+  const handleCopyLink = (id: string, prenom: string, nom: string) => {
+    const link = `${window.location.origin}/formulaire/${id}`;
+    navigator.clipboard.writeText(link).then(() => {
+      alert(`✅ Le lien pour le formulaire de ${prenom} ${nom} a été copié dans le presse-papier !`);
+    }).catch(() => {
+      alert(`❌ Erreur lors de la copie du lien pour ${prenom} ${nom}.`);
+    });
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Voulez-vous vraiment supprimer ce doctorant ?')) {
       try {
@@ -1412,10 +1421,15 @@ const ListeDoctorants: React.FC = () => {
                 <div className="card-header">
                   <div className="header-main">
                     <h3 className="doctorant-name">
-                      {doc.nom} {doc.prenom}
+                      {doc.prenom} {doc.nom}
                     </h3>
                     <div className="doctorant-id-badge">ID: {doc.ID_DOCTORANT}</div>
-                    <span className="dept-badge">DIRECT::{doc.departementDoctorant || "Non défini"}</span>
+                    <span className="dept-badge">{doc.departementDoctorant ? doc.departementDoctorant.replace('DIRECT::', '') : "Non défini"}</span>
+                    {doc.anneeThese && (
+                      <span className="dept-badge" style={{ marginLeft: '8px', backgroundColor: '#e2e8f0', color: '#4a5568' }}>
+                        {String(doc.anneeThese).toUpperCase().startsWith('D') ? doc.anneeThese : `D${doc.anneeThese}`}
+                      </span>
+                    )}
                   </div>
                   <div className="header-status">
                     <span className={`status-badge ${doc.statut === 'complet' ? 'status-complete' : 'status-pending'}`}>
@@ -1567,6 +1581,15 @@ const ListeDoctorants: React.FC = () => {
                         ✏️ Modifier
                       </button>
                     </Link>
+
+                    <button
+                      className="btn btn-outline-dark btn-sm"
+                      onClick={() => handleCopyLink(doc._id, doc.prenom, doc.nom)}
+                      title="Copier le lien d'évaluation pour envoi manuel"
+                      style={{ borderColor: '#666', color: '#666' }}
+                    >
+                      🔗 Copier Lien
+                    </button>
 
                     <button
                       className="btn btn-outline-dark btn-sm"

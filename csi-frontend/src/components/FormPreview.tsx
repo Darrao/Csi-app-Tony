@@ -13,6 +13,8 @@ interface Question {
     helpText?: string;
     placeholder?: string;
     systemId?: string; // New field for system blocks
+    options?: string[];
+    allowMultipleSelection?: boolean;
 }
 
 interface FormPreviewProps {
@@ -130,6 +132,19 @@ const FormPreview: React.FC<FormPreviewProps> = ({ questions, target, onClose })
                                                             <input type="range" min="1" max="5" disabled style={{ width: '100%' }} />
                                                         </div>
                                                         <span style={{ fontSize: '0.9em', color: '#666' }}>High (5)</span>
+                                                    </div>
+                                                ) : q.type === 'multiple_choice' ? (
+                                                    <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
+                                                        {(q.options || []).map((opt: string, idx: number) => (
+                                                            <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'not-allowed' }}>
+                                                                <input 
+                                                                    type={q.allowMultipleSelection ? "checkbox" : "radio"} 
+                                                                    disabled 
+                                                                    style={{ margin: 0, marginRight: '10px', width: '18px', height: '18px' }}
+                                                                />
+                                                                <span style={{ fontSize: '1rem', color: '#666' }}>{opt}</span>
+                                                            </label>
+                                                        ))}
                                                     </div>
                                                 ) : q.type === 'select' ? (
                                                     <select className="select-input" disabled>

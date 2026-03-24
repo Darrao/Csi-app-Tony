@@ -19,6 +19,8 @@ interface Question {
     placeholder?: string;
     systemId?: string;
     visibleToReferent?: boolean;
+    options?: string[];
+    allowMultipleSelection?: boolean;
 }
 
 // Helper to improved visual rendering of descriptions
@@ -130,7 +132,7 @@ const FormulaireToken: React.FC = () => {
 
     questions.forEach(q => {
         initialValues.responses[q._id] = {
-            value: '',
+            value: q.type === 'multiple_choice' && q.allowMultipleSelection ? [] : '',
             comment: ''
         };
     });
@@ -156,8 +158,12 @@ const FormulaireToken: React.FC = () => {
         responses: Yup.object().shape({
             ...questions.reduce((acc, q) => {
                 const valueSchema = q.required
-                    ? Yup.string().required('Réponse obligatoire')
-                    : Yup.string();
+                    ? (q.type === 'multiple_choice' && q.allowMultipleSelection)
+                        ? Yup.array().min(1, 'Réponse obligatoire')
+                        : Yup.string().required('Réponse obligatoire')
+                    : (q.type === 'multiple_choice' && q.allowMultipleSelection)
+                        ? Yup.array()
+                        : Yup.string();
 
                 acc[q._id] = Yup.object().shape({
                     value: valueSchema,
@@ -406,6 +412,20 @@ const FormulaireToken: React.FC = () => {
                                                                 </div>
                                                             </div>
                                                             <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
+                                                        </div>
+                                                    ) : q.type === 'multiple_choice' ? (
+                                                        <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
+                                                            {(q.options || []).map((opt: string, idx: number) => (
+                                                                <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                    <Field 
+                                                                        type={q.allowMultipleSelection ? "checkbox" : "radio"} 
+                                                                        name={`responses.${q._id}.value`} 
+                                                                        value={opt} 
+                                                                        style={{ margin: 0, marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+                                                                    />
+                                                                    <span style={{ fontSize: '1rem', color: '#333' }}>{opt}</span>
+                                                                </label>
+                                                            ))}
                                                         </div>
                                                     ) : q.type === 'select' ? (
                                                         <Field as="select" name={`responses.${q._id}.value`} className="select-input">

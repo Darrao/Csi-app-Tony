@@ -19,6 +19,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
         skippedNoEmail: number; 
         skippedMissingData: number; 
         errors: number;
+        skippedRowsDetails?: string[];
         message?: string;
         debug?: { 
             size: number; 
@@ -39,13 +40,17 @@ const ImportCSVAndSendEmail: React.FC = () => {
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: { 'text/csv': ['.csv'] },
+        accept: { 
+            'text/csv': ['.csv'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-excel': ['.xls']
+        },
         multiple: false
     });
 
     const handleUpload = async () => {
         if (!file) {
-            alert('Veuillez sélectionner un fichier CSV.');
+            alert('Veuillez sélectionner un fichier CSV ou Excel.');
             return;
         }
 
@@ -68,7 +73,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
             setProgress(100);
             setImportStats(response.data.result);
         } catch (error) {
-            console.error('Erreur lors de l’importation du CSV :', error);
+            console.error('Erreur lors de l’importation :', error);
             alert('Échec de l’importation.');
         } finally {
             setIsLoading(false);
@@ -78,7 +83,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
 
     return (
         <div className="container-csv">
-            <h1 className="title">Importer un fichier CSV</h1>
+            <h1 className="title">Importer un fichier CSV ou Excel</h1>
 
             {/* Zone de Drag & Drop stylée */}
             <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
@@ -193,7 +198,16 @@ const ImportCSVAndSendEmail: React.FC = () => {
                             <li>⚠️ <strong>{importStats.skippedDuplicate}</strong> doublon(s) ignoré(s) (déjà présent(s) en {importYear}) — coche "Forcer" pour les réimporter</li>
                         )}
                         {importStats.skippedNoEmail > 0 && (
-                            <li>⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)</li>
+                            <li>
+                                ⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)
+                                {importStats.skippedRowsDetails && importStats.skippedRowsDetails.length > 0 && (
+                                    <ul style={{ marginTop: '5px', fontSize: '12px', color: '#6b7280', paddingLeft: '20px' }}>
+                                        {importStats.skippedRowsDetails.map((name: string, i: number) => (
+                                            <li key={i}>{name || 'Ligne vide'}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </li>
                         )}
                         {importStats.skippedMissingData > 0 && (
                             <li>⚠️ <strong>{importStats.skippedMissingData}</strong> ligne(s) ignorée(s) (Prénom/Nom manquants)</li>

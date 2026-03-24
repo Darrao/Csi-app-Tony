@@ -539,6 +539,7 @@ export class DoctorantService implements OnModuleInit {
     input: string | Buffer,
     importYear?: number,
     force = false,
+    filename?: string,
   ): Promise<any> {
     let csvData = '';
     let detectedEncoding = 'UTF-8';
@@ -554,7 +555,11 @@ export class DoctorantService implements OnModuleInit {
         swapped.swap16();
         csvData = swapped.toString('utf16le');
         detectedEncoding = 'UTF-16BE (Swapped to LE)';
-      } else if (input[0] === 0xef && input[1] === 0xbb && input[2] === 0xbf) {
+      } else if (
+        input[0] === 0xef &&
+        input[1] === 0xbb &&
+        input[2] === 0xbf
+      ) {
         csvData = input.toString('utf8'); // UTF-8 avec BOM
         detectedEncoding = 'UTF-8-BOM';
       } else {
@@ -616,34 +621,25 @@ export class DoctorantService implements OnModuleInit {
       `🔍 [IMPORT] Première ligne : "${firstLine.substring(0, 100)}..."`,
     );
 
-    return new Promise((resolve, reject) => {
-      const readableStream = Readable.from(csvData);
-
-      readableStream
-        .pipe(csvParser({ separator }))
-        .on('data', (row) => {
-          const cleanedRow = {};
-          for (const key in row) {
-            cleanedRow[cleanKey(key)] = row[key];
-          }
-          rows.push(cleanedRow);
-        })
-        .on('end', async () => {
-          const stats = {
+    return new Promise(async (resolve, reject) => {
+      const isExcel = filename && (filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls'));
+      const processRows = async () => {
+          const stats: any = {
             totalRowsParsed: rows.length,
             inserted: 0,
             skippedDuplicate: 0,
             skippedNoEmail: 0,
             skippedMissingData: 0,
             errors: 0,
+            skippedRowsDetails: [], // NOUVEAU
             debug: {
-              size: csvData.length,
-              preview: csvData.substring(0, 50).replace(/[\r\n]/g, ' '),
-              isUTF16: csvData.includes('\u0000'),
-              isXLSX: csvData.startsWith('PK'),
-              separator,
-              version: 'v2.1-buffer-support',
-              encoding: detectedEncoding,
+              size: isExcel ? input.length : csvData.length,
+              preview: isExcel ? 'Fichier Excel (.xlsx/.xls) - Parsing natif' : csvData.substring(0, 50).replace(/[\r\n]/g, ' '),
+              isUTF16: isExcel ? false : csvData.includes('\u0000'),
+              isXLSX: isExcel || csvData.startsWith('PK'),
+              separator: isExcel ? 'N/A' : separator,
+              version: 'v4.1-excel-support',
+              encoding: isExcel ? 'Binary Excel' : detectedEncoding,
               timestamp: new Date().toISOString(),
             },
           };
@@ -672,77 +668,207 @@ export class DoctorantService implements OnModuleInit {
             };
 
             const email = findValue(['email', 'envoi']);
-            const prenom = findValue(['prénom', 'prenom', 'first name']);
-            const nom = findValue(['nom', 'last name', 'surname']);
-
             if (!email) {
               stats.skippedNoEmail++;
-              continue;
-            }
-
-            if (!prenom && !nom) {
-              stats.skippedMissingData++;
+              const prenom = findValue(['prénom', 'prenom']);
+              const nom = findValue(['nom']);
+              if (prenom || nom) {
+                 stats.skippedRowsDetails.push(`${prenom} ${nom}`.trim());
+              }
               continue;
             }
 
             if (!force) {
-              const existingDoctorant = await this.doctorantModel
-                .findOne({ email, importDate: currentYear })
-                .exec();
-              if (existingDoctorant) {
+              const existing = await this.doctorantModel.findOne({
+                email,
+                importDate: currentYear,
+              });
+              if (existing) {
                 stats.skippedDuplicate++;
                 continue;
               }
             }
 
+            // [RESTRICTED-RESTORE] Mapping intelligent pour les exports complets
+            const doctorantData: any = {
+              email,
+              importDate: currentYear,
+            };
+
+            for (const csvKey of keys) {
+              const val = row[csvKey];
+              if (!val) continue;
+
+              const ck = cleanKey(csvKey).toLowerCase();
+
+              const normalizedCk = ck.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+              // Noms / Prénoms
+              if (['prénom', 'prenom', 'first name'].includes(normalizedCk))
+                doctorantData.prenom = val;
+              else if (['nom', 'last name', 'surname'].includes(normalizedCk))
+                doctorantData.nom = val.trim().toUpperCase(); // Majuscule pour le format Prénom NOM
+              else if (['id_doctorant'].includes(normalizedCk))
+                doctorantData.ID_DOCTORANT = val;
+
+              // Réponses Q1-Q17 et commentaires
+              const qMatch = ck.match(/^q(\d+)(_comment)?$/);
+              if (qMatch) {
+                const field = `Q${qMatch[1]}${qMatch[2] || ''}`;
+                doctorantData[field] = val;
+              }
+
+              // Autres champs mappés existants
+              if (normalizedCk.includes('departement')) {
+                let dep = val;
+                if (dep.includes('DIRECT::')) dep = dep.replace('DIRECT::', '').trim();
+                doctorantData.departementDoctorant = dep;
+              }
+              if (normalizedCk.includes('anneethese') || (normalizedCk.includes('these') && normalizedCk.includes('annee'))) 
+                doctorantData.anneeThese = val;
+              if (normalizedCk.includes('missions')) doctorantData.missions = val;
+              if (normalizedCk.includes('titrethese') || normalizedCk.includes('sujet these') || normalizedCk.includes('sujetthese'))
+                doctorantData.titreThese = val;
+              if (normalizedCk.includes('conclusion')) doctorantData.conclusion = val;
+              if (normalizedCk === 'recommendation') doctorantData.recommendation = val;
+              if (normalizedCk.includes('recommendation_comment'))
+                doctorantData.recommendation_comment = val;
+
+              // Nouveaux champs FM export 2026/2025
+              if (normalizedCk === 'calc_hdr' || normalizedCk.includes('directeur de these') || ck.includes('hdr'))
+                doctorantData.nomPrenomHDR = val;
+              if (normalizedCk.includes('intitule unite recherche'))
+                doctorantData.intituleUR = val;
+              if (normalizedCk.includes('nom_prenom_du'))
+                doctorantData.directeurUR = val;
+              if (normalizedCk.includes('nom equipe affichee'))
+                doctorantData.intituleEquipe = val;
+              if (normalizedCk.includes('nom_prenom_responsable') || normalizedCk.includes('referent'))
+                doctorantData.directeurEquipe = val;
+
+              // Date du dernier CSI
+              if (ck.includes('cr csi dernier::annéedatecsi')) {
+                const year = parseInt(val, 10);
+                if (!isNaN(year)) {
+                  doctorantData.dateEntretien = new Date(year, 0, 1);
+                }
+              }
+
+              // Membres du CSI (parse prénom et nom)
+              if (normalizedCk.includes('membre') && normalizedCk.includes('1') && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomMembre1 = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomMembre1 = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomMembre1 = doctorantData.prenomMembre1 || parts[0] || '';
+                  doctorantData.nomMembre1 = doctorantData.nomMembre1 || parts.slice(1).join(' ').toUpperCase() || '';
+                }
+              }
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && normalizedCk.includes('1'))
+                doctorantData.emailMembre1 = val;
+
+              if (normalizedCk.includes('membre') && normalizedCk.includes('2') && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomMembre2 = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomMembre2 = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomMembre2 = doctorantData.prenomMembre2 || parts[0] || '';
+                  doctorantData.nomMembre2 = doctorantData.nomMembre2 || parts.slice(1).join(' ').toUpperCase() || '';
+                }
+              }
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && normalizedCk.includes('2'))
+                doctorantData.emailMembre2 = val;
+
+              if (normalizedCk.includes('membre') && (normalizedCk.includes('3') || normalizedCk.includes('additional') || normalizedCk.includes('additionel') || normalizedCk.includes('additionnel')) && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomAdditionalMembre = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomAdditionalMembre = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomAdditionalMembre = doctorantData.prenomAdditionalMembre || parts[0] || '';
+                  doctorantData.nomAdditionalMembre = doctorantData.nomAdditionalMembre || parts.slice(1).join(' ').toUpperCase() || '';
+                }
+              }
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && (normalizedCk.includes('3') || normalizedCk.includes('additional') || normalizedCk.includes('additionel') || normalizedCk.includes('additionnel')))
+                doctorantData.emailAdditionalMembre = val;
+
+              // Activités de recherche et heures (Restoration-specific)
+              if (ck.includes('posters')) doctorantData.posters = val;
+              if (ck.includes('conference')) doctorantData.conferencePapers = val;
+              if (ck.includes('publications')) doctorantData.publications = val;
+              if (ck.includes('communication'))
+                doctorantData.publicCommunication = val;
+              if (ck.includes('scientifique') && ck.includes('heure'))
+                doctorantData.nbHoursScientificModules = parseFloat(val) || 0;
+              if (ck.includes('transversale') && ck.includes('heure'))
+                doctorantData.nbHoursCrossDisciplinaryModules =
+                  parseFloat(val) || 0;
+              if (ck.includes('insertion') && ck.includes('heure'))
+                doctorantData.nbHoursProfessionalIntegrationModules =
+                  parseFloat(val) || 0;
+            }
+
             try {
-              const newDoctorant = new this.doctorantModel({
-                prenom,
-                nom,
-                email,
-                ID_DOCTORANT: findValue(['ID_DOCTORANT', 'id_doc']),
-                departementDoctorant: findValue([
-                  'DEPARTEMENT_DOCTORANT',
-                  'département',
-                  'department',
-                ]),
-                datePremiereInscription: this.safeParseDate(
-                  findValue(['Inscription', 'date_inscr']),
-                ),
-                anneeThese: findValue(['AnnéeThèse', 'thèse', 'year']),
-                typeFinancement: findValue(['Financement', 'funding']),
-                missions: findValue(['Missions']),
-                titreThese: findValue(['Sujet', 'titre', 'subject']),
-                intituleUR: findValue(['UnitésRecherche::Intitulé', 'UR']),
-                directeurUR: findValue([
-                  'UnitésRecherche::Nom_Prenom_DU',
-                  'DU',
-                ]),
-                intituleEquipe: findValue(['Equipes::Nom', 'Equipe']),
-                directeurEquipe: findValue([
-                  'Equipes::Nom_Prenom_Responsable',
-                  'Responsable',
-                ]),
-                nomPrenomHDR: findValue(['HDR::Nom_Prenom_HDR', 'HDR']),
-                email_HDR: findValue(['HDR::Email_HDR']),
-                importDate: currentYear,
-              });
-              await newDoctorant.save();
+              if (force) {
+                await this.doctorantModel.findOneAndUpdate(
+                  { email, importDate: currentYear },
+                  doctorantData,
+                  { upsert: true },
+                );
+              } else {
+                await this.doctorantModel.create(doctorantData);
+              }
               stats.inserted++;
             } catch (err) {
               stats.errors++;
-              console.error(`❌ Erreur insertion ${email}:`, err.message);
+              console.error(`❌ Erreur import ${email}:`, err.message);
             }
           }
 
           console.log('✅ Import terminé :', stats);
-          resolve({ ...stats, message });
-        })
-        .on('error', (error) => {
-          console.error('❌ Erreur lors du parsing CSV :', error);
-          reject(error);
-        });
-    });
+          resolve(stats);
+      }; // end processRows
+
+
+      if (isExcel) {
+        try {
+          if (!Buffer.isBuffer(input)) throw new Error("Le fichier Excel doit être fourni sous forme de Buffer.");
+          const XLSX = require('xlsx');
+          const workbook = XLSX.read(input, { type: 'buffer' });
+          const sheetName = workbook.SheetNames[0];
+          const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+          
+          for (const row of jsonRows) {
+            const cleanedRow = {};
+            for (const key in row as any) {
+              cleanedRow[cleanKey(key)] = String((row as any)[key]);
+            }
+            rows.push(cleanedRow);
+          }
+          await processRows();
+        } catch (e) {
+           console.error("❌ Erreur de parsing Excel :", e);
+           reject(e);
+        }
+      } else {
+        const readableStream = Readable.from(csvData);
+        readableStream
+          .pipe(csvParser({ separator }))
+          .on('data', (row) => {
+            const cleanedRow = {};
+            for (const key in row) {
+              cleanedRow[cleanKey(key)] = row[key];
+            }
+            rows.push(cleanedRow);
+          })
+          .on('end', async () => {
+             await processRows();
+          })
+          .on('error', (error) => {
+            console.error('❌ Erreur lors du parsing CSV :', error);
+            reject(error);
+          });
+      }
+    }); // end Promise
   }
 
   async findByReferentEmail(email: string) {
@@ -1271,6 +1397,27 @@ export class DoctorantService implements OnModuleInit {
 
     // 🔥 MAIN RENDERING LOOP 🔥
 
+    // 0. Official Preamble Placeholder
+    const preambleText =
+      'Ce document constitue le rapport final du Comité de Suivi Individuel (CSI). Il est destiné à l’École Doctorale et doit être conservé par le doctorant et ses encadrants. Les informations contenues sont strictement confidentielles.';
+    // (Placeholder text - Tony will provide the final official version)
+
+    if (preambleText) {
+      const preambleLines = wrapText(preambleText, 9, italicFont, maxWidth);
+      for (const line of preambleLines) {
+        if (y <= marginBottom) newPage();
+        page.drawText(line, {
+          x: marginLeft,
+          y,
+          size: 9,
+          font: italicFont,
+          color: descriptionColor,
+        });
+        y -= 11;
+      }
+      y -= 15; // Space after preamble
+    }
+
     // 1. Title is always first
     addTitleWidthVar('Rapport Annuel - CSI Year ', doctorant.anneeThese);
 
@@ -1419,9 +1566,12 @@ export class DoctorantService implements OnModuleInit {
         (r) => r.questionId === q._id.toString(),
       );
       let val = response?.value;
+      if (Array.isArray(val)) {
+        val = val.join(', ');
+      }
       const comment = response?.comment;
 
-      if (!val) val = 'N/A';
+      if (!val || (Array.isArray(val) && val.length === 0)) val = 'N/A';
 
       // Render Question
       if (y - 50 <= marginBottom) newPage();
