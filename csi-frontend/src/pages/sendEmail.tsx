@@ -19,6 +19,7 @@ const ImportCSVAndSendEmail: React.FC = () => {
         skippedNoEmail: number; 
         skippedMissingData: number; 
         errors: number;
+        skippedRowsDetails?: string[];
         message?: string;
         debug?: { 
             size: number; 
