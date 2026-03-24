@@ -755,28 +755,40 @@ export class DoctorantService implements OnModuleInit {
               }
 
               // Membres du CSI (parse prénom et nom)
-              if (normalizedCk.includes('cr csi dernier::membrecsi#1')) {
-                const parts = val.trim().split(/\s+/);
-                doctorantData.prenomMembre1 = parts[0] || '';
-                doctorantData.nomMembre1 = parts.slice(1).join(' ').toUpperCase() || '';
+              if (normalizedCk.includes('membre') && normalizedCk.includes('1') && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomMembre1 = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomMembre1 = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomMembre1 = doctorantData.prenomMembre1 || parts[0] || '';
+                  doctorantData.nomMembre1 = doctorantData.nomMembre1 || parts.slice(1).join(' ').toUpperCase() || '';
+                }
               }
-              if (normalizedCk.includes('cr csi dernier::import_emailmembre1'))
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && normalizedCk.includes('1'))
                 doctorantData.emailMembre1 = val;
 
-              if (normalizedCk.includes('cr csi dernier::membrecsi#2')) {
-                const parts = val.trim().split(/\s+/);
-                doctorantData.prenomMembre2 = parts[0] || '';
-                doctorantData.nomMembre2 = parts.slice(1).join(' ').toUpperCase() || '';
+              if (normalizedCk.includes('membre') && normalizedCk.includes('2') && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomMembre2 = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomMembre2 = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomMembre2 = doctorantData.prenomMembre2 || parts[0] || '';
+                  doctorantData.nomMembre2 = doctorantData.nomMembre2 || parts.slice(1).join(' ').toUpperCase() || '';
+                }
               }
-              if (normalizedCk.includes('cr csi dernier::import_emailmembre2'))
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && normalizedCk.includes('2'))
                 doctorantData.emailMembre2 = val;
 
-              if (normalizedCk.includes('cr csi dernier::membrecsi#3_additional')) {
-                const parts = val.trim().split(/\s+/);
-                doctorantData.prenomAdditionalMembre = parts[0] || '';
-                doctorantData.nomAdditionalMembre = parts.slice(1).join(' ').toUpperCase() || '';
+              if (normalizedCk.includes('membre') && (normalizedCk.includes('3') || normalizedCk.includes('additional') || normalizedCk.includes('additionel') || normalizedCk.includes('additionnel')) && !normalizedCk.includes('email')) {
+                if (normalizedCk.includes('prenom') || normalizedCk.includes('prénom')) doctorantData.prenomAdditionalMembre = val;
+                else if (normalizedCk.includes('nom')) doctorantData.nomAdditionalMembre = val.toUpperCase();
+                else {
+                  const parts = val.trim().split(/\s+/);
+                  doctorantData.prenomAdditionalMembre = doctorantData.prenomAdditionalMembre || parts[0] || '';
+                  doctorantData.nomAdditionalMembre = doctorantData.nomAdditionalMembre || parts.slice(1).join(' ').toUpperCase() || '';
+                }
               }
-              if (normalizedCk.includes('cr csi dernier::import_emailadditionalmembre'))
+              if (normalizedCk.includes('email') && normalizedCk.includes('membre') && (normalizedCk.includes('3') || normalizedCk.includes('additional') || normalizedCk.includes('additionel') || normalizedCk.includes('additionnel')))
                 doctorantData.emailAdditionalMembre = val;
 
               // Activités de recherche et heures (Restoration-specific)
@@ -1385,6 +1397,27 @@ export class DoctorantService implements OnModuleInit {
 
     // 🔥 MAIN RENDERING LOOP 🔥
 
+    // 0. Official Preamble Placeholder
+    const preambleText =
+      'Ce document constitue le rapport final du Comité de Suivi Individuel (CSI). Il est destiné à l’École Doctorale et doit être conservé par le doctorant et ses encadrants. Les informations contenues sont strictement confidentielles.';
+    // (Placeholder text - Tony will provide the final official version)
+
+    if (preambleText) {
+      const preambleLines = wrapText(preambleText, 9, italicFont, maxWidth);
+      for (const line of preambleLines) {
+        if (y <= marginBottom) newPage();
+        page.drawText(line, {
+          x: marginLeft,
+          y,
+          size: 9,
+          font: italicFont,
+          color: descriptionColor,
+        });
+        y -= 11;
+      }
+      y -= 15; // Space after preamble
+    }
+
     // 1. Title is always first
     addTitleWidthVar('Rapport Annuel - CSI Year ', doctorant.anneeThese);
 
@@ -1533,9 +1566,12 @@ export class DoctorantService implements OnModuleInit {
         (r) => r.questionId === q._id.toString(),
       );
       let val = response?.value;
+      if (Array.isArray(val)) {
+        val = val.join(', ');
+      }
       const comment = response?.comment;
 
-      if (!val) val = 'N/A';
+      if (!val || (Array.isArray(val) && val.length === 0)) val = 'N/A';
 
       // Render Question
       if (y - 50 <= marginBottom) newPage();

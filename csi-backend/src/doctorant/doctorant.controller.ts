@@ -25,6 +25,7 @@ import { UpdateDoctorantDto } from './dto/update-doctorant.dto';
 import { sendMail } from '../email/email.service';
 import { TokenService } from '../token/token.service';
 import { Doctorant } from './schemas/doctorant.schema';
+import { Question } from '../question/schemas/question.schema';
 import { Response, Request } from 'express';
 import * as fs from 'fs';
 import { InjectModel } from '@nestjs/mongoose';
@@ -44,6 +45,8 @@ export class DoctorantController {
     private readonly emailConfigService: EmailConfigService,
     @InjectModel(Doctorant.name)
     private readonly doctorantModel: Model<Doctorant>,
+    @InjectModel(Question.name)
+    private readonly questionModel: Model<Question>,
   ) {}
 
   @Get('refresh-statuses')
@@ -494,6 +497,124 @@ export class DoctorantController {
         message: 'Erreur interne lors de l’export CSV.',
         error: error.message,
       });
+    }
+  }
+
+  @Get('export/filemaker/csv')
+  async exportForFileMaker(@Res() res: Response) {
+    try {
+      const doctorants = await this.doctorantModel.find().lean();
+      const allQuestions = await this.questionModel.find({ active: true }).sort({ order: 1 }).lean();
+
+      if (doctorants.length === 0) {
+        return res.status(404).json({ message: 'Aucun doctorant trouvé.' });
+      }
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=export_filemaker.csv',
+      );
+
+      // Basic headers
+      const baseHeaders = [
+        'ID_DOCTORANT',
+        'nom',
+        'prenom',
+        'email',
+        'anneeThese',
+        'departementDoctorant',
+        'datePremiereInscription',
+        'dateEntretien',
+        'titreThese',
+        'typeFinancement',
+        'orcid',
+        'intituleUR',
+        'directeurUR',
+        'intituleEquipe',
+        'directeurEquipe',
+        'nomPrenomHDR',
+        'email_HDR',
+        'coDirecteurThese',
+        'nomMembre1',
+        'emailMembre1',
+        'nomMembre2',
+        'emailMembre2',
+        'nomAdditionalMembre',
+        'emailAdditionalMembre',
+        'nbHoursScientificModules',
+        'nbHoursCrossDisciplinaryModules',
+        'nbHoursProfessionalIntegrationModules',
+        'totalNbHours',
+        'missions',
+        'publications',
+        'conferencePapers',
+        'posters',
+        'publicCommunication',
+        'conclusion',
+        'recommendation',
+        'recommendation_comment',
+        'doctorantValide',
+        'representantValide',
+        'finalSend',
+        'dateValidation',
+      ];
+
+      // Dynamic questions headers
+      const questionHeaders = [];
+      allQuestions.forEach(q => {
+          if (q.type === 'system' || q.type === 'chapter_title' || q.type === 'description') return;
+          const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
+          questionHeaders.push(label);
+          questionHeaders.push(`${label}_comment`);
+      });
+
+      const headers = [...baseHeaders, ...questionHeaders];
+
+      const csvStream = format({ headers });
+      csvStream.pipe(res);
+
+      doctorants.forEach((doc: any, index) => {
+        const row: Record<string, any> = {};
+
+        // Fill base headers
+        baseHeaders.forEach(h => {
+          let val = doc[h];
+          if (val instanceof Date) val = val.toISOString().split('T')[0];
+          row[h] = val ?? '';
+        });
+
+        // Fill dynamic questions
+        allQuestions.forEach(q => {
+          if (q.type === 'system' || q.type === 'chapter_title' || q.type === 'description') return;
+          
+          const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
+          const response = doc.responses?.find(r => r.questionId === q._id.toString());
+          
+          let val = response?.value ?? '';
+          
+          // Handle array values (multiple choice)
+          if (typeof val === 'object' && Array.isArray(val)) {
+              val = val.join(', ');
+          } else if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+             // Sometimes it might be stringified array if coming from a raw source or legacy save
+             try {
+                 const parsed = JSON.parse(val);
+                 if (Array.isArray(parsed)) val = parsed.join(', ');
+             } catch(e) {}
+          }
+
+          row[label] = val;
+          row[`${label}_comment`] = response?.comment ?? '';
+        });
+
+        csvStream.write(row);
+      });
+
+      csvStream.end();
+    } catch (error) {
+      console.error('❌ Erreur export FileMaker:', error);
+      res.status(500).json({ message: 'Erreur export FileMaker', error: error.message });
     }
   }
 
