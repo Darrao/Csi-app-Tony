@@ -701,12 +701,14 @@ export class DoctorantService implements OnModuleInit {
 
               const ck = cleanKey(csvKey).toLowerCase();
 
+              const normalizedCk = ck.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
               // Noms / Prénoms
-              if (['prénom', 'prenom', 'first name'].includes(ck))
+              if (['prénom', 'prenom', 'first name'].includes(normalizedCk))
                 doctorantData.prenom = val;
-              else if (['nom', 'last name', 'surname'].includes(ck))
-                doctorantData.nom = val;
-              else if (['id_doctorant'].includes(ck))
+              else if (['nom', 'last name', 'surname'].includes(normalizedCk))
+                doctorantData.nom = val.trim().toUpperCase(); // Majuscule pour le format Prénom NOM
+              else if (['id_doctorant'].includes(normalizedCk))
                 doctorantData.ID_DOCTORANT = val;
 
               // Réponses Q1-Q17 et commentaires
@@ -717,27 +719,31 @@ export class DoctorantService implements OnModuleInit {
               }
 
               // Autres champs mappés existants
-              if (ck.includes('departement'))
-                doctorantData.departementDoctorant = val;
-              if (ck.includes('anneethese')) doctorantData.anneeThese = val;
-              if (ck.includes('missions')) doctorantData.missions = val;
-              if (ck.includes('titrethese') || ck.includes('sujet thèse'))
+              if (normalizedCk.includes('departement')) {
+                let dep = val;
+                if (dep.includes('DIRECT::')) dep = dep.replace('DIRECT::', '').trim();
+                doctorantData.departementDoctorant = dep;
+              }
+              if (normalizedCk.includes('anneethese') || (normalizedCk.includes('these') && normalizedCk.includes('annee'))) 
+                doctorantData.anneeThese = val;
+              if (normalizedCk.includes('missions')) doctorantData.missions = val;
+              if (normalizedCk.includes('titrethese') || normalizedCk.includes('sujet these') || normalizedCk.includes('sujetthese'))
                 doctorantData.titreThese = val;
-              if (ck.includes('conclusion')) doctorantData.conclusion = val;
-              if (ck === 'recommendation') doctorantData.recommendation = val;
-              if (ck.includes('recommendation_comment'))
+              if (normalizedCk.includes('conclusion')) doctorantData.conclusion = val;
+              if (normalizedCk === 'recommendation') doctorantData.recommendation = val;
+              if (normalizedCk.includes('recommendation_comment'))
                 doctorantData.recommendation_comment = val;
 
               // Nouveaux champs FM export 2026/2025
-              if (ck === 'calc_hdr' || ck.includes('directeur de thèse'))
+              if (normalizedCk === 'calc_hdr' || normalizedCk.includes('directeur de these') || ck.includes('hdr'))
                 doctorantData.nomPrenomHDR = val;
-              if (ck.includes('intitulé unité recherche'))
+              if (normalizedCk.includes('intitule unite recherche'))
                 doctorantData.intituleUR = val;
-              if (ck.includes('nom_prenom_du'))
+              if (normalizedCk.includes('nom_prenom_du'))
                 doctorantData.directeurUR = val;
-              if (ck.includes('nom equipe affichée'))
+              if (normalizedCk.includes('nom equipe affichee'))
                 doctorantData.intituleEquipe = val;
-              if (ck.includes('nom_prenom_responsable'))
+              if (normalizedCk.includes('nom_prenom_responsable') || normalizedCk.includes('referent'))
                 doctorantData.directeurEquipe = val;
 
               // Date du dernier CSI
@@ -749,28 +755,28 @@ export class DoctorantService implements OnModuleInit {
               }
 
               // Membres du CSI (parse prénom et nom)
-              if (ck.includes('cr csi dernier::membrecsi#1')) {
+              if (normalizedCk.includes('cr csi dernier::membrecsi#1')) {
                 const parts = val.trim().split(/\s+/);
                 doctorantData.prenomMembre1 = parts[0] || '';
-                doctorantData.nomMembre1 = parts.slice(1).join(' ') || '';
+                doctorantData.nomMembre1 = parts.slice(1).join(' ').toUpperCase() || '';
               }
-              if (ck.includes('cr csi dernier::import_emailmembre1'))
+              if (normalizedCk.includes('cr csi dernier::import_emailmembre1'))
                 doctorantData.emailMembre1 = val;
 
-              if (ck.includes('cr csi dernier::membrecsi#2')) {
+              if (normalizedCk.includes('cr csi dernier::membrecsi#2')) {
                 const parts = val.trim().split(/\s+/);
                 doctorantData.prenomMembre2 = parts[0] || '';
-                doctorantData.nomMembre2 = parts.slice(1).join(' ') || '';
+                doctorantData.nomMembre2 = parts.slice(1).join(' ').toUpperCase() || '';
               }
-              if (ck.includes('cr csi dernier::import_emailmembre2'))
+              if (normalizedCk.includes('cr csi dernier::import_emailmembre2'))
                 doctorantData.emailMembre2 = val;
 
-              if (ck.includes('cr csi dernier::membrecsi#3_additional')) {
+              if (normalizedCk.includes('cr csi dernier::membrecsi#3_additional')) {
                 const parts = val.trim().split(/\s+/);
                 doctorantData.prenomAdditionalMembre = parts[0] || '';
-                doctorantData.nomAdditionalMembre = parts.slice(1).join(' ') || '';
+                doctorantData.nomAdditionalMembre = parts.slice(1).join(' ').toUpperCase() || '';
               }
-              if (ck.includes('cr csi dernier::import_emailadditionalmembre'))
+              if (normalizedCk.includes('cr csi dernier::import_emailadditionalmembre'))
                 doctorantData.emailAdditionalMembre = val;
 
               // Activités de recherche et heures (Restoration-specific)
