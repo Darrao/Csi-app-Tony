@@ -197,7 +197,16 @@ const ImportCSVAndSendEmail: React.FC = () => {
                             <li>⚠️ <strong>{importStats.skippedDuplicate}</strong> doublon(s) ignoré(s) (déjà présent(s) en {importYear}) — coche "Forcer" pour les réimporter</li>
                         )}
                         {importStats.skippedNoEmail > 0 && (
-                            <li>⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)</li>
+                            <li>
+                                ⚠️ <strong>{importStats.skippedNoEmail}</strong> ligne(s) sans email ignorée(s)
+                                {importStats.skippedRowsDetails && importStats.skippedRowsDetails.length > 0 && (
+                                    <ul style={{ marginTop: '5px', fontSize: '12px', color: '#6b7280', paddingLeft: '20px' }}>
+                                        {importStats.skippedRowsDetails.map((name: string, i: number) => (
+                                            <li key={i}>{name || 'Ligne vide'}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </li>
                         )}
                         {importStats.skippedMissingData > 0 && (
                             <li>⚠️ <strong>{importStats.skippedMissingData}</strong> ligne(s) ignorée(s) (Prénom/Nom manquants)</li>
