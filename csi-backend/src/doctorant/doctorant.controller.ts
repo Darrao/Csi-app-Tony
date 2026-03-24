@@ -839,6 +839,7 @@ export class DoctorantController {
         buffer,
         year,
         forceReimport,
+        file.originalname,
       );
       return res.status(200).json({ message: 'Importation terminée.', result });
     } catch (error) {

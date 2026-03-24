@@ -539,6 +539,7 @@ export class DoctorantService implements OnModuleInit {
     input: string | Buffer,
     importYear?: number,
     force = false,
+    filename?: string,
   ): Promise<any> {
     let csvData = '';
     let detectedEncoding = 'UTF-8';
@@ -554,7 +555,11 @@ export class DoctorantService implements OnModuleInit {
         swapped.swap16();
         csvData = swapped.toString('utf16le');
         detectedEncoding = 'UTF-16BE (Swapped to LE)';
-      } else if (input[0] === 0xef && input[1] === 0xbb && input[2] === 0xbf) {
+      } else if (
+        input[0] === 0xef &&
+        input[1] === 0xbb &&
+        input[2] === 0xbf
+      ) {
         csvData = input.toString('utf8'); // UTF-8 avec BOM
         detectedEncoding = 'UTF-8-BOM';
       } else {
@@ -616,19 +621,8 @@ export class DoctorantService implements OnModuleInit {
       `🔍 [IMPORT] Première ligne : "${firstLine.substring(0, 100)}..."`,
     );
 
-    return new Promise((resolve, reject) => {
-      const readableStream = Readable.from(csvData);
-
-      readableStream
-        .pipe(csvParser({ separator }))
-        .on('data', (row) => {
-          const cleanedRow = {};
-          for (const key in row) {
-            cleanedRow[cleanKey(key)] = row[key];
-          }
-          rows.push(cleanedRow);
-        })
-        .on('end', async () => {
+    return new Promise(async (resolve, reject) => {
+      const processRows = async () => {
           const stats = {
             totalRowsParsed: rows.length,
             inserted: 0,
@@ -642,7 +636,7 @@ export class DoctorantService implements OnModuleInit {
               isUTF16: csvData.includes('\u0000'),
               isXLSX: csvData.startsWith('PK'),
               separator,
-              version: 'v2.1-buffer-support',
+              version: 'v2.2-full-mapping',
               encoding: detectedEncoding,
               timestamp: new Date().toISOString(),
             },
@@ -672,77 +666,185 @@ export class DoctorantService implements OnModuleInit {
             };
 
             const email = findValue(['email', 'envoi']);
-            const prenom = findValue(['prénom', 'prenom', 'first name']);
-            const nom = findValue(['nom', 'last name', 'surname']);
-
             if (!email) {
               stats.skippedNoEmail++;
               continue;
             }
 
-            if (!prenom && !nom) {
-              stats.skippedMissingData++;
-              continue;
-            }
-
             if (!force) {
-              const existingDoctorant = await this.doctorantModel
-                .findOne({ email, importDate: currentYear })
-                .exec();
-              if (existingDoctorant) {
+              const existing = await this.doctorantModel.findOne({
+                email,
+                importDate: currentYear,
+              });
+              if (existing) {
                 stats.skippedDuplicate++;
                 continue;
               }
             }
 
+            // [RESTRICTED-RESTORE] Mapping intelligent pour les exports complets
+            const doctorantData: any = {
+              email,
+              importDate: currentYear,
+            };
+
+            for (const csvKey of keys) {
+              const val = row[csvKey];
+              if (!val) continue;
+
+              const ck = cleanKey(csvKey).toLowerCase();
+
+              // Noms / Prénoms
+              if (['prénom', 'prenom', 'first name'].includes(ck))
+                doctorantData.prenom = val;
+              else if (['nom', 'last name', 'surname'].includes(ck))
+                doctorantData.nom = val;
+              else if (['id_doctorant'].includes(ck))
+                doctorantData.ID_DOCTORANT = val;
+
+              // Réponses Q1-Q17 et commentaires
+              const qMatch = ck.match(/^q(\d+)(_comment)?$/);
+              if (qMatch) {
+                const field = `Q${qMatch[1]}${qMatch[2] || ''}`;
+                doctorantData[field] = val;
+              }
+
+              // Autres champs mappés existants
+              if (ck.includes('departement'))
+                doctorantData.departementDoctorant = val;
+              if (ck.includes('anneethese')) doctorantData.anneeThese = val;
+              if (ck.includes('missions')) doctorantData.missions = val;
+              if (ck.includes('titrethese') || ck.includes('sujet thèse'))
+                doctorantData.titreThese = val;
+              if (ck.includes('conclusion')) doctorantData.conclusion = val;
+              if (ck === 'recommendation') doctorantData.recommendation = val;
+              if (ck.includes('recommendation_comment'))
+                doctorantData.recommendation_comment = val;
+
+              // Nouveaux champs FM export 2026/2025
+              if (ck === 'calc_hdr' || ck.includes('directeur de thèse'))
+                doctorantData.nomPrenomHDR = val;
+              if (ck.includes('intitulé unité recherche'))
+                doctorantData.intituleUR = val;
+              if (ck.includes('nom_prenom_du'))
+                doctorantData.directeurUR = val;
+              if (ck.includes('nom equipe affichée'))
+                doctorantData.intituleEquipe = val;
+              if (ck.includes('nom_prenom_responsable'))
+                doctorantData.directeurEquipe = val;
+
+              // Date du dernier CSI
+              if (ck.includes('cr csi dernier::annéedatecsi')) {
+                const year = parseInt(val, 10);
+                if (!isNaN(year)) {
+                  doctorantData.dateEntretien = new Date(year, 0, 1);
+                }
+              }
+
+              // Membres du CSI (parse prénom et nom)
+              if (ck.includes('cr csi dernier::membrecsi#1')) {
+                const parts = val.trim().split(/\s+/);
+                doctorantData.prenomMembre1 = parts[0] || '';
+                doctorantData.nomMembre1 = parts.slice(1).join(' ') || '';
+              }
+              if (ck.includes('cr csi dernier::import_emailmembre1'))
+                doctorantData.emailMembre1 = val;
+
+              if (ck.includes('cr csi dernier::membrecsi#2')) {
+                const parts = val.trim().split(/\s+/);
+                doctorantData.prenomMembre2 = parts[0] || '';
+                doctorantData.nomMembre2 = parts.slice(1).join(' ') || '';
+              }
+              if (ck.includes('cr csi dernier::import_emailmembre2'))
+                doctorantData.emailMembre2 = val;
+
+              if (ck.includes('cr csi dernier::membrecsi#3_additional')) {
+                const parts = val.trim().split(/\s+/);
+                doctorantData.prenomAdditionalMembre = parts[0] || '';
+                doctorantData.nomAdditionalMembre = parts.slice(1).join(' ') || '';
+              }
+              if (ck.includes('cr csi dernier::import_emailadditionalmembre'))
+                doctorantData.emailAdditionalMembre = val;
+
+              // Activités de recherche et heures (Restoration-specific)
+              if (ck.includes('posters')) doctorantData.posters = val;
+              if (ck.includes('conference')) doctorantData.conferencePapers = val;
+              if (ck.includes('publications')) doctorantData.publications = val;
+              if (ck.includes('communication'))
+                doctorantData.publicCommunication = val;
+              if (ck.includes('scientifique') && ck.includes('heure'))
+                doctorantData.nbHoursScientificModules = parseFloat(val) || 0;
+              if (ck.includes('transversale') && ck.includes('heure'))
+                doctorantData.nbHoursCrossDisciplinaryModules =
+                  parseFloat(val) || 0;
+              if (ck.includes('insertion') && ck.includes('heure'))
+                doctorantData.nbHoursProfessionalIntegrationModules =
+                  parseFloat(val) || 0;
+            }
+
             try {
-              const newDoctorant = new this.doctorantModel({
-                prenom,
-                nom,
-                email,
-                ID_DOCTORANT: findValue(['ID_DOCTORANT', 'id_doc']),
-                departementDoctorant: findValue([
-                  'DEPARTEMENT_DOCTORANT',
-                  'département',
-                  'department',
-                ]),
-                datePremiereInscription: this.safeParseDate(
-                  findValue(['Inscription', 'date_inscr']),
-                ),
-                anneeThese: findValue(['AnnéeThèse', 'thèse', 'year']),
-                typeFinancement: findValue(['Financement', 'funding']),
-                missions: findValue(['Missions']),
-                titreThese: findValue(['Sujet', 'titre', 'subject']),
-                intituleUR: findValue(['UnitésRecherche::Intitulé', 'UR']),
-                directeurUR: findValue([
-                  'UnitésRecherche::Nom_Prenom_DU',
-                  'DU',
-                ]),
-                intituleEquipe: findValue(['Equipes::Nom', 'Equipe']),
-                directeurEquipe: findValue([
-                  'Equipes::Nom_Prenom_Responsable',
-                  'Responsable',
-                ]),
-                nomPrenomHDR: findValue(['HDR::Nom_Prenom_HDR', 'HDR']),
-                email_HDR: findValue(['HDR::Email_HDR']),
-                importDate: currentYear,
-              });
-              await newDoctorant.save();
+              if (force) {
+                await this.doctorantModel.findOneAndUpdate(
+                  { email, importDate: currentYear },
+                  doctorantData,
+                  { upsert: true },
+                );
+              } else {
+                await this.doctorantModel.create(doctorantData);
+              }
               stats.inserted++;
             } catch (err) {
               stats.errors++;
-              console.error(`❌ Erreur insertion ${email}:`, err.message);
+              console.error(`❌ Erreur import ${email}:`, err.message);
             }
           }
 
           console.log('✅ Import terminé :', stats);
-          resolve({ ...stats, message });
-        })
-        .on('error', (error) => {
-          console.error('❌ Erreur lors du parsing CSV :', error);
-          reject(error);
-        });
-    });
+          resolve(stats);
+      }; // end processRows
+
+      const isExcel = filename && (filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls'));
+
+      if (isExcel) {
+        try {
+          if (!Buffer.isBuffer(input)) throw new Error("Le fichier Excel doit être fourni sous forme de Buffer.");
+          const XLSX = require('xlsx');
+          const workbook = XLSX.read(input, { type: 'buffer' });
+          const sheetName = workbook.SheetNames[0];
+          const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+          
+          for (const row of jsonRows) {
+            const cleanedRow = {};
+            for (const key in row as any) {
+              cleanedRow[cleanKey(key)] = String((row as any)[key]);
+            }
+            rows.push(cleanedRow);
+          }
+          await processRows();
+        } catch (e) {
+           console.error("❌ Erreur de parsing Excel :", e);
+           reject(e);
+        }
+      } else {
+        const readableStream = Readable.from(csvData);
+        readableStream
+          .pipe(csvParser({ separator }))
+          .on('data', (row) => {
+            const cleanedRow = {};
+            for (const key in row) {
+              cleanedRow[cleanKey(key)] = row[key];
+            }
+            rows.push(cleanedRow);
+          })
+          .on('end', async () => {
+             await processRows();
+          })
+          .on('error', (error) => {
+            console.error('❌ Erreur lors du parsing CSV :', error);
+            reject(error);
+          });
+      }
+    }); // end Promise
   }
 
   async findByReferentEmail(email: string) {
