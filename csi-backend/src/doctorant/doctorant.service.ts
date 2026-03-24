@@ -622,22 +622,24 @@ export class DoctorantService implements OnModuleInit {
     );
 
     return new Promise(async (resolve, reject) => {
+      const isExcel = filename && (filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls'));
       const processRows = async () => {
-          const stats = {
+          const stats: any = {
             totalRowsParsed: rows.length,
             inserted: 0,
             skippedDuplicate: 0,
             skippedNoEmail: 0,
             skippedMissingData: 0,
             errors: 0,
+            skippedRowsDetails: [], // NOUVEAU
             debug: {
-              size: csvData.length,
-              preview: csvData.substring(0, 50).replace(/[\r\n]/g, ' '),
-              isUTF16: csvData.includes('\u0000'),
-              isXLSX: csvData.startsWith('PK'),
-              separator,
-              version: 'v2.2-full-mapping',
-              encoding: detectedEncoding,
+              size: isExcel ? input.length : csvData.length,
+              preview: isExcel ? 'Fichier Excel (.xlsx/.xls) - Parsing natif' : csvData.substring(0, 50).replace(/[\r\n]/g, ' '),
+              isUTF16: isExcel ? false : csvData.includes('\u0000'),
+              isXLSX: isExcel || csvData.startsWith('PK'),
+              separator: isExcel ? 'N/A' : separator,
+              version: 'v4.1-excel-support',
+              encoding: isExcel ? 'Binary Excel' : detectedEncoding,
               timestamp: new Date().toISOString(),
             },
           };
@@ -668,6 +670,11 @@ export class DoctorantService implements OnModuleInit {
             const email = findValue(['email', 'envoi']);
             if (!email) {
               stats.skippedNoEmail++;
+              const prenom = findValue(['prénom', 'prenom']);
+              const nom = findValue(['nom']);
+              if (prenom || nom) {
+                 stats.skippedRowsDetails.push(`${prenom} ${nom}`.trim());
+              }
               continue;
             }
 
@@ -803,7 +810,6 @@ export class DoctorantService implements OnModuleInit {
           resolve(stats);
       }; // end processRows
 
-      const isExcel = filename && (filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls'));
 
       if (isExcel) {
         try {
