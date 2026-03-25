@@ -12,6 +12,12 @@ export class QuestionService implements OnModuleInit {
 
     async onModuleInit() {
         // await this.seedQuestions(); // 🛑 Disabled to prevent overwriting custom questions
+        try {
+            await this.questionModel.collection.dropIndex("systemId_1");
+            console.log("✅ Dropped legacy systemId index");
+        } catch (e) {
+            // Index might not exist, that's fine
+        }
     }
 
     async seedQuestions() {
@@ -98,26 +104,35 @@ export class QuestionService implements OnModuleInit {
             if (target) {
                 // A. Delete existing questions for THIS target that are NOT in the incoming list
                 const importedIds = questions
-                    .filter(q => q['_id'] && !q['_id'].toString().startsWith('temp_'))
-                    .map(q => q['_id']);
+                    .filter(q => q['_id'] && Types.ObjectId.isValid(q['_id'].toString()) && !q['_id'].toString().startsWith('temp_'))
+                    .map(q => new Types.ObjectId(q['_id'].toString()));
                 
                 await this.questionModel.deleteMany({ target, _id: { $nin: importedIds } });
 
                 // B. Process each question: Insert if temp ID, Update if real ID
                 const operations = questions.map(q => {
-                    const { _id, ...data } = q;
-                    if (_id && !_id.toString().startsWith('temp_')) {
+                    const { _id, ...data } = q as any;
+                    
+                    // Sanitize data: remove internal fields if any
+                    delete data.__v;
+                    delete data.createdAt;
+                    delete data.updatedAt;
+
+                    if (_id && Types.ObjectId.isValid(_id.toString()) && !_id.toString().startsWith('temp_')) {
                         return {
                             updateOne: {
-                                filter: { _id: new Types.ObjectId(_id as string) },
+                                filter: { _id: new Types.ObjectId(_id.toString()) },
                                 update: { $set: data },
                                 upsert: true
                             }
                         };
                     } else {
+                        // For new questions, ensure systemId is removed if it's just an empty string
+                        if (!data.systemId) delete data.systemId;
+                        
                         return {
                             insertOne: {
-                                document: { ...data, target } // Ensure target is correct
+                                document: { ...data, target }
                             }
                         };
                     }
@@ -133,6 +148,10 @@ export class QuestionService implements OnModuleInit {
             }
         } catch (error) {
             console.error("❌ ERROR IN BULK SYNC:", error);
+            // Log a bit more about the questions
+            if (questions && questions.length > 0) {
+                console.error("Total items to process:", questions.length);
+            }
             throw error;
         }
         
