@@ -92,41 +92,48 @@ export class QuestionService implements OnModuleInit {
     }
 
     async import(questions: Question[], target?: string): Promise<any> {
-        // 1. If target is provided, we only sync questions for that target
-        // Otherwise, we sync everything (destructive for other targets)
-        
-        if (target) {
-            // A. Delete existing questions for THIS target that are NOT in the incoming list
-            const importedIds = questions.filter(q => q['_id'] && !q['_id'].startsWith('temp_')).map(q => q['_id']);
-            await this.questionModel.deleteMany({ target, _id: { $nin: importedIds } });
+        try {
+            console.log(`📥 SYNCING ${questions.length} QUESTIONS FOR TARGET: ${target}`);
+            
+            if (target) {
+                // A. Delete existing questions for THIS target that are NOT in the incoming list
+                const importedIds = questions
+                    .filter(q => q['_id'] && !q['_id'].toString().startsWith('temp_'))
+                    .map(q => q['_id']);
+                
+                await this.questionModel.deleteMany({ target, _id: { $nin: importedIds } });
 
-            // B. Process each question: Insert if temp ID, Update if real ID
-            const operations = questions.map(q => {
-                const { _id, ...data } = q;
-                if (_id && !_id.toString().startsWith('temp_')) {
-                    return {
-                        updateOne: {
-                            filter: { _id },
-                            update: { $set: data },
-                            upsert: true
-                        }
-                    };
-                } else {
-                    return {
-                        insertOne: {
-                            document: { ...data, target } // Ensure target is correct
-                        }
-                    };
+                // B. Process each question: Insert if temp ID, Update if real ID
+                const operations = questions.map(q => {
+                    const { _id, ...data } = q;
+                    if (_id && !_id.toString().startsWith('temp_')) {
+                        return {
+                            updateOne: {
+                                filter: { _id },
+                                update: { $set: data },
+                                upsert: true
+                            }
+                        };
+                    } else {
+                        return {
+                            insertOne: {
+                                document: { ...data, target } // Ensure target is correct
+                            }
+                        };
+                    }
+                });
+
+                if (operations.length > 0) {
+                    return await this.questionModel.bulkWrite(operations);
                 }
-            });
-
-            if (operations.length > 0) {
-                return this.questionModel.bulkWrite(operations);
+            } else {
+                // Legacy behavior: Reset everything
+                await this.questionModel.deleteMany({});
+                return await this.questionModel.insertMany(questions);
             }
-        } else {
-            // Legacy behavior: Reset everything
-            await this.questionModel.deleteMany({});
-            return this.questionModel.insertMany(questions);
+        } catch (error) {
+            console.error("❌ ERROR IN BULK SYNC:", error);
+            throw error;
         }
         
         return { message: 'Synced empty list' };
