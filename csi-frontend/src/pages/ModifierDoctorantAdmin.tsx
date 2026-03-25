@@ -301,7 +301,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                                     min="1"
                                                     max="5"
                                                     step="1"
-                                                    value={Number(resp.value) || 1} // Default visual to 1 if empty, but shows "Non répondu" above
+                                                    value={Number(resp.value) || 1}
                                                     onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
                                                     style={{ flex: 1, cursor: 'pointer' }}
                                                 />
@@ -309,6 +309,34 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                                     {resp.value || '-'}
                                                 </span>
                                             </div>
+                                        </div>
+                                    ) : q.type === 'multiple_choice' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {(q.options || []).map((opt: string, idx: number) => {
+                                                const currentValues = String(resp.value || '').split(',').filter(Boolean);
+                                                const isChecked = currentValues.includes(opt);
+                                                return (
+                                                    <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em' }}>
+                                                        <input
+                                                            type={q.allowMultipleSelection ? "checkbox" : "radio"}
+                                                            name={`question_${q._id}`}
+                                                            checked={isChecked}
+                                                            onChange={() => {
+                                                                if (q.allowMultipleSelection) {
+                                                                    const nextValues = isChecked
+                                                                        ? currentValues.filter(v => v !== opt)
+                                                                        : [...currentValues, opt];
+                                                                    handleResponseChange(q._id, 'value', nextValues.join(','));
+                                                                } else {
+                                                                    handleResponseChange(q._id, 'value', opt);
+                                                                }
+                                                            }}
+                                                            style={{ marginRight: '10px' }}
+                                                        />
+                                                        {opt}
+                                                    </label>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <input

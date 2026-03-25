@@ -1649,7 +1649,11 @@ export class DoctorantService implements OnModuleInit {
           color: accentColor,
         });
         y -= 12;
-        addWrappedTextContent(correction.value, accentColor);
+        let correctionVal = correction.value;
+        if (Array.isArray(correctionVal)) {
+          correctionVal = correctionVal.join(', ');
+        }
+        addWrappedTextContent(correctionVal, accentColor);
         if (correction.comment) {
           addWrappedTextContent(`Reason: ${correction.comment}`, accentColor);
         }
@@ -1772,6 +1776,9 @@ export class DoctorantService implements OnModuleInit {
         // IMPORTANT: For REFERENT questions, "val" is the REFERENT's Answer.
         // Is it stored in the same 'responses' array? Yes.
 
+        if (Array.isArray(val)) {
+          val = val.join(', ');
+        }
         if (!val) val = 'N/A';
 
         // Render Question

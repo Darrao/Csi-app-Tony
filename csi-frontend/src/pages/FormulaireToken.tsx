@@ -544,6 +544,20 @@ const FormulaireToken: React.FC = () => {
                                                                                         <option value="No">No</option>
                                                                                     </>}
                                                                                 </Field>
+                                                                            ) : q.type === 'multiple_choice' ? (
+                                                                                <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
+                                                                                    {(q.options || []).map((opt: string, idx: number) => (
+                                                                                        <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                                            <Field 
+                                                                                                type={q.allowMultipleSelection ? "checkbox" : "radio"} 
+                                                                                                name={`responses.${q._id}_corrected.value`} 
+                                                                                                value={opt} 
+                                                                                                style={{ margin: 0, marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+                                                                                            />
+                                                                                            <span style={{ fontSize: '1rem', color: '#333' }}>{opt}</span>
+                                                                                        </label>
+                                                                                    ))}
+                                                                                </div>
                                                                             ) : (
                                                                                 <Field type="text" name={`responses.${q._id}_corrected.value`} className="select-input" placeholder="Your corrected answer..." />
                                                                             )}
