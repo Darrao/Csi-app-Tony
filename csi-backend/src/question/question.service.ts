@@ -91,40 +91,42 @@ export class QuestionService implements OnModuleInit {
         return this.questionModel.find().sort({ order: 1 }).exec();
     }
 
-    async import(questions: Question[]): Promise<any> {
-        // 1. Get IDs from imported questions to identify which to keep/update
-        const importedIds = questions.filter(q => q['_id']).map(q => q['_id']);
-
-        // 2. Delete questions that are NOT in the imported list (if any ID logic exists), 
-        // BUT simpler strategy for "Sync":
-        // "Import" here implies resetting the state to match the file.
-        // So we should delete all existing questions and re-insert, OR upsert carefully.
-        // The plan said: "Questions present in import -> update/create. Questions NOT in import -> DELETE."
+    async import(questions: Question[], target?: string): Promise<any> {
+        // 1. If target is provided, we only sync questions for that target
+        // Otherwise, we sync everything (destructive for other targets)
         
-        // Let's implement that exact logic.
-        
-        // A. Delete any question whose ID is NOT in the import list
-        if (importedIds.length > 0) {
-            await this.questionModel.deleteMany({ _id: { $nin: importedIds } });
-        } else {
-            // If import list has no IDs (or is empty), we might be clearing everything? 
-            // Or if they are new without IDs? 
-            // Assuming we export with IDs, so we expect IDs.
-            // If an empty list is imported, we delete everything.
-            await this.questionModel.deleteMany({});
-        }
+        if (target) {
+            // A. Delete existing questions for THIS target that are NOT in the incoming list
+            const importedIds = questions.filter(q => q['_id'] && !q['_id'].startsWith('temp_')).map(q => q['_id']);
+            await this.questionModel.deleteMany({ target, _id: { $nin: importedIds } });
 
-        // B. Upsert each question from the list
-        const operations = questions.map(q => ({
-            updateOne: {
-                filter: { _id: q['_id'] },
-                update: { $set: q },
-                upsert: true
+            // B. Process each question: Insert if temp ID, Update if real ID
+            const operations = questions.map(q => {
+                const { _id, ...data } = q;
+                if (_id && !_id.toString().startsWith('temp_')) {
+                    return {
+                        updateOne: {
+                            filter: { _id },
+                            update: { $set: data },
+                            upsert: true
+                        }
+                    };
+                } else {
+                    return {
+                        insertOne: {
+                            document: { ...data, target } // Ensure target is correct
+                        }
+                    };
+                }
+            });
+
+            if (operations.length > 0) {
+                return this.questionModel.bulkWrite(operations);
             }
-        }));
-
-        if (operations.length > 0) {
-            return this.questionModel.bulkWrite(operations);
+        } else {
+            // Legacy behavior: Reset everything
+            await this.questionModel.deleteMany({});
+            return this.questionModel.insertMany(questions);
         }
         
         return { message: 'Synced empty list' };

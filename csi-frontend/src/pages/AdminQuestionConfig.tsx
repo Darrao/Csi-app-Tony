@@ -370,54 +370,45 @@ const AdminQuestionConfig: React.FC = () => {
     };
 
     const handleSaveChanges = async () => {
+        if (questions.length === 0 && !window.confirm("Are you sure you want to delete ALL questions for this target?")) return;
+
         try {
-            // 1. Process Insertions and Updates
-            await Promise.all(questions.map(async (q, index) => {
-                // Construct clean payload
+            // Prepare clean payload for bulk sync
+            const syncPayload = questions.map((q, index) => {
                 const payload: any = {
-                    target: q.target,
-                    content: q.content,
-                    section: (q.type === 'chapter_title' && (!q.section || q.section === "")) ? "CHAPTER" : q.section, // ✅ Auto-fix empty sections for chapters
-                    type: q.type,
+                    ...q,
                     order: index + 1,
-                    active: q.active,
-                    required: !!q.required,
-                    visibleToReferent: !!q.visibleToReferent,
-                    visibleInPdf: !!q.visibleInPdf, // ✅ Include in payload
-                    allowMultipleSelection: !!q.allowMultipleSelection,
+                    section: (q.type === 'chapter_title' && (!q.section || q.section === "")) ? "CHAPTER" : q.section
                 };
-                if (q.type === 'multiple_choice') {
-                    payload.options = q.options || [];
+                
+                // Ensure correct types
+                payload.required = !!q.required;
+                payload.active = !!q.active;
+                payload.visibleToReferent = !!q.visibleToReferent;
+                payload.visibleInPdf = q.visibleInPdf !== false;
+
+                // Strip unnecessary fields for cleaner payload
+                if (payload.type !== 'multiple_choice') {
+                    delete payload.options;
+                    delete payload.allowMultipleSelection;
                 }
-                if (q.helpText) payload.helpText = q.helpText;
-                if (q.placeholder) payload.placeholder = q.placeholder;
-                if (q.systemId) payload.systemId = q.systemId;
 
-                if (q._id.startsWith('temp_')) {
-                    // CREATE
-                    await api.post('/questions', payload);
-                } else {
-                    // UPDATE
-                    await api.put(`/questions/${q._id}`, payload);
-                }
-            }));
+                return payload;
+            });
 
-            // 2. Process Deletions
-            if (deletedIds.length > 0) {
-                await Promise.all(deletedIds.map(id => api.delete(`/questions/${id}`)));
-            }
-
+            await api.post(`/questions/import?target=${target}`, syncPayload);
+            
             setUnsavedChanges(false);
             setDeletedIds([]);
-
-            // Refresh to get real IDs back
+            
+            // Refresh to get real MongoDB IDs and stay synced
             await fetchQuestions();
-
-            alert("All changes saved successfully!");
+            
+            alert('All changes saved successfully!');
         } catch (err: any) {
-            console.error("Error saving changes:", err);
+            console.error('Failed to save changes:', err);
             const msg = err.response?.data?.message || err.message;
-            alert(`Failed to save changes: ${Array.isArray(msg) ? msg.join(', ') : msg}`);
+            alert('Failed to save changes: ' + (Array.isArray(msg) ? msg.join(', ') : msg));
         }
     };
 

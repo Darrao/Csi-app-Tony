@@ -24,8 +24,8 @@ export class QuestionController {
     }
 
     @Post('import')
-    async import(@Body() questions: any[]) { // Using any[] for simplicity, but ideally Question[]
-        return this.questionService.import(questions);
+    async import(@Body() questions: any[], @Query('target') target?: string) { 
+        return this.questionService.import(questions, target);
     }
 
     @Get()

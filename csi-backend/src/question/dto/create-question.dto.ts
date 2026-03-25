@@ -11,8 +11,16 @@ export class CreateQuestionDto {
     @IsString()
     section: string;
 
-    @IsEnum(['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system', 'chapter_title', 'description'])
+    @IsEnum(['text', 'scale_1_5', 'rating_comment', 'plus_minus_comment', 'select', 'system', 'chapter_title', 'description', 'multiple_choice'])
     type: string;
+
+    @IsOptional()
+    @IsString({ each: true })
+    options?: string[];
+
+    @IsOptional()
+    @IsBoolean()
+    allowMultipleSelection?: boolean;
 
     @IsNumber()
     order: number;
