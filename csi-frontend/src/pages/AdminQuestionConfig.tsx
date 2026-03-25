@@ -79,7 +79,7 @@ const AdminQuestionConfig: React.FC = () => {
         allowMultipleSelection: false
     });
 
-    const [deletedIds, setDeletedIds] = useState<string[]>([]);
+
     
     // EXPORT / IMPORT LOGIC
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -146,7 +146,7 @@ const AdminQuestionConfig: React.FC = () => {
             setQuestions(sorted);
             // Reset unsaved changes when pulling fresh data
             setUnsavedChanges(false);
-            setDeletedIds([]);
+
         } catch (error) {
             console.error('Error fetching questions:', error);
         }
@@ -173,7 +173,7 @@ const AdminQuestionConfig: React.FC = () => {
             if (!confirmLeave) return; // Logic flaw in hook, but fine for basic protection
         }
         setUnsavedChanges(false);
-        setDeletedIds([]);
+
         fetchQuestions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [target]);
@@ -196,10 +196,7 @@ const AdminQuestionConfig: React.FC = () => {
         // Remove locally
         setQuestions(prev => prev.filter(q => q._id !== id));
 
-        // If it's a real ID (not temp), add to deletion queue
-        if (!id.startsWith('temp_')) {
-            setDeletedIds(prev => [...prev, id]);
-        }
+
 
         setUnsavedChanges(true);
     };
@@ -314,9 +311,9 @@ const AdminQuestionConfig: React.FC = () => {
             // Content empty - if ID exists, user deleted the description
             if (descriptionId) {
                 updatedQuestions = updatedQuestions.filter(q => q._id !== descriptionId);
-                // Also add to deletedIds if it's not a temp one
+                // Also delete from updatedQuestions if it's not a temp one
                 if (!descriptionId.startsWith('temp_')) {
-                    setDeletedIds(prev => [...prev, descriptionId]);
+                    // Handled by bulk sync on save
                 }
             }
         }
@@ -399,7 +396,6 @@ const AdminQuestionConfig: React.FC = () => {
             await api.post(`/questions/import?target=${target}`, syncPayload);
             
             setUnsavedChanges(false);
-            setDeletedIds([]);
             
             // Refresh to get real MongoDB IDs and stay synced
             await fetchQuestions();
