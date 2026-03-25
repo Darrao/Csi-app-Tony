@@ -1,7 +1,7 @@
 
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Question, QuestionDocument } from './schemas/question.schema';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -109,7 +109,7 @@ export class QuestionService implements OnModuleInit {
                     if (_id && !_id.toString().startsWith('temp_')) {
                         return {
                             updateOne: {
-                                filter: { _id },
+                                filter: { _id: new Types.ObjectId(_id as string) },
                                 update: { $set: data },
                                 upsert: true
                             }
