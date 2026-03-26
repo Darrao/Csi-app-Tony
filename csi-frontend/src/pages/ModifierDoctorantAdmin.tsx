@@ -295,95 +295,136 @@ const ModifierDoctorantAdmin: React.FC = () => {
         const filtered = questions.filter((q: any) => !q.systemId).sort((a: any, b: any) => a.order - b.order);
         if (filtered.length === 0) return null;
 
+        // Build section-grouped elements in order
+        const sectionElements: JSX.Element[] = [];
+        let currentSection: string | null = null;
+        let sectionContent: JSX.Element[] = [];
+
+        const flushSection = () => {
+            if (currentSection !== null && sectionContent.length > 0) {
+                sectionElements.push(
+                    <div key={`section-${currentSection}`} style={{ marginBottom: '20px' }}>
+                        {currentSection !== 'CHAPTER' && (
+                            <h3 style={{ color: '#4a5568', fontSize: '1em', fontWeight: '600', marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', marginTop: '20px' }}>
+                                {currentSection}
+                            </h3>
+                        )}
+                        {sectionContent}
+                    </div>
+                );
+                sectionContent = [];
+            }
+        };
+
+        filtered.forEach((q: any) => {
+            if (q.section !== currentSection) {
+                flushSection();
+                currentSection = q.section;
+            }
+
+            if (q.type === 'chapter_title') {
+                sectionContent.push(
+                    <div key={q._id} style={{ marginTop: '20px', marginBottom: '15px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '8px' }}>
+                        <h3 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '1.1em', margin: 0 }}>{q.content}</h3>
+                        {q.helpText && <p style={{ marginTop: '4px', fontSize: '0.85em', color: '#555', fontStyle: 'italic' }}>{q.helpText}</p>}
+                    </div>
+                );
+                return;
+            }
+
+            if (q.type === 'description') {
+                sectionContent.push(
+                    <div key={q._id} style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#f0f4ff', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
+                        <p style={{ margin: 0, fontSize: '0.9em', color: '#333' }}>{q.content}</p>
+                    </div>
+                );
+                return;
+            }
+
+            const resp = targetType === 'doctorant' ? getResponse(q._id) : getReferentResponse(q._id);
+            const changeHandler = targetType === 'doctorant' ? handleResponseChange : handleReferentResponseChange;
+            const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
+            const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
+
+            sectionContent.push(
+                <div key={q._id} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px solid #eee' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#2d3748' }}>
+                        {q.content}
+                    </label>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                        <div>
+                            <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Réponse :</span>
+                            {isScale ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu</span>}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <input
+                                            type="range" min="1" max="5" step="1"
+                                            value={Number(resp.value) || 1}
+                                            onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
+                                            style={{ flex: 1, cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>{resp.value || '-'}</span>
+                                    </div>
+                                </div>
+                            ) : q.type === 'multiple_choice' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {(q.options || []).map((opt: string, idx: number) => {
+                                        const currentValues = String(resp.value || '').split(',').filter(Boolean);
+                                        const isChecked = currentValues.includes(opt);
+                                        return (
+                                            <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em' }}>
+                                                <input
+                                                    type={q.allowMultipleSelection ? "checkbox" : "radio"}
+                                                    name={`question_${q._id}`}
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (q.allowMultipleSelection) {
+                                                            const nextValues = isChecked ? currentValues.filter(v => v !== opt) : [...currentValues, opt];
+                                                            changeHandler(q._id, 'value', nextValues.join(','));
+                                                        } else {
+                                                            changeHandler(q._id, 'value', opt);
+                                                        }
+                                                    }}
+                                                    style={{ marginRight: '10px' }}
+                                                />
+                                                {opt}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={resp.value || ''}
+                                    onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
+                                    style={inputStyle}
+                                    placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
+                                />
+                            )}
+                        </div>
+                        <div>
+                            <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Commentaire :</span>
+                            <input
+                                type="text"
+                                value={resp.comment || ''}
+                                onChange={(e) => changeHandler(q._id, 'comment', e.target.value)}
+                                style={inputStyle}
+                                placeholder="Commentaire optionnel"
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
+        flushSection(); // flush last section
+
         return (
             <div style={sectionStyle}>
                 <h2 style={sectionHeaderStyle}>{icon} {sectionTitle}</h2>
-                {filtered.map((q: any) => {
-                    const resp = targetType === 'doctorant' ? getResponse(q._id) : getReferentResponse(q._id);
-                    const changeHandler = targetType === 'doctorant' ? handleResponseChange : handleReferentResponseChange;
-                    const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
-                    // We check if it is "visually empty" just to add a hint, but we render inputs regardless
-                    const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
-
-                    return (
-                        <div key={q._id} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px solid #eee' }}>
-                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#2d3748' }}>
-                                {q.content}
-                            </label>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div>
-                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Réponse :</span>
-                                    {isScale ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                            {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu (Modifier pour définir)</span>}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="5"
-                                                    step="1"
-                                                    value={Number(resp.value) || 1}
-                                                    onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
-                                                    style={{ flex: 1, cursor: 'pointer' }}
-                                                />
-                                                <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>
-                                                    {resp.value || '-'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ) : q.type === 'multiple_choice' ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {(q.options || []).map((opt: string, idx: number) => {
-                                                const currentValues = String(resp.value || '').split(',').filter(Boolean);
-                                                const isChecked = currentValues.includes(opt);
-                                                return (
-                                                    <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em' }}>
-                                                        <input
-                                                            type={q.allowMultipleSelection ? "checkbox" : "radio"}
-                                                            name={`question_${q._id}`}
-                                                            checked={isChecked}
-                                                            onChange={() => {
-                                                                if (q.allowMultipleSelection) {
-                                                                    const nextValues = isChecked
-                                                                        ? currentValues.filter(v => v !== opt)
-                                                                        : [...currentValues, opt];
-                                                                    changeHandler(q._id, 'value', nextValues.join(','));
-                                                                } else {
-                                                                    changeHandler(q._id, 'value', opt);
-                                                                }
-                                                            }}
-                                                            style={{ marginRight: '10px' }}
-                                                        />
-                                                        {opt}
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={resp.value || ''}
-                                            onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
-                                            style={inputStyle}
-                                            placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
-                                        />
-                                    )}
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Commentaire :</span>
-                                    <input
-                                        type="text"
-                                        value={resp.comment || ''}
-                                        onChange={(e) => changeHandler(q._id, 'comment', e.target.value)}
-                                        style={inputStyle}
-                                        placeholder="Commentaire optionnel"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                {sectionElements}
             </div>
         );
     };
@@ -585,7 +626,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />, 'doctorant')}
 
                 {/* FORMULAIRE RÉFÉRENS */}
-                {renderQuestions(referentQuestions, "Évaluation par les référents", <IconUsers />, 'referent')}
+                {renderQuestions(referentQuestions, "Formulaire référents", <IconUsers />, 'referent')}
 
                 {/* ACTIVITÉS & FORMATIONS */}
                 <div style={sectionStyle}>
