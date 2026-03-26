@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine, FaSpinner } from 'react-icons/fa';
+import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine, FaSpinner, FaUsers } from 'react-icons/fa';
 
-// Fix for React 18 type mismatch with react-icons
 // Fix for React 18 type mismatch with react-icons
 const IconFilePdf = FaFilePdf as any;
 const IconArrowLeft = FaArrowLeft as any;
@@ -17,13 +16,14 @@ const IconBullhorn = FaBullhorn as any;
 const IconQuestionCircle = FaQuestionCircle as any;
 const IconChartLine = FaChartLine as any;
 const IconSpinner = FaSpinner as any;
+const IconUsers = FaUsers as any;
 
 const ModifierDoctorantAdmin: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [doctorant, setDoctorant] = useState<any>(null);
     const [doctorantQuestions, setDoctorantQuestions] = useState<any[]>([]);
-    // const [referentQuestions, setReferentQuestions] = useState<any[]>([]); // Unused
+    const [referentQuestions, setReferentQuestions] = useState<any[]>([]); // Unused
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
@@ -45,14 +45,14 @@ const ModifierDoctorantAdmin: React.FC = () => {
                     headers: { Authorization: token }
                 });
 
-                const [qDocResponse] = await Promise.all([
+                const [qDocResponse, qRefResponse] = await Promise.all([
                     api.get('/questions?target=doctorant'),
                     api.get('/questions?target=referent')
                 ]);
 
                 setDoctorant(docResponse.data);
                 setDoctorantQuestions(qDocResponse.data);
-                // setReferentQuestions(qRefResponse.data);
+                setReferentQuestions(qRefResponse.data);
                 setLoading(false);
             } catch (err: any) {
                 console.error("Erreur lors de la récupération des données :", err);
@@ -106,6 +106,24 @@ const ModifierDoctorantAdmin: React.FC = () => {
         }
 
         setDoctorant({ ...doctorant, responses: updatedResponses });
+        setIsDirty(true);
+    };
+
+    const handleReferentResponseChange = (questionId: string, field: 'value' | 'comment', newValue: string) => {
+        const updatedResponses = [...(doctorant.referentResponses || [])];
+        const index = updatedResponses.findIndex((r: any) => r.questionId === questionId);
+
+        if (index >= 0) {
+            updatedResponses[index] = { ...updatedResponses[index], [field]: newValue };
+        } else {
+            updatedResponses.push({
+                questionId,
+                value: field === 'value' ? newValue : '',
+                comment: field === 'comment' ? newValue : ''
+            });
+        }
+
+        setDoctorant({ ...doctorant, referentResponses: updatedResponses });
         setIsDirty(true);
     };
 
@@ -269,8 +287,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
     // Helper to get response value safely
     const getResponse = (qId: string) => doctorant.responses?.find((r: any) => r.questionId === qId) || {};
+    const getReferentResponse = (qId: string) => doctorant.referentResponses?.find((r: any) => r.questionId === qId) || {};
 
-    const renderQuestions = (questions: any[], sectionTitle: string, icon: any) => {
+    const renderQuestions = (questions: any[], sectionTitle: string, icon: any, targetType: 'doctorant' | 'referent' = 'doctorant') => {
         const filtered = questions.filter((q: any) => !q.systemId).sort((a: any, b: any) => a.order - b.order);
         if (filtered.length === 0) return null;
 
@@ -278,7 +297,8 @@ const ModifierDoctorantAdmin: React.FC = () => {
             <div style={sectionStyle}>
                 <h2 style={sectionHeaderStyle}>{icon} {sectionTitle}</h2>
                 {filtered.map((q: any) => {
-                    const resp = getResponse(q._id);
+                    const resp = targetType === 'doctorant' ? getResponse(q._id) : getReferentResponse(q._id);
+                    const changeHandler = targetType === 'doctorant' ? handleResponseChange : handleReferentResponseChange;
                     const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
                     // We check if it is "visually empty" just to add a hint, but we render inputs regardless
                     const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
@@ -302,7 +322,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                                     max="5"
                                                     step="1"
                                                     value={Number(resp.value) || 1}
-                                                    onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                                    onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
                                                     style={{ flex: 1, cursor: 'pointer' }}
                                                 />
                                                 <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>
@@ -326,9 +346,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                                                     const nextValues = isChecked
                                                                         ? currentValues.filter(v => v !== opt)
                                                                         : [...currentValues, opt];
-                                                                    handleResponseChange(q._id, 'value', nextValues.join(','));
+                                                                    changeHandler(q._id, 'value', nextValues.join(','));
                                                                 } else {
-                                                                    handleResponseChange(q._id, 'value', opt);
+                                                                    changeHandler(q._id, 'value', opt);
                                                                 }
                                                             }}
                                                             style={{ marginRight: '10px' }}
@@ -342,7 +362,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                         <input
                                             type="text"
                                             value={resp.value || ''}
-                                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                            onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
                                             style={inputStyle}
                                             placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
                                         />
@@ -353,7 +373,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                     <input
                                         type="text"
                                         value={resp.comment || ''}
-                                        onChange={(e) => handleResponseChange(q._id, 'comment', e.target.value)}
+                                        onChange={(e) => changeHandler(q._id, 'comment', e.target.value)}
                                         style={inputStyle}
                                         placeholder="Commentaire optionnel"
                                     />
@@ -560,7 +580,10 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 </div>
 
                 {/* FORMULAIRE ÉTUDIANT */}
-                {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />)}
+                {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />, 'doctorant')}
+
+                {/* FORMULAIRE RÉFÉRENS */}
+                {renderQuestions(referentQuestions, "Évaluation par les référents (Confidentiel)", <IconUsers />, 'referent')}
 
                 {/* ACTIVITÉS & FORMATIONS */}
                 <div style={sectionStyle}>

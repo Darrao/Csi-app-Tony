@@ -88,8 +88,9 @@ export class DoctorantController {
     }
     console.log('✅ Export Claris demandé');
     const doctorants = await this.doctorantService.findAll();
+    const allQuestions = await this.questionModel.find({ active: true }).sort({ order: 1 }).lean();
 
-    // On transforme la liste pour ajouter l'URL du PDF
+    // On transforme la liste pour ajouter l'URL du PDF et aplatir les réponses
     const protocol = req.protocol;
     const host = req.get('host');
     const baseUrl = `${protocol}://${host}`;
@@ -100,11 +101,35 @@ export class DoctorantController {
         doc.ID_UNIQUE_IMPORT ||
         `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
 
-      return {
-        ...doc, // Garde toutes les propriétés existantes
+      const flattenedDoc: any = {
+        ...doc,
         ID_UNIQUE_IMPORT: computedUniqueId,
         pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}`,
       };
+
+      // Aplatir les réponses dynamiques
+      allQuestions.forEach(q => {
+        if (q.type === 'system' || q.type === 'chapter_title' || q.type === 'description') return;
+        
+        const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
+        
+        // Find respective response
+        const response = doc.responses?.find((r: any) => r.questionId === q._id.toString());
+        const referentResponse = doc.referentResponses?.find((r: any) => r.questionId === q._id.toString());
+        
+        // Pick the one that exists or based on target
+        const activeResp = q.target === 'referent' ? referentResponse : response;
+        
+        let val = activeResp?.value ?? '';
+        if (Array.isArray(val)) {
+            val = val.join(', ');
+        }
+        
+        flattenedDoc[label] = val;
+        flattenedDoc[`${label}_comment`] = activeResp?.comment ?? '';
+      });
+
+      return flattenedDoc;
     });
   }
 
