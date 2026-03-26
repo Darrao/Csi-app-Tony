@@ -352,4 +352,10 @@ export class CreateDoctorantDto {
   @ValidateNested({ each: true })
   @Type(() => QuestionResponseDto)
   responses?: QuestionResponseDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionResponseDto)
+  referentResponses?: QuestionResponseDto[];
 }

@@ -178,7 +178,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
         setSubmitting(true);
 
-        const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+        const { _id: _unusedId, id: _unusedRawId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+
+        console.log("📤 Données envoyées au backend :", sanitizedDoctorant);
 
         // Clean empty fields
         Object.keys(sanitizedDoctorant).forEach((key) => {
@@ -583,7 +585,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />, 'doctorant')}
 
                 {/* FORMULAIRE RÉFÉRENS */}
-                {renderQuestions(referentQuestions, "Évaluation par les référents (Confidentiel)", <IconUsers />, 'referent')}
+                {renderQuestions(referentQuestions, "Évaluation par les référents", <IconUsers />, 'referent')}
 
                 {/* ACTIVITÉS & FORMATIONS */}
                 <div style={sectionStyle}>
