@@ -704,10 +704,29 @@ export class DoctorantService implements OnModuleInit {
               const normalizedCk = ck.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
               // Noms / Prénoms
-              if (['prénom', 'prenom', 'first name'].includes(normalizedCk))
-                doctorantData.prenom = val;
-              else if (['nom', 'last name', 'surname'].includes(normalizedCk))
-                doctorantData.nom = val.trim().toUpperCase(); // Majuscule pour le format Prénom NOM
+              if (['prénom', 'prenom', 'first name', 'firstname'].includes(normalizedCk))
+                doctorantData.prenom = val.trim();
+              else if (['nom', 'last name', 'lastname', 'surname'].includes(normalizedCk))
+                doctorantData.nom = val.trim().toUpperCase();
+              // ✅ Gestion du champ combiné "Prénom Nom" ou "Nom Prénom" (export FileMaker)
+              else if (normalizedCk === 'prenom_nom' || normalizedCk === 'prenomnom' || normalizedCk === 'nom_prenom' || normalizedCk === 'nomprenom' || normalizedCk === 'prenom nom' || normalizedCk === 'nom prenom') {
+                const parts = val.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                  if (normalizedCk.startsWith('prenom')) {
+                    // Format: "Prénom NOM" → first word = prénom, rest = nom
+                    doctorantData.prenom = parts[0];
+                    doctorantData.nom = parts.slice(1).join(' ').toUpperCase();
+                  } else {
+                    // Format: "NOM Prénom" → last word(s) = prénom, first = nom
+                    doctorantData.nom = parts[0].toUpperCase();
+                    doctorantData.prenom = parts.slice(1).join(' ');
+                  }
+                } else {
+                  // Single word: put in prenom if not set, else nom
+                  if (!doctorantData.prenom) doctorantData.prenom = val.trim();
+                  else if (!doctorantData.nom) doctorantData.nom = val.trim().toUpperCase();
+                }
+              }
               else if (['id_doctorant'].includes(normalizedCk))
                 doctorantData.ID_DOCTORANT = val;
 
