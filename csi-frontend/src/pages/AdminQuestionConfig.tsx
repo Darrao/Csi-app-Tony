@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import '../styles/AdminQuestionConfig.css';
 import FormPreview from '../components/FormPreview';
-import { SystemBlockRenderer } from '../components/form-blocks/SystemBlockRenderer';
 
 interface Question {
     _id: string;
@@ -34,22 +33,7 @@ const DEFAULT_SYSTEM_BLOCKS: Partial<Question>[] = [
     { systemId: 'conclusion_recommendations', section: 'Conclusion & Recommendations', content: 'Conclusion & Recommendations', type: 'system', order: 999, target: 'referent', visibleInPdf: true },
 ];
 
-// Helper for interactive preview in Admin (so fields are not disabled)
-const InteractiveSystemPreview: React.FC<{ systemId: string }> = ({ systemId }) => {
-    const [data, setData] = useState<any>({});
-    const handleChange = (e: any) => {
-        const { name, value } = e.target;
-        setData((prev: any) => ({ ...prev, [name]: value }));
-    };
-    return (
-        <SystemBlockRenderer
-            systemId={systemId}
-            data={data}
-            onChange={handleChange}
-            readOnly={false} // Enable typing
-        />
-    );
-};
+// Helper to auto-assign section to descriptions based on context
 
 // Helper to auto-assign section to descriptions based on context
 
