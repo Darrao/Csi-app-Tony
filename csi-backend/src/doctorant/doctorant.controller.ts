@@ -259,11 +259,9 @@ export class DoctorantController {
     const links = [];
 
     // 1. Doctorant link
-    const doctorantToken = generateDoctorantToken(id, doctorant.email);
-    await this.tokenService.saveToken(doctorantToken, doctorant.email, 'doctorant');
     links.push({
       label: 'Doctorant',
-      url: `${config.FRONTEND_URL}/formulaire?token=${doctorantToken}`,
+      url: `${config.FRONTEND_URL}/modifier/${id}`,
       email: doctorant.email
     });
 
