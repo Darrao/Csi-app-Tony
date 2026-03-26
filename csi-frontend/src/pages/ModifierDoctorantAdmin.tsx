@@ -199,6 +199,13 @@ const ModifierDoctorantAdmin: React.FC = () => {
             });
         }
 
+        if (sanitizedDoctorant.referentResponses && Array.isArray(sanitizedDoctorant.referentResponses)) {
+            sanitizedDoctorant.referentResponses = sanitizedDoctorant.referentResponses.map((resp: any) => {
+                const { _id, ...rest } = resp;
+                return rest;
+            });
+        }
+
         // 🧹 Nettoyage du rapport (suppression URL si présente car non accepté par DTO parfois)
         if (sanitizedDoctorant.rapport) {
             const { url, ...restRapport } = sanitizedDoctorant.rapport;

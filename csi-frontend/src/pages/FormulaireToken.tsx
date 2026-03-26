@@ -239,16 +239,9 @@ const FormulaireToken: React.FC = () => {
                 }
             });
 
-            // ⚠️ PRESERVE EXISTING ANSWERS (Student Answers)
-            // Filter out existing responses that are:
-            // 1. In the current 'questions' list (Referent questions we are submitting now)
-            // 2. Corrections (which we are regenerating)
-            // Keep everything else (i.e., Student answers)
-            const responsesToKeep = (doctorant.responses || []).filter((r: any) => {
-                const isReferentQuestion = questions.some(q => q._id === r.questionId);
-                const isCorrection = r.questionId.endsWith('_corrected_referent');
-                return !isReferentQuestion && !isCorrection;
-            });
+            // ⚠️ SEPARATE Student vs Referent Responses
+            // Student responses are preserved in doctorant.responses
+            // Referent responses are stored in referentResponses
 
             const payload = {
                 ...doctorant, // Keep existing doctorant data
@@ -263,8 +256,8 @@ const FormulaireToken: React.FC = () => {
                 recommendation_comment: values.recommendation_comment,
                 // referentValidation removed
 
-                // MERGE RESPONSES: Keep old (Student) + Add new (Referent)
-                responses: [...responsesToKeep, ...formattedResponses],
+                // Dedicated array for referent responses
+                referentResponses: formattedResponses,
 
                 // Validate Flags
                 representantValide: true,
