@@ -71,6 +71,7 @@ const ListeDoctorants: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [showLinkModal, setShowLinkModal] = useState<{ id: string, name: string, links: any[] } | null>(null);
 
   const toggleLoading = (id: string, action: string, isLoading: boolean) => {
     setLoadingMap((prev) => ({ ...prev, [`${id}-${action}`]: isLoading }));
@@ -145,12 +146,24 @@ const ListeDoctorants: React.FC = () => {
     fetchDoctorants();
   }, []);
 
-  const handleCopyLink = (id: string, prenom: string, nom: string) => {
-    const link = `${window.location.origin}/formulaire/${id}`;
-    navigator.clipboard.writeText(link).then(() => {
-      alert(`✅ Le lien pour le formulaire de ${prenom} ${nom} a été copié dans le presse-papier !`);
+  const handleFetchLinks = async (id: string, prenom: string, nom: string) => {
+    toggleLoading(id, 'fetch-links', true);
+    try {
+      const response = await api.get(`/doctorant/links/${id}`);
+      setShowLinkModal({ id, name: `${prenom} ${nom}`, links: response.data });
+    } catch (error) {
+      console.error("Erreur lors de la récupération des liens :", error);
+      alert("Échec de la récupération des liens.");
+    } finally {
+      toggleLoading(id, 'fetch-links', false);
+    }
+  };
+
+  const handleCopyLink = (url: string, label: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      alert(`✅ Le lien ${label} a été copié !`);
     }).catch(() => {
-      alert(`❌ Erreur lors de la copie du lien pour ${prenom} ${nom}.`);
+      alert(`❌ Erreur lors de la copie du lien.`);
     });
   };
 
@@ -1584,11 +1597,12 @@ const ListeDoctorants: React.FC = () => {
 
                     <button
                       className="btn btn-outline-dark btn-sm"
-                      onClick={() => handleCopyLink(doc._id, doc.prenom, doc.nom)}
-                      title="Copier le lien d'évaluation pour envoi manuel"
+                      onClick={() => handleFetchLinks(doc._id, doc.prenom, doc.nom)}
+                      title="Afficher tous les liens d'évaluation"
+                      disabled={loadingMap[`${doc._id}-fetch-links`]}
                       style={{ borderColor: '#666', color: '#666' }}
                     >
-                      🔗 Copier Lien
+                      {loadingMap[`${doc._id}-fetch-links`] ? <IconSpinner className="icon-spin" /> : '🔗 Liens'}
                     </button>
 
                     <button
@@ -1639,6 +1653,71 @@ const ListeDoctorants: React.FC = () => {
           Supprimer tous les doctorants
         </button>
       </div>
+      {/* 🔗 MODAL LIENS */}
+      {showLinkModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            padding: '25px',
+            borderRadius: '12px',
+            maxWidth: '600px',
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+              Liens pour {showLinkModal.name}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {showLinkModal.links.map((link, idx) => (
+                <div key={idx} style={{
+                  padding: '12px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '1px solid #e9ecef',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ flex: 1, marginRight: '15px', overflow: 'hidden' }}>
+                    <div style={{ fontWeight: '600', fontSize: '0.9em', color: '#495057' }}>{link.label} ({link.email})</div>
+                    <div style={{
+                      fontSize: '0.8em',
+                      color: '#6c757d',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      marginTop: '4px'
+                    }}>
+                      {link.url}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleCopyLink(link.url, link.label)}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    Copier
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '25px', textAlign: 'right' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowLinkModal(null)}
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

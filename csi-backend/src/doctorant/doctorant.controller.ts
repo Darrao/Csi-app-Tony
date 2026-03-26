@@ -22,7 +22,11 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { DoctorantService } from './doctorant.service';
 import { CreateDoctorantDto } from './dto/create-doctorant.dto';
 import { UpdateDoctorantDto } from './dto/update-doctorant.dto';
-import { sendMail } from '../email/email.service';
+import {
+  generateDoctorantToken,
+  generateReferentToken,
+  sendMail,
+} from '../email/email.service';
 import { TokenService } from '../token/token.service';
 import { Doctorant } from './schemas/doctorant.schema';
 import { Question } from '../question/schemas/question.schema';
@@ -245,6 +249,52 @@ export class DoctorantController {
 
     console.log('Doctorant trouvé :', doctorant);
     return doctorant;
+  }
+
+  @Get('links/:id')
+  async getLinks(@Param('id') id: string) {
+    const doctorant = await this.doctorantService.findOne(id);
+    if (!doctorant) throw new NotFoundException('Doctorant introuvable');
+
+    const links = [];
+
+    // 1. Doctorant link
+    const doctorantToken = generateDoctorantToken(id, doctorant.email);
+    await this.tokenService.saveToken(doctorantToken, doctorant.email, 'doctorant');
+    links.push({
+      label: 'Doctorant',
+      url: `${config.FRONTEND_URL}/formulaire?token=${doctorantToken}`,
+      email: doctorant.email
+    });
+
+    // 2. Referents links
+    const referents = [
+      { label: 'Référent 1', email: doctorant.emailMembre1 },
+      { label: 'Référent 2', email: doctorant.emailMembre2 },
+      { label: 'Référent Add.', email: doctorant.emailAdditionalMembre },
+    ].filter(r => r.email);
+
+    for (const ref of referents) {
+      const token = generateReferentToken(id, ref.email);
+      await this.tokenService.saveToken(token, ref.email, 'referent');
+      links.push({
+        label: ref.label,
+        url: `${config.FRONTEND_URL}/formulaire?token=${token}`,
+        email: ref.email
+      });
+    }
+
+    // 3. Director link
+    // Use the same logic as send-department
+    const directorToken = generateDoctorantToken(id, doctorant.email);
+    await this.tokenService.saveToken(directorToken, doctorant.email, 'doctorant');
+    links.push({
+      label: 'Directeur/Département',
+      url: `${config.FRONTEND_URL}/formulaire?token=${directorToken}`,
+      email: 'Email Dpt.'
+    });
+
+    return links;
   }
 
   // il faut specifier dans un des mails que le co directeur sera pas dans la boucle
