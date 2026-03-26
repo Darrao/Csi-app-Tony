@@ -348,117 +348,141 @@ const FormulaireToken: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* DYNAMIC QUESTIONS RENDERED BY SECTION */}
-                            {Object.keys(sections).map(section => (
-                                <div key={section} className="form-section">
-                                    {section !== 'CHAPTER' && <h2>{section}</h2>}
-                                    {sections[section].filter(q => !q.systemId).map(q => {
-                                        if (q.type === 'chapter_title') {
-                                            return (
-                                                <div key={q._id} style={{ marginTop: '20px', marginBottom: '20px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '10px' }}>
-                                                    <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
-                                                    {q.helpText && (
-                                                        <p style={{ marginTop: '5px', fontSize: '0.9em', color: '#555', fontStyle: 'italic' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.helpText) }}></p>
-                                                    )}
-                                                </div>
-                                            );
-                                        }
+                            {/* DYNAMIC QUESTIONS RENDERED IN ORDER (respects order field) */}
+                            {(() => {
+                                const elements: JSX.Element[] = [];
+                                let currentSection: string | null = null;
+                                let sectionContent: JSX.Element[] = [];
 
-                                        if (q.type === 'description') {
-                                            return (
-                                                <div key={q._id} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
-                                                    <p style={{ margin: 0, fontSize: '0.95em', color: '#333' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.content) }}></p>
-                                                </div>
-                                            );
-                                        }
-
-                                        const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
-                                        return (
-                                            <div className="question-block" key={q._id}>
-                                                <label className="question-text">
-                                                    {q.content}
-                                                    {q.required && <span className="red"> *</span>}
-                                                </label>
-
-                                                {q.helpText && (
-                                                    <p style={{ fontSize: '0.85em', color: '#666', marginTop: '-5px', marginBottom: '10px' }}>
-                                                        ℹ️ {q.helpText}
-                                                    </p>
-                                                )}
-
-                                                <div className={`input-group ${hasError ? 'input-error' : ''}`} style={{ padding: hasError ? '10px' : '0', borderRadius: '4px' }}>
-                                                    {q.type === 'plus_minus_comment' ? (
-                                                        <Field as="select" name={`responses.${q._id}.value`} className="select-input">
-                                                            <option value="">{q.placeholder || "Choose an option..."}</option>
-                                                            <option value="+">+ (Strong/Yes)</option>
-                                                            <option value="-">- (Weak/No)</option>
-                                                            <option value="±">± (Moderate/Mixed)</option>
-                                                            <option value="NotAddressed">Not Addressed</option>
-                                                        </Field>
-                                                    ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                            <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
-                                                            <div style={{ flex: 1, position: 'relative' }}>
-                                                                <Field
-                                                                    type="range"
-                                                                    name={`responses.${q._id}.value`}
-                                                                    min="1"
-                                                                    max="5"
-                                                                    step="1"
-                                                                    style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
-                                                                />
-                                                                <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
-                                                                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-                                                                </div>
-                                                            </div>
-                                                            <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
-                                                        </div>
-                                                    ) : q.type === 'multiple_choice' ? (
-                                                        <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
-                                                            {(q.options || []).map((opt: string, idx: number) => (
-                                                                <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                                                                    <Field 
-                                                                        type={q.allowMultipleSelection ? "checkbox" : "radio"} 
-                                                                        name={`responses.${q._id}.value`} 
-                                                                        value={opt} 
-                                                                        style={{ margin: 0, marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
-                                                                    />
-                                                                    <span style={{ fontSize: '1rem', color: '#333' }}>{opt}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    ) : q.type === 'select' ? (
-                                                        <Field as="select" name={`responses.${q._id}.value`} className="select-input">
-                                                            <option value="">{q.placeholder || "Choose..."}</option>
-                                                            <option value="Yes">Yes</option>
-                                                            <option value="No">No</option>
-                                                        </Field>
-                                                    ) : (
-                                                        <Field
-                                                            type="text"
-                                                            name={`responses.${q._id}.value`}
-                                                            className="comment-box"
-                                                            placeholder={q.placeholder || "Your answer..."}
-                                                            style={{ minHeight: '45px' }}
-                                                        />
-                                                    )}
-                                                </div>
-                                                <ErrorMessage name={`responses.${q._id}.value`} component="div" className="error-msg" />
-
-                                                <div className="input-group" style={{ marginTop: '15px' }}>
-                                                    <Field
-                                                        as="textarea"
-                                                        name={`responses.${q._id}.comment`}
-                                                        className="comment-box"
-                                                        placeholder="Additional comments (optional)..."
-                                                    />
-                                                    <ErrorMessage name={`responses.${q._id}.comment`} component="div" className="error-msg" />
-                                                </div>
+                                const flushSection = () => {
+                                    if (currentSection !== null && sectionContent.length > 0) {
+                                        elements.push(
+                                            <div key={`section-${currentSection}`} className="form-section">
+                                                {currentSection !== 'CHAPTER' && <h2>{currentSection}</h2>}
+                                                {sectionContent}
                                             </div>
                                         );
-                                    })}
-                                </div>
-                            ))}
+                                        sectionContent = [];
+                                    }
+                                };
+
+                                questions.filter(q => !q.systemId).forEach(q => {
+                                    if (q.section !== currentSection) {
+                                        flushSection();
+                                        currentSection = q.section;
+                                    }
+
+                                    if (q.type === 'chapter_title') {
+                                        sectionContent.push(
+                                            <div key={q._id} style={{ marginTop: '20px', marginBottom: '20px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '10px' }}>
+                                                <h2 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.8em', margin: 0 }}>{q.content}</h2>
+                                                {q.helpText && (
+                                                    <p style={{ marginTop: '5px', fontSize: '0.9em', color: '#555', fontStyle: 'italic' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.helpText) }}></p>
+                                                )}
+                                            </div>
+                                        );
+                                        return;
+                                    }
+
+                                    if (q.type === 'description') {
+                                        sectionContent.push(
+                                            <div key={q._id} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
+                                                <p style={{ margin: 0, fontSize: '0.95em', color: '#333' }} dangerouslySetInnerHTML={{ __html: formatDescription(q.content) }}></p>
+                                            </div>
+                                        );
+                                        return;
+                                    }
+
+                                    const hasError = (errors.responses as any)?.[q._id]?.value && (touched.responses as any)?.[q._id]?.value;
+                                    sectionContent.push(
+                                        <div className="question-block" key={q._id}>
+                                            <label className="question-text">
+                                                {q.content}
+                                                {q.required && <span className="red"> *</span>}
+                                            </label>
+
+                                            {q.helpText && (
+                                                <p style={{ fontSize: '0.85em', color: '#666', marginTop: '-5px', marginBottom: '10px' }}>
+                                                    ℹ️ {q.helpText}
+                                                </p>
+                                            )}
+
+                                            <div className={`input-group ${hasError ? 'input-error' : ''}`} style={{ padding: hasError ? '10px' : '0', borderRadius: '4px' }}>
+                                                {q.type === 'plus_minus_comment' ? (
+                                                    <Field as="select" name={`responses.${q._id}.value`} className="select-input">
+                                                        <option value="">{q.placeholder || "Choose an option..."}</option>
+                                                        <option value="+">+ (Strong/Yes)</option>
+                                                        <option value="-">- (Weak/No)</option>
+                                                        <option value="±">± (Moderate/Mixed)</option>
+                                                        <option value="NotAddressed">Not Addressed</option>
+                                                    </Field>
+                                                ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                        <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
+                                                        <div style={{ flex: 1, position: 'relative' }}>
+                                                            <Field
+                                                                type="range"
+                                                                name={`responses.${q._id}.value`}
+                                                                min="1"
+                                                                max="5"
+                                                                step="1"
+                                                                style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
+                                                            />
+                                                            <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
+                                                                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                                                            </div>
+                                                        </div>
+                                                        <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>High (5)</span>
+                                                    </div>
+                                                ) : q.type === 'multiple_choice' ? (
+                                                    <div className="radio-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
+                                                        {(q.options || []).map((opt: string, idx: number) => (
+                                                            <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                                                <Field
+                                                                    type={q.allowMultipleSelection ? "checkbox" : "radio"}
+                                                                    name={`responses.${q._id}.value`}
+                                                                    value={opt}
+                                                                    style={{ margin: 0, marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+                                                                />
+                                                                <span style={{ fontSize: '1rem', color: '#333' }}>{opt}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                ) : q.type === 'select' ? (
+                                                    <Field as="select" name={`responses.${q._id}.value`} className="select-input">
+                                                        <option value="">{q.placeholder || "Choose..."}</option>
+                                                        <option value="Yes">Yes</option>
+                                                        <option value="No">No</option>
+                                                    </Field>
+                                                ) : (
+                                                    <Field
+                                                        type="text"
+                                                        name={`responses.${q._id}.value`}
+                                                        className="comment-box"
+                                                        placeholder={q.placeholder || "Your answer..."}
+                                                        style={{ minHeight: '45px' }}
+                                                    />
+                                                )}
+                                            </div>
+                                            <ErrorMessage name={`responses.${q._id}.value`} component="div" className="error-msg" />
+
+                                            <div className="input-group" style={{ marginTop: '15px' }}>
+                                                <Field
+                                                    as="textarea"
+                                                    name={`responses.${q._id}.comment`}
+                                                    className="comment-box"
+                                                    placeholder="Additional comments (optional)..."
+                                                />
+                                                <ErrorMessage name={`responses.${q._id}.comment`} component="div" className="error-msg" />
+                                            </div>
+                                        </div>
+                                    );
+                                });
+
+                                flushSection(); // flush last section
+                                return elements;
+                            })()}
+
 
                             {/* REVIEW SHARED ANSWERS (Moved) */}
                             {sharedQuestions.length > 0 && (
