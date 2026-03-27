@@ -1,6 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+class QuestionResponse {
+  @Prop({ required: true })
+  questionId: string;
+
+  @Prop({ required: false, default: '' })
+  value: string;
+
+  @Prop({ required: false, default: '' })
+  comment: string;
+}
+
 class FichierExterne {
   @Prop({ required: true })
   nomOriginal: string;
@@ -246,24 +257,11 @@ export class Doctorant extends Document {
   @Prop({ required: false, default: '' })
   orcid?: string;
 
-  // 🆕 Champ flexible pour stocker les réponses aux questions dynamiques
-  @Prop({
-    type: [{
-      questionId: { type: String, required: true },
-      value: { type: String, required: false, default: '' },
-      comment: { type: String, required: false, default: '' }
-    }], default: []
-  })
-  responses: Array<{ questionId: string, value: string, comment: string }>;
- 
-  @Prop({
-    type: [{
-      questionId: { type: String, required: true },
-      value: { type: String, required: false, default: '' },
-      comment: { type: String, required: false, default: '' }
-    }], default: []
-  })
-  referentResponses: Array<{ questionId: string, value: string, comment: string }>;
+  @Prop({ type: [QuestionResponse], default: [] })
+  responses: QuestionResponse[];
+
+  @Prop({ type: [QuestionResponse], default: [] })
+  referentResponses: QuestionResponse[];
 
   @Prop({ required: false, default: 0 })
   selfEvaluation?: number;
