@@ -281,7 +281,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
         }
 
         try {
-            await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
+            console.log("🚀 [DIAGNOSTIC] Payload ADMIN avant envoi :", JSON.stringify(sanitizedDoctorant, null, 2));
+            const resp = await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
+            console.log("✅ [DIAGNOSTIC] Réponse Serveur :", resp.data);
             setMessage("✅ Doctorant mis à jour avec succès !");
             setIsDirty(false);
             window.scrollTo(0, 0);

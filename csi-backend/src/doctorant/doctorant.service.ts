@@ -353,21 +353,28 @@ export class DoctorantService implements OnModuleInit {
         updateDoctorantDto?.responses?.length,
       );
 
-      // Utilise $set + strict:false pour écrire DIRECTEMENT dans MongoDB
-      // sans que Mongoose filtre les champs selon le schéma
-            const updated = await this.doctorantModel.findByIdAndUpdate(
-                id,
-                { $set: updateDoctorantDto },
-                { new: true, strict: false }
-            ).exec();
+      // 🔥 BULLETPROOF UPDATE: Fetch, Merge, Mark, Save
+      const doctorant = await this.doctorantModel.findById(id);
+      if (!doctorant) {
+          throw new NotFoundException(`❌ Doctorant avec l'ID ${id} introuvable.`);
+      }
 
-            if (updated) {
-                // Force Mongoose to see these arrays as modified
-                updated.markModified('responses');
-                updated.markModified('referentResponses');
-                await updated.save();
-            }
-            return updated;
+      // Cleanup payload and merge
+      const { _id, __v, ...updateData } = updateDoctorantDto;
+      Object.assign(doctorant, updateData);
+
+      // Force Mongoose to see nested arrays as modified
+      if (updateData.responses) {
+          doctorant.markModified('responses');
+      }
+      if (updateData.referentResponses) {
+          doctorant.markModified('referentResponses');
+      }
+
+      const updated = await doctorant.save();
+      console.log(`✅ [BACKEND SUCCESS] Doctorant ${id} saved. Responses: ${updated.responses?.length}, Referent: ${updated.referentResponses?.length}`);
+      
+      return updated;
 
       if (!updated) {
         throw new NotFoundException(
