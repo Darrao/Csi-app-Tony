@@ -171,6 +171,15 @@ export class DoctorantController {
     return await this.doctorantService.create(createDoctorantDto);
   }
 
+  @Get('ping')
+  async ping() {
+    return { 
+        status: 'ok', 
+        version: 'v2.3 [ATOMIC_PERSISTENCE]', 
+        timestamp: new Date().toISOString() 
+    };
+  }
+
   @Get()
   async findAll() {
     return this.doctorantService.findAll();
