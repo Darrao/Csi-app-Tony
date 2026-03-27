@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import '../styles/AdminQuestionConfig.css';
 import FormPreview from '../components/FormPreview';
-import { SystemBlockRenderer } from '../components/form-blocks/SystemBlockRenderer';
 
 interface Question {
     _id: string;
@@ -34,22 +33,7 @@ const DEFAULT_SYSTEM_BLOCKS: Partial<Question>[] = [
     { systemId: 'conclusion_recommendations', section: 'Conclusion & Recommendations', content: 'Conclusion & Recommendations', type: 'system', order: 999, target: 'referent', visibleInPdf: true },
 ];
 
-// Helper for interactive preview in Admin (so fields are not disabled)
-const InteractiveSystemPreview: React.FC<{ systemId: string }> = ({ systemId }) => {
-    const [data, setData] = useState<any>({});
-    const handleChange = (e: any) => {
-        const { name, value } = e.target;
-        setData((prev: any) => ({ ...prev, [name]: value }));
-    };
-    return (
-        <SystemBlockRenderer
-            systemId={systemId}
-            data={data}
-            onChange={handleChange}
-            readOnly={false} // Enable typing
-        />
-    );
-};
+// Helper to auto-assign section to descriptions based on context
 
 // Helper to auto-assign section to descriptions based on context
 
@@ -326,6 +310,30 @@ const AdminQuestionConfig: React.FC = () => {
         setSectionEditor(null);
     };
 
+    const handleMoveSection = (sectionName: string, direction: 'up' | 'down') => {
+        const sectionQuestions = questions.filter(q => q.section === sectionName);
+        if (sectionQuestions.length === 0) return;
+
+        const firstIndex = questions.findIndex(q => q.section === sectionName);
+        const lastIndex = questions.map(q => q.section).lastIndexOf(sectionName);
+
+        if (direction === 'up' && firstIndex > 0) {
+            const newQuestions = [...questions];
+            // If the item before is a chapter title, we might want to stay within chapter?
+            // For now, simple swap of the whole block with the item before it
+            newQuestions.splice(firstIndex - 1, 0, ...newQuestions.splice(firstIndex, sectionQuestions.length));
+            setQuestions(newQuestions);
+            setUnsavedChanges(true);
+        } else if (direction === 'down' && lastIndex < questions.length - 1) {
+            const newQuestions = [...questions];
+            const numToMove = sectionQuestions.length;
+            const itemsToMove = newQuestions.splice(firstIndex, numToMove);
+            newQuestions.splice(firstIndex + 1, 0, ...itemsToMove);
+            setQuestions(newQuestions);
+            setUnsavedChanges(true);
+        }
+    };
+
     const handleMoveQuestion = (index: number, direction: -1 | 1) => {
         if (direction === -1 && index === 0) return;
         if (direction === 1 && index === questions.length - 1) return;
@@ -486,158 +494,117 @@ const AdminQuestionConfig: React.FC = () => {
             )}
 
             <div className="crm-builder-list">
-                {questions.reduce((groups, question, index) => {
-                    // Group adjacent questions by section
-                    const lastGroup = groups[groups.length - 1];
+                {/* GROUPED LIST BY CHAPTER > SECTION */}
+                {(() => {
+                    const chapterGroups: any[] = [];
+                    let currentChapter: any = null;
 
-                    // Logic to continue group:
-                    // 1. Same section name
-                    // 2. AND neither the current question NOR the last group is a 'chapter_title'
-                    // (Chapter titles must always stand alone in their own group)
-                    const isChapter = question.type === 'chapter_title';
-                    const lastIsChapter = lastGroup && lastGroup.questions[0].type === 'chapter_title';
+                    questions.forEach((q, index) => {
+                        if (q.type === 'chapter_title') {
+                            currentChapter = {
+                                chapter: q,
+                                sections: []
+                            };
+                            chapterGroups.push(currentChapter);
+                        } else {
+                            if (!currentChapter) {
+                                currentChapter = {
+                                    chapter: { content: 'Default Chapter', _id: 'default' },
+                                    sections: []
+                                };
+                                chapterGroups.push(currentChapter);
+                            }
 
-                    if (lastGroup && lastGroup.section === question.section && !isChapter && !lastIsChapter) {
-                        lastGroup.questions.push({ ...question, originalIndex: index });
-                        // If this question is a system block, ensure the group is tagged
-                        if (question.systemId) lastGroup.systemId = question.systemId; 
-                    } else {
-                        groups.push({
-                            section: question.section,
-                            questions: [{ ...question, originalIndex: index }],
-                            systemId: question.systemId
-                        });
-                    }
-                    return groups;
-                }, [] as { section: string, questions: (Question & { originalIndex: number })[], systemId?: string }[]).map((group, groupIndex) => {
-                    const hasShared = group.questions.some(q => q.visibleToReferent);
-                    return (
-                        <div
-                            key={group.questions[0]._id} // Stable key from first question
-                            className="admin-card"
-                        >
-                            <div className="card-header">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontWeight: 600, color: group.questions[0].type === 'chapter_title' ? '#007bff' : '#2c3e50' }}>
-                                        {group.questions[0].type === 'chapter_title' ? '─── CHAPTER SEPARATOR ───' : (group.section === 'CHAPTER' ? '' : (group.section || 'Uncategorized'))}
-                                    </span>
-                                    {/* Show Rename (Edit Section) for regular sections AND descriptions */}
-                                    {group.questions[0].type !== 'chapter_title' && (
-                                        <button
-                                            onClick={() => handleEditSection(group.section, group.questions)}
-                                            className="btn-icon"
-                                            title="Edit Section Name & Description"
-                                        >
-                                            ✏️
-                                        </button>
-                                    )}
-                                    {group.systemId && <span className="card-badge system">SYSTEM BLOCK</span>}
-                                    {hasShared && <span title="Contains questions visible to Referent" style={{ marginLeft: '10px', fontSize: '1.2em' }}>👁️</span>}
-                                </div>
+                            const lastSection = currentChapter.sections[currentChapter.sections.length - 1];
+                            if (lastSection && lastSection.section === q.section) {
+                                lastSection.questions.push({ ...q, originalIndex: index });
+                            } else {
+                                currentChapter.sections.push({
+                                    section: q.section,
+                                    questions: [{ ...q, originalIndex: index }]
+                                });
+                            }
+                        }
+                    });
+
+                    return chapterGroups.map((chGroup, chIdx) => (
+                        <div key={chIdx} className="chapter-container" style={{ marginBottom: '40px', border: '1px solid #e1e4e8', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fcfcfc', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                            <div className="chapter-header" style={{ backgroundColor: '#f1f3f5', padding: '15px 25px', borderBottom: '2px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '1.4em', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '1.2em' }}>🔖</span> {chGroup.chapter.content}
+                                </h2>
+                                {chGroup.chapter._id !== 'default' && (
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button className="btn btn-primary" style={{ padding: '6px 15px', fontSize: '0.9em' }} onClick={() => setEditingQuestion(chGroup.chapter)}>Edit Chapter</button>
+                                        <button className="btn btn-danger" style={{ padding: '6px 15px', fontSize: '0.9em' }} onClick={() => handleDelete(chGroup.chapter._id)}>Delete</button>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Questions List */}
-                            <div style={{ marginTop: '10px' }}>
-                                {group.questions.map((q, qIndex) => (
-                                    <div key={q._id}
-                                        draggable
-                                        onDragStart={(e) => {
-                                            e.stopPropagation();
-                                            handleDragStart(q.originalIndex);
-                                        }}
-                                        onDragOver={(e) => {
-                                            e.stopPropagation();
-                                            handleDragOver(e, q.originalIndex);
-                                        }}
-                                        onDragEnd={handleDragEnd}
-                                        style={{
-                                            marginBottom: '10px',
-                                            padding: '10px',
-                                            backgroundColor: q.type === 'chapter_title' ? '#e3f2fd' : (draggedItemIndex === q.originalIndex ? '#f0f0f0' : '#f9f9f9'),
-                                            border: q.type === 'chapter_title' ? '2px solid #007bff' : '1px solid #eee',
-                                            borderRadius: '6px',
-                                            position: 'relative',
-                                            opacity: draggedItemIndex === q.originalIndex ? 0.5 : 1,
-                                            cursor: 'grab'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div style={{ flex: 1 }}>
-                                                {q.type === 'chapter_title' ? (
-                                                    <h3 style={{ margin: '5px 0', color: '#0056b3', textTransform: 'uppercase' }}>
-                                                        {q.content}
-                                                    </h3>
-                                                ) : q.type === 'description' ? (
-                                                    <p style={{ margin: '5px 0', color: '#555', fontStyle: 'italic', fontSize: '0.9em', whiteSpace: 'pre-wrap' }}>
-                                                        ℹ️ {q.content}
-                                                    </p>
-                                                ) : (
-                                                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1em' }}>
-                                                        <span style={{ marginRight: '10px', color: '#aaa', fontSize: '0.8em' }}>#{q.order}</span>
-                                                        {q.content}
-                                                        {q.required && <span className="red"> *</span>}
-                                                        {/* 🆕 PDF Icon (Undefined = True default) */}
-                                                        {(q.visibleInPdf !== false) ? <span title="Visible in PDF" style={{ marginLeft: '8px', fontSize: '0.8em', color: '#6c757d' }}>📄 In PDF</span> : <span title="Confidential (Not in PDF)" style={{ marginLeft: '8px', fontSize: '0.85em', fontWeight: 'bold', color: '#dc3545' }}>🔒 CONFIDENTIAL</span>}
-                                                    </h4>
-                                                )}
-
-                                                {!q.systemId && q.type !== 'chapter_title' && q.type !== 'description' && (
-                                                    <div className="type-indicator" style={{ fontSize: '0.8em', color: '#888' }}>
-                                                        {q.type}
-                                                    </div>
-                                                )}
+                            <div className="chapter-body" style={{ padding: '20px' }}>
+                                {chGroup.sections.map((group: any, gIdx: number) => (
+                                    <div key={gIdx} className="section-block" style={{ marginBottom: '25px', border: '1px solid #dee2e6', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'white' }}>
+                                        <div className="section-header" style={{ backgroundColor: '#f8f9fa', padding: '12px 20px', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <h3 style={{ margin: 0, fontSize: '1.1em', color: '#4a5568' }}>Section: {group.section || "(No Section)"}</h3>
                                             </div>
-
                                             <div style={{ display: 'flex', gap: '5px' }}>
-                                                <button
-                                                    className="btn btn-sm"
-                                                    onClick={() => handleMoveQuestion(q.originalIndex, -1)}
-                                                    disabled={q.originalIndex === 0}
-                                                    style={{ background: 'white', border: '1px solid #ccc', padding: '2px 5px', fontSize: '0.8em', cursor: 'pointer' }}
-                                                    title="Move Up"
-                                                >
-                                                    ⬆️
-                                                </button>
-                                                <button
-                                                    className="btn btn-sm"
-                                                    onClick={() => handleMoveQuestion(q.originalIndex, 1)}
-                                                    disabled={q.originalIndex === questions.length - 1}
-                                                    style={{ background: 'white', border: '1px solid #ccc', padding: '2px 5px', fontSize: '0.8em', cursor: 'pointer' }}
-                                                    title="Move Down"
-                                                >
-                                                    ⬇️
-                                                </button>
-                                                <button className="btn btn-sm" onClick={() => setEditingQuestion(q)} style={{ background: 'white', border: '1px solid #ccc', padding: '2px 8px', fontSize: '0.8em' }}>✏️ Edit</button>
-                                                {!q.systemId && <button className="btn btn-sm" onClick={() => handleDelete(q._id)} style={{ background: '#dc3545', color: 'white', padding: '2px 8px', fontSize: '0.8em' }}>🗑</button>}
+                                                <button className="btn" style={{ padding: '4px 10px', fontSize: '0.85em', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }} onClick={() => handleEditSection(group.section, group.questions)}>Edit Section</button>
+                                                <button className="btn" style={{ padding: '4px 10px', fontSize: '0.85em', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }} onClick={() => handleMoveSection(group.section, 'up')}>↑</button>
+                                                <button className="btn" style={{ padding: '4px 10px', fontSize: '0.85em', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }} onClick={() => handleMoveSection(group.section, 'down')}>↓</button>
                                             </div>
                                         </div>
-
-                                        {/* Preview of Input (Read Only) */}
-                                        {q.systemId ? (
-                                            <div style={{ marginTop: '10px', transform: 'scale(0.95)', transformOrigin: 'top left' }}>
-                                                <InteractiveSystemPreview systemId={q.systemId} />
-                                            </div>
-                                        ) : (
-                                            q.type !== 'chapter_title' && (
-                                                <div className="input-group" style={{ marginTop: '5px', pointerEvents: 'none', opacity: 0.6 }}>
-                                                    {q.type === 'text' && <input type="text" className="select-input" placeholder={q.placeholder || "Text input"} style={{ padding: '5px' }} />}
-                                                    {q.type === 'scale_1_5' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Scale 1-5</div>}
-                                                    {q.type === 'rating_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Rating (1-5) + Comment</div>}
-                                                    {q.type === 'plus_minus_comment' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>+/- with Comment</div>}
-                                                    {q.type === 'select' && <div style={{ padding: '5px', background: '#eee', fontSize: '0.8em' }}>Yes/No Select</div>}
-                                                    {q.type === 'multiple_choice' && <div style={{ padding: '5px', background: '#e0f7fa', fontSize: '0.8em', color: '#006064', fontWeight: 'bold' }}>Multiple Choice: {q.allowMultipleSelection ? 'Checkboxes' : 'Radio Buttons'} ({q.options?.length || 0} options)</div>}
+                                        {/* Questions List */}
+                                        <div className="questions-grid">
+                                            {group.questions.map((q: any) => (
+                                                <div 
+                                                    key={q._id} 
+                                                    className="question-list-item" 
+                                                    style={{ 
+                                                        display: 'flex', 
+                                                        justifyContent: 'space-between', 
+                                                        alignItems: 'center', 
+                                                        padding: '12px 20px', 
+                                                        borderBottom: '1px solid #edf2f7',
+                                                        opacity: draggedItemIndex === q.originalIndex ? 0.5 : 1
+                                                    }}
+                                                    draggable
+                                                    onDragStart={() => handleDragStart(q.originalIndex)}
+                                                    onDragOver={(e) => handleDragOver(e, q.originalIndex)}
+                                                    onDragEnd={handleDragEnd}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
+                                                        <span style={{ color: '#cbd5e0', cursor: 'grab' }}>⠿</span>
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ fontWeight: '500', color: '#2d3748' }}>
+                                                                {q.content}
+                                                                {q.required && <span style={{ color: '#dc3545', marginLeft: '5px' }}>*</span>}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.8em', color: '#718096', marginTop: '3px' }}>
+                                                                Type: {q.type} | {q.active ? 'Active' : 'Inactive'}
+                                                                {q.visibleToReferent && " | 👥 Referent"}
+                                                                {!q.visibleInPdf ? " | 🔒 Confidential" : " | 📄 In PDF"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', gap: '2px', marginRight: '5px' }}>
+                                                            <button className="btn" style={{ padding: '2px 6px', fontSize: '0.75em', background: 'white', border: '1px solid #ccc' }} onClick={() => handleMoveQuestion(q.originalIndex, -1)} title="Move Up">↑</button>
+                                                            <button className="btn" style={{ padding: '2px 6px', fontSize: '0.75em', background: 'white', border: '1px solid #ccc' }} onClick={() => handleMoveQuestion(q.originalIndex, 1)} title="Move Down">↓</button>
+                                                        </div>
+                                                        <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.85em' }} onClick={() => setEditingQuestion(q)}>Edit</button>
+                                                        {!q.systemId && <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '0.85em' }} onClick={() => handleDelete(q._id)}>Delete</button>}
+                                                    </div>
                                                 </div>
-                                            )
-                                        )}
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
+                                {chGroup.sections.length === 0 && <p style={{ textAlign: 'center', color: '#a0aec0', padding: '20px' }}>No sections in this chapter yet.</p>}
                             </div>
-
-                            {/* EDIT QUESTION MODAL MOVED TO ROOT */}
-                        </div >
-                    );
-
-                })}
+                        </div>
+                    ));
+                })()}
             </div>
 
             {/* ADD NEW QUESTION FORM */}
@@ -783,169 +750,186 @@ const AdminQuestionConfig: React.FC = () => {
             {/* EDIT QUESTION MODAL */}
             {
                 editingQuestion && (
-                    <div className="modal-overlay">
-                        <div className="modal-content">
-                            <h2>Edit {editingQuestion.systemId ? 'System Block' : 'Question'}</h2>
-
-                            {editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description' && (
-                                <div className="form-group">
-                                    <label>Section Header</label>
-                                    <input
-                                        type="text"
-                                        className="select-input"
-                                        value={editingQuestion.section}
-                                        onChange={e => setEditingQuestion({ ...editingQuestion, section: e.target.value })}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="form-group">
-                                <label>Label / Title</label>
-                                <textarea
-                                    className="comment-box"
-                                    value={editingQuestion.content}
-                                    onChange={e => setEditingQuestion({ ...editingQuestion, content: e.target.value })}
-                                />
+                    <div className="modal-overlay" style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                    }}>
+                        <div className="modal-content" style={{
+                            backgroundColor: 'white', borderRadius: '8px',
+                            width: '700px', maxWidth: '90%', maxHeight: '90vh', 
+                            display: 'flex', flexDirection: 'column', boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                        }}>
+                            {/* STICKY HEADER */}
+                            <div className="modal-header" style={{ padding: '20px 25px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.4em' }}>
+                                    {editingQuestion.type === 'chapter_title' ? 'Edit Chapter Title' : (editingQuestion.systemId ? 'Edit System Block' : 'Edit Question')}
+                                </h2>
+                                <button style={{ background: 'none', border: 'none', fontSize: '1.5em', cursor: 'pointer' }} onClick={() => setEditingQuestion(null)}>&times;</button>
                             </div>
 
-                            {(!editingQuestion.systemId && editingQuestion.type !== 'description') && (
-                                <>
-                                    {editingQuestion.type !== 'chapter_title' && (
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                            <div className="form-group">
-                                                <label>Type</label>
-                                                <select
-                                                    className="select-input"
-                                                    value={editingQuestion.type}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, type: e.target.value as any })}
-                                                >
-                                                    <option value="plus_minus_comment">+/- with Comment</option>
-                                                    <option value="scale_1_5">Scale 1-5</option>
-                                                    <option value="rating_comment">Rating (1-5) + Comment</option>
-                                                    <option value="select">Yes/No Select</option>
-                                                    <option value="multiple_choice">Multiple Choice (Radio/Checkboxes)</option>
-                                                    <option value="text">Text Input</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Status</label>
-                                                <select
-                                                    className="select-input"
-                                                    value={editingQuestion.active ? 'true' : 'false'}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, active: e.target.value === 'true' })}
-                                                >
-                                                    <option value="true">Active</option>
-                                                    <option value="false">Inactive</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
+                            {/* SCROLLABLE BODY */}
+                            <div className="modal-body" style={{ padding: '25px', overflowY: 'auto', flex: 1 }}>
+                                {editingQuestion.type !== 'chapter_title' && editingQuestion.type !== 'description' && (
+                                    <div className="form-group">
+                                        <label>Section Header</label>
+                                        <input
+                                            type="text"
+                                            className="select-input"
+                                            value={editingQuestion.section}
+                                            onChange={e => setEditingQuestion({ ...editingQuestion, section: e.target.value })}
+                                        />
+                                    </div>
+                                )}
 
-                                    {editingQuestion.type === 'multiple_choice' && (
-                                        <div className="form-group" style={{ marginBottom: '15px' }}>
-                                            <label>Choices / Options</label>
-                                            {(editingQuestion.options || []).map((opt, i) => (
-                                                <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                                                    <input 
-                                                        type="text" 
-                                                        className="select-input" 
-                                                        value={opt} 
-                                                        onChange={e => {
-                                                            const newOpts = [...(editingQuestion.options || [])];
-                                                            newOpts[i] = e.target.value;
-                                                            setEditingQuestion({...editingQuestion, options: newOpts});
-                                                        }} 
-                                                    />
-                                                    <button className="btn" style={{ background: '#dc3545', color: 'white', padding: '0 10px', border: 'none', borderRadius: '4px' }} onClick={() => {
-                                                        const newOpts = (editingQuestion.options || []).filter((_, idx) => idx !== i);
-                                                        setEditingQuestion({...editingQuestion, options: newOpts});
-                                                    }}>🗑</button>
+                                <div className="form-group">
+                                    <label>Label / Title</label>
+                                    <textarea
+                                        className="comment-box"
+                                        value={editingQuestion.content}
+                                        onChange={e => setEditingQuestion({ ...editingQuestion, content: e.target.value })}
+                                        style={{ width: '100%', minHeight: '80px' }}
+                                    />
+                                </div>
+
+                                {(!editingQuestion.systemId && editingQuestion.type !== 'description') && (
+                                    <>
+                                        {editingQuestion.type !== 'chapter_title' && (
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
+                                                <div className="form-group">
+                                                    <label>Type</label>
+                                                    <select
+                                                        className="select-input"
+                                                        value={editingQuestion.type}
+                                                        onChange={e => setEditingQuestion({ ...editingQuestion, type: e.target.value as any })}
+                                                    >
+                                                        <option value="plus_minus_comment">+/- with Comment</option>
+                                                        <option value="scale_1_5">Scale 1-5</option>
+                                                        <option value="rating_comment">Rating (1-5) + Comment</option>
+                                                        <option value="select">Yes/No Select</option>
+                                                        <option value="multiple_choice">Multiple Choice (Radio/Checkboxes)</option>
+                                                        <option value="text">Text Input</option>
+                                                    </select>
                                                 </div>
-                                            ))}
-                                            <button className="btn" style={{ marginTop: '5px', background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px' }} onClick={() => {
-                                                setEditingQuestion({...editingQuestion, options: [...(editingQuestion.options || []), ""]});
-                                            }}>➕ Add Option</button>
-                                            
-                                            <label style={{ display: 'flex', alignItems: 'center', marginTop: '15px', gap: '8px', fontWeight: 'bold' }}>
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={editingQuestion.allowMultipleSelection || false} 
-                                                    onChange={e => setEditingQuestion({...editingQuestion, allowMultipleSelection: e.target.checked})} 
-                                                /> 
-                                                Allow Multiple Selection (Display checkboxes instead of radio buttons)
-                                            </label>
-                                        </div>
-                                    )}
+                                                <div className="form-group">
+                                                    <label>Status</label>
+                                                    <select
+                                                        className="select-input"
+                                                        value={editingQuestion.active ? 'true' : 'false'}
+                                                        onChange={e => setEditingQuestion({ ...editingQuestion, active: e.target.value === 'true' })}
+                                                    >
+                                                        <option value="true">Active</option>
+                                                        <option value="false">Inactive</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                        <div className="form-group">
-                                            <label>{editingQuestion.type === 'chapter_title' ? 'Description (Active under title)' : 'Help Text'}</label>
-                                            {editingQuestion.type === 'chapter_title' ? (
-                                                <>
-                                                    <textarea
+                                        {editingQuestion.type === 'multiple_choice' && (
+                                            <div className="form-group" style={{ marginBottom: '15px', marginTop: '15px' }}>
+                                                <label>Choices / Options</label>
+                                                {(editingQuestion.options || []).map((opt, i) => (
+                                                    <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                                                        <input 
+                                                            type="text" 
+                                                            className="select-input" 
+                                                            value={opt} 
+                                                            onChange={e => {
+                                                                const newOpts = [...(editingQuestion.options || [])];
+                                                                newOpts[i] = e.target.value;
+                                                                setEditingQuestion({...editingQuestion, options: newOpts});
+                                                            }} 
+                                                        />
+                                                        <button className="btn" style={{ background: '#dc3545', color: 'white', padding: '0 10px', border: 'none', borderRadius: '4px' }} onClick={() => {
+                                                            const newOpts = (editingQuestion.options || []).filter((_, idx) => idx !== i);
+                                                            setEditingQuestion({...editingQuestion, options: newOpts});
+                                                        }}>🗑</button>
+                                                    </div>
+                                                ))}
+                                                <button className="btn" style={{ marginTop: '5px', background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px' }} onClick={() => {
+                                                    setEditingQuestion({...editingQuestion, options: [...(editingQuestion.options || []), ""]});
+                                                }}>➕ Add Option</button>
+                                                
+                                                <label style={{ display: 'flex', alignItems: 'center', marginTop: '15px', gap: '8px', fontWeight: 'bold' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={editingQuestion.allowMultipleSelection || false} 
+                                                        onChange={e => setEditingQuestion({...editingQuestion, allowMultipleSelection: e.target.checked})} 
+                                                    /> 
+                                                    Allow Multiple Selection (Display checkboxes instead of radio buttons)
+                                                </label>
+                                            </div>
+                                        )}
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
+                                            <div className="form-group">
+                                                <label>{editingQuestion.type === 'chapter_title' ? 'Description (Active under title)' : 'Help Text'}</label>
+                                                {editingQuestion.type === 'chapter_title' ? (
+                                                    <>
+                                                        <textarea
+                                                            className="select-input"
+                                                            value={editingQuestion.helpText || ''}
+                                                            onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
+                                                            style={{ height: '80px', fontFamily: 'monospace', fontSize: '0.9em' }}
+                                                        />
+                                                        <div style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                                                            <span style={{ marginRight: '10px' }}>Gras: <b>**text**</b></span>
+                                                            <span>Italic: <i>*text*</i></span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <input
+                                                        type="text"
                                                         className="select-input"
                                                         value={editingQuestion.helpText || ''}
                                                         onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
-                                                        style={{ height: '80px', fontFamily: 'monospace', fontSize: '0.9em' }}
                                                     />
-                                                    <div style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
-                                                        <span style={{ marginRight: '10px' }}>Gras: <b>**text**</b></span>
-                                                        <span>Italic: <i>*text*</i></span>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <input
-                                                    type="text"
-                                                    className="select-input"
-                                                    value={editingQuestion.helpText || ''}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, helpText: e.target.value })}
-                                                />
+                                                )}
+                                            </div>
+                                            {editingQuestion.type !== 'chapter_title' && (
+                                                <div className="form-group">
+                                                    <label>Placeholder</label>
+                                                    <input
+                                                        type="text"
+                                                        className="select-input"
+                                                        value={editingQuestion.placeholder || ''}
+                                                        onChange={e => setEditingQuestion({ ...editingQuestion, placeholder: e.target.value })}
+                                                    />
+                                                </div>
                                             )}
                                         </div>
+
                                         {editingQuestion.type !== 'chapter_title' && (
-                                            <div className="form-group">
-                                                <label>Placeholder</label>
-                                                <input
-                                                    type="text"
-                                                    className="select-input"
-                                                    value={editingQuestion.placeholder || ''}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, placeholder: e.target.value })}
-                                                />
+                                            <div className="form-group" style={{ marginTop: '15px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editingQuestion.required || false}
+                                                        onChange={e => setEditingQuestion({ ...editingQuestion, required: e.target.checked })}
+                                                    /> Required Field
+                                                </label>
                                             </div>
                                         )}
-                                    </div>
+                                    </>
+                                )}
 
-                                    {editingQuestion.type !== 'chapter_title' && (
-                                        <div className="form-group">
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={editingQuestion.required || false}
-                                                    onChange={e => setEditingQuestion({ ...editingQuestion, required: e.target.checked })}
-                                                /> Required Field
-                                            </label>
-                                        </div>
-                                    )}
-
-                                </>
-                            )}
-
-                            <div className="form-group">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={!!editingQuestion.visibleInPdf}
-                                        onChange={e => setEditingQuestion({ ...editingQuestion, visibleInPdf: e.target.checked })}
-                                    /> Show in PDF? <span style={{fontSize: '0.8em', color: '#dc3545', fontWeight: 'normal'}}>(Uncheck for Confidential)</span>
-                                </label>
+                                <div className="form-group" style={{ marginTop: '15px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!editingQuestion.visibleInPdf}
+                                            onChange={e => setEditingQuestion({ ...editingQuestion, visibleInPdf: e.target.checked })}
+                                        /> Show in PDF? <span style={{fontSize: '0.8em', color: '#dc3545', fontWeight: 'normal'}}>(Uncheck for Confidential)</span>
+                                    </label>
+                                </div>
                             </div>
 
-                            <div className="modal-actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                                <button className="btn btn-cancel" onClick={() => setEditingQuestion(null)}>Cancel</button>
+                            {/* STICKY FOOTER */}
+                            <div className="modal-actions" style={{ padding: '20px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                                <button className="btn btn-cancel" style={{ background: '#6c757d', color: 'white' }} onClick={() => setEditingQuestion(null)}>Cancel</button>
                                 <button className="btn btn-primary" onClick={handleUpdate}>Save Changes</button>
                             </div>
-                        </div >
-                    </div >
+                        </div>
+                    </div>
                 )
             }
 

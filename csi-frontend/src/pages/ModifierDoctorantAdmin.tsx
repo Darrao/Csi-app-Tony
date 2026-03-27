@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine, FaSpinner } from 'react-icons/fa';
+import { FaFilePdf, FaArrowLeft, FaCheckCircle, FaExclamationTriangle, FaUserShield, FaGraduationCap, FaUniversity, FaClipboardList, FaBullhorn, FaQuestionCircle, FaChartLine, FaSpinner, FaUsers } from 'react-icons/fa';
 
-// Fix for React 18 type mismatch with react-icons
 // Fix for React 18 type mismatch with react-icons
 const IconFilePdf = FaFilePdf as any;
 const IconArrowLeft = FaArrowLeft as any;
@@ -17,13 +16,14 @@ const IconBullhorn = FaBullhorn as any;
 const IconQuestionCircle = FaQuestionCircle as any;
 const IconChartLine = FaChartLine as any;
 const IconSpinner = FaSpinner as any;
+const IconUsers = FaUsers as any;
 
 const ModifierDoctorantAdmin: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [doctorant, setDoctorant] = useState<any>(null);
     const [doctorantQuestions, setDoctorantQuestions] = useState<any[]>([]);
-    // const [referentQuestions, setReferentQuestions] = useState<any[]>([]); // Unused
+    const [referentQuestions, setReferentQuestions] = useState<any[]>([]); // Unused
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
@@ -45,14 +45,14 @@ const ModifierDoctorantAdmin: React.FC = () => {
                     headers: { Authorization: token }
                 });
 
-                const [qDocResponse] = await Promise.all([
+                const [qDocResponse, qRefResponse] = await Promise.all([
                     api.get('/questions?target=doctorant'),
                     api.get('/questions?target=referent')
                 ]);
 
                 setDoctorant(docResponse.data);
                 setDoctorantQuestions(qDocResponse.data);
-                // setReferentQuestions(qRefResponse.data);
+                setReferentQuestions(qRefResponse.data);
                 setLoading(false);
             } catch (err: any) {
                 console.error("Erreur lors de la récupération des données :", err);
@@ -109,6 +109,24 @@ const ModifierDoctorantAdmin: React.FC = () => {
         setIsDirty(true);
     };
 
+    const handleReferentResponseChange = (questionId: string, field: 'value' | 'comment', newValue: string) => {
+        const updatedResponses = [...(doctorant.referentResponses || [])];
+        const index = updatedResponses.findIndex((r: any) => r.questionId === questionId);
+
+        if (index >= 0) {
+            updatedResponses[index] = { ...updatedResponses[index], [field]: newValue };
+        } else {
+            updatedResponses.push({
+                questionId,
+                value: field === 'value' ? newValue : '',
+                comment: field === 'comment' ? newValue : ''
+            });
+        }
+
+        setDoctorant({ ...doctorant, referentResponses: updatedResponses });
+        setIsDirty(true);
+    };
+
     const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         const updatedDoctorant = { ...doctorant, [name]: Number(value) || 0 };
@@ -160,7 +178,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
         setSubmitting(true);
 
-        const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+        const { _id: _unusedId, id: _unusedRawId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+
+        console.log("📤 Données envoyées au backend :", sanitizedDoctorant);
 
         // Clean empty fields
         Object.keys(sanitizedDoctorant).forEach((key) => {
@@ -174,6 +194,13 @@ const ModifierDoctorantAdmin: React.FC = () => {
         // 🧹 Nettoyage spécifique pour les réponses (suppression des _id des sous-documents qui bloquent le DTO)
         if (sanitizedDoctorant.responses && Array.isArray(sanitizedDoctorant.responses)) {
             sanitizedDoctorant.responses = sanitizedDoctorant.responses.map((resp: any) => {
+                const { _id, ...rest } = resp;
+                return rest;
+            });
+        }
+
+        if (sanitizedDoctorant.referentResponses && Array.isArray(sanitizedDoctorant.referentResponses)) {
+            sanitizedDoctorant.referentResponses = sanitizedDoctorant.referentResponses.map((resp: any) => {
                 const { _id, ...rest } = resp;
                 return rest;
             });
@@ -269,71 +296,142 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
     // Helper to get response value safely
     const getResponse = (qId: string) => doctorant.responses?.find((r: any) => r.questionId === qId) || {};
+    const getReferentResponse = (qId: string) => doctorant.referentResponses?.find((r: any) => r.questionId === qId) || {};
 
-    const renderQuestions = (questions: any[], sectionTitle: string, icon: any) => {
+    const renderQuestions = (questions: any[], sectionTitle: string, icon: any, targetType: 'doctorant' | 'referent' = 'doctorant') => {
         const filtered = questions.filter((q: any) => !q.systemId).sort((a: any, b: any) => a.order - b.order);
         if (filtered.length === 0) return null;
+
+        // Build section-grouped elements in order
+        const sectionElements: JSX.Element[] = [];
+        let currentSection: string | null = null;
+        let sectionContent: JSX.Element[] = [];
+
+        const flushSection = () => {
+            if (currentSection !== null && sectionContent.length > 0) {
+                sectionElements.push(
+                    <div key={`section-${currentSection}`} style={{ marginBottom: '20px' }}>
+                        {currentSection !== 'CHAPTER' && (
+                            <h3 style={{ color: '#4a5568', fontSize: '1em', fontWeight: '600', marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', marginTop: '20px' }}>
+                                {currentSection}
+                            </h3>
+                        )}
+                        {sectionContent}
+                    </div>
+                );
+                sectionContent = [];
+            }
+        };
+
+        filtered.forEach((q: any) => {
+            if (q.section !== currentSection) {
+                flushSection();
+                currentSection = q.section;
+            }
+
+            if (q.type === 'chapter_title') {
+                sectionContent.push(
+                    <div key={q._id} style={{ marginTop: '20px', marginBottom: '15px', textAlign: 'center', borderBottom: '2px solid #0056b3', paddingBottom: '8px' }}>
+                        <h3 style={{ color: '#0056b3', textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '1.1em', margin: 0 }}>{q.content}</h3>
+                        {q.helpText && <p style={{ marginTop: '4px', fontSize: '0.85em', color: '#555', fontStyle: 'italic' }}>{q.helpText}</p>}
+                    </div>
+                );
+                return;
+            }
+
+            if (q.type === 'description') {
+                sectionContent.push(
+                    <div key={q._id} style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#f0f4ff', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
+                        <p style={{ margin: 0, fontSize: '0.9em', color: '#333' }}>{q.content}</p>
+                    </div>
+                );
+                return;
+            }
+
+            const resp = targetType === 'doctorant' ? getResponse(q._id) : getReferentResponse(q._id);
+            const changeHandler = targetType === 'doctorant' ? handleResponseChange : handleReferentResponseChange;
+            const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
+            const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
+
+            sectionContent.push(
+                <div key={q._id} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px solid #eee' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#2d3748' }}>
+                        {q.content}
+                    </label>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                        <div>
+                            <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Réponse :</span>
+                            {isScale ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu</span>}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <input
+                                            type="range" min="1" max="5" step="1"
+                                            value={Number(resp.value) || 1}
+                                            onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
+                                            style={{ flex: 1, cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>{resp.value || '-'}</span>
+                                    </div>
+                                </div>
+                            ) : q.type === 'multiple_choice' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {(q.options || []).map((opt: string, idx: number) => {
+                                        const currentValues = String(resp.value || '').split(',').filter(Boolean);
+                                        const isChecked = currentValues.includes(opt);
+                                        return (
+                                            <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em' }}>
+                                                <input
+                                                    type={q.allowMultipleSelection ? "checkbox" : "radio"}
+                                                    name={`question_${q._id}`}
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (q.allowMultipleSelection) {
+                                                            const nextValues = isChecked ? currentValues.filter(v => v !== opt) : [...currentValues, opt];
+                                                            changeHandler(q._id, 'value', nextValues.join(','));
+                                                        } else {
+                                                            changeHandler(q._id, 'value', opt);
+                                                        }
+                                                    }}
+                                                    style={{ marginRight: '10px' }}
+                                                />
+                                                {opt}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={resp.value || ''}
+                                    onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
+                                    style={inputStyle}
+                                    placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
+                                />
+                            )}
+                        </div>
+                        <div>
+                            <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Commentaire :</span>
+                            <input
+                                type="text"
+                                value={resp.comment || ''}
+                                onChange={(e) => changeHandler(q._id, 'comment', e.target.value)}
+                                style={inputStyle}
+                                placeholder="Commentaire optionnel"
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
+        flushSection(); // flush last section
 
         return (
             <div style={sectionStyle}>
                 <h2 style={sectionHeaderStyle}>{icon} {sectionTitle}</h2>
-                {filtered.map((q: any) => {
-                    const resp = getResponse(q._id);
-                    const isScale = q.type === 'scale_1_5' || q.type === 'rating_comment';
-                    // We check if it is "visually empty" just to add a hint, but we render inputs regardless
-                    const hasValue = resp.value !== undefined && resp.value !== null && resp.value !== '';
-
-                    return (
-                        <div key={q._id} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px solid #eee' }}>
-                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#2d3748' }}>
-                                {q.content}
-                            </label>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div>
-                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Réponse :</span>
-                                    {isScale ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                            {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu (Modifier pour définir)</span>}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="5"
-                                                    step="1"
-                                                    value={Number(resp.value) || 1} // Default visual to 1 if empty, but shows "Non répondu" above
-                                                    onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
-                                                    style={{ flex: 1, cursor: 'pointer' }}
-                                                />
-                                                <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>
-                                                    {resp.value || '-'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={resp.value || ''}
-                                            onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
-                                            style={inputStyle}
-                                            placeholder={hasValue ? "" : "Non répondu - Saisir une réponse..."}
-                                        />
-                                    )}
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: '0.85em', color: '#718096', marginBottom: '5px', display: 'block' }}>Commentaire :</span>
-                                    <input
-                                        type="text"
-                                        value={resp.comment || ''}
-                                        onChange={(e) => handleResponseChange(q._id, 'comment', e.target.value)}
-                                        style={inputStyle}
-                                        placeholder="Commentaire optionnel"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                {sectionElements}
             </div>
         );
     };
@@ -532,7 +630,10 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 </div>
 
                 {/* FORMULAIRE ÉTUDIANT */}
-                {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />)}
+                {renderQuestions(doctorantQuestions, "Auto-évaluation de l'étudiant", <IconQuestionCircle />, 'doctorant')}
+
+                {/* FORMULAIRE RÉFÉRENS */}
+                {renderQuestions(referentQuestions, "Formulaire référents", <IconUsers />, 'referent')}
 
                 {/* ACTIVITÉS & FORMATIONS */}
                 <div style={sectionStyle}>

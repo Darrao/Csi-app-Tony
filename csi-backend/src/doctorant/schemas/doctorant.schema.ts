@@ -247,6 +247,8 @@ export class Doctorant extends Document {
   orcid?: string;
 
   // 🆕 Champ flexible pour stocker les réponses aux questions dynamiques
+  responses: Array<{ questionId: string, value: string, comment: string }>;
+ 
   @Prop({
     type: [{
       questionId: { type: String, required: true },
@@ -254,7 +256,7 @@ export class Doctorant extends Document {
       comment: { type: String, required: false, default: '' }
     }], default: []
   })
-  responses: Array<{ questionId: string, value: string, comment: string }>;
+  referentResponses: Array<{ questionId: string, value: string, comment: string }>;
 
   @Prop({ required: false, default: 0 })
   selfEvaluation?: number;

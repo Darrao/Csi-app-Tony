@@ -459,6 +459,34 @@ const ModifierDoctorant: React.FC = () => {
                             <span style={{ fontSize: '0.9em', color: '#666' }}>High (5)</span>
                             <span style={{ fontWeight: 'bold', marginLeft: '10px' }}>{getResponseValue(q._id, 'value') || '?'}</span>
                         </div>
+                    ) : q.type === 'multiple_choice' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
+                            {(q.options || []).map((opt: string, idx: number) => {
+                                const currentValues = String(getResponseValue(q._id, 'value') || '').split(',').filter(Boolean);
+                                const isChecked = currentValues.includes(opt);
+                                return (
+                                    <label key={idx} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                        <input
+                                            type={q.allowMultipleSelection ? "checkbox" : "radio"}
+                                            name={`question_${q._id}`}
+                                            checked={isChecked}
+                                            onChange={() => {
+                                                if (q.allowMultipleSelection) {
+                                                    const nextValues = isChecked
+                                                        ? currentValues.filter(v => v !== opt)
+                                                        : [...currentValues, opt];
+                                                    handleResponseChange(q._id, 'value', nextValues.join(','));
+                                                } else {
+                                                    handleResponseChange(q._id, 'value', opt);
+                                                }
+                                            }}
+                                            style={{ marginRight: '10px' }}
+                                        />
+                                        {opt}
+                                    </label>
+                                );
+                            })}
+                        </div>
                     ) : q.type === 'select' ? (
                         <select
                             className={`select-input ${isMissing ? 'input-error' : ''}`}
