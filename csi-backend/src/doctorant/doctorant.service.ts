@@ -349,20 +349,25 @@ export class DoctorantService implements OnModuleInit {
     updateDoctorantDto: UpdateDoctorantDto,
   ): Promise<Doctorant> {
     try {
-      console.log('🔄 Mise à jour du doctorant :', id);
-      const updatedDoctorant = await this.doctorantModel.findByIdAndUpdate(
-        id,
-        updateDoctorantDto,
-        { new: true },
-      );
-
-      if (!updatedDoctorant) {
-        throw new NotFoundException(
-          `❌ Doctorant avec l'ID ${id} introuvable.`,
-        );
+      console.log('🔄 Mise à jour du doctorant (Standard) :', id);
+      
+      const doc = await this.doctorantModel.findById(id).exec();
+      if (!doc) {
+        throw new NotFoundException(`❌ Doctorant avec l'ID ${id} introuvable.`);
       }
 
-      return updatedDoctorant;
+      // Copie les propriétés du DTO vers le document Mongoose
+      Object.assign(doc, updateDoctorantDto);
+
+      // Force la détection des changements pour les tableaux complexes
+      if (updateDoctorantDto.responses) {
+        doc.markModified('responses');
+      }
+      if (updateDoctorantDto.referentResponses) {
+        doc.markModified('referentResponses');
+      }
+
+      return await doc.save();
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour :', error);
       throw new InternalServerErrorException(error.message);
@@ -405,17 +410,23 @@ export class DoctorantService implements OnModuleInit {
     console.log(`Mise à jour du doctorant avec ID : ${id}`);
     console.log('Données de mise à jour reçues :', updateData);
 
-    // Vérifiez si le doctorant existe
-    const existingDoctorant = await this.doctorantModel.findById(id).exec();
-    if (!existingDoctorant) {
+    const doc = await this.doctorantModel.findById(id).exec();
+    if (!doc) {
       throw new Error('Doctorant introuvable');
     }
 
-    // j'ai modifié avec ces deux lignes
-    const updatedDoctorant = await this.doctorantModel
-      .findByIdAndUpdate(id, updateData, { new: true })
-      .exec();
-    return updatedDoctorant;
+    // Copie les propriétés
+    Object.assign(doc, updateData);
+
+    // Force la détection des changements pour les tableaux complexes
+    if (updateData.responses) {
+      doc.markModified('responses');
+    }
+    if (updateData.referentResponses) {
+      doc.markModified('referentResponses');
+    }
+
+    return await doc.save();
   }
 
   async updateDoctorantByEmail(
