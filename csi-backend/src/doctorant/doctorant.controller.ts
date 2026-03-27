@@ -180,9 +180,9 @@ export class DoctorantController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateDoctorantDto: UpdateDoctorantDto,
+    @Body() updateDoctorantDto: any,
   ) {
-    console.log(`🔄 Mise à jour du doctorant ${id} avec`, updateDoctorantDto);
+    console.log(`🔄 Mise à jour du doctorant ${id} avec`, JSON.stringify(updateDoctorantDto?.responses?.length));
     return this.doctorantService.update(id, updateDoctorantDto);
   }
 
