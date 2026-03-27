@@ -108,11 +108,6 @@ const TeamBlock: React.FC<SystemBlockProps> = ({ data, onChange, readOnly }) => 
 
 const CSIMembersBlock: React.FC<SystemBlockProps> = ({ data, onChange, readOnly }) => (
     <div className="info-grid">
-        <div style={{ gridColumn: '1 / -1', marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderLeft: '3px solid #6f42c1', borderRadius: '4px' }}>
-            <p style={{ margin: 0, fontSize: '0.95em', color: '#333' }}>
-                (rules to follow: <a href="https://ed562.u-paris.fr/en/pages-anglais/individual-monitoring-committee-csi-v2/" target="_blank" rel="noopener noreferrer" style={{ color: '#6f42c1', textDecoration: 'underline' }}>https://ed562.u-paris.fr/en/pages-anglais/individual-monitoring-committee-csi-v2/</a>)
-            </p>
-        </div>
         <div className="info-item">
             <label>Member #1 <span className="red">*</span></label>
             <input className="select-input" type="text" name="nomMembre1" value={data?.nomMembre1 || ''} onChange={onChange} disabled={readOnly} placeholder="Name" />
