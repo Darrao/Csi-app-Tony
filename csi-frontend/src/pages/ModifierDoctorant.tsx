@@ -305,6 +305,7 @@ const ModifierDoctorant: React.FC = () => {
         sanitizedDoctorant.doctorantValide = true; // Marque le doctorant comme validé
 
         console.log("📩 Données nettoyées envoyées :", sanitizedDoctorant); // 🔍 Vérifie les données propres
+        console.log("🚀 [DIAGNOSTIC] Payload Étudiant avant envoi :", JSON.stringify(sanitizedDoctorant, null, 2));
 
         try {
             let uploadedFiles: any[] = [...(doctorant.fichiersExternes || [])];
@@ -328,8 +329,9 @@ const ModifierDoctorant: React.FC = () => {
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
             console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
+            console.log("🚀 [DIAGNOSTIC] Payload Admin avant envoi :", JSON.stringify(sanitizedDoctorant, null, 2));
             const response = await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
-            console.log("✅ Réponse API :", response.data);
+            console.log("✅ [DIAGNOSTIC] Réponse Serveur :", response.data);
             setMessage("Modifications enregistrées avec succès !");
 
             // 📩 Envoi d'un email aux référents s'ils existent

@@ -355,13 +355,19 @@ export class DoctorantService implements OnModuleInit {
 
       // Utilise $set + strict:false pour écrire DIRECTEMENT dans MongoDB
       // sans que Mongoose filtre les champs selon le schéma
-      const updated = await this.doctorantModel
-        .findByIdAndUpdate(
-          id,
-          { $set: updateDoctorantDto },
-          { new: true, strict: false },
-        )
-        .exec();
+            const updated = await this.doctorantModel.findByIdAndUpdate(
+                id,
+                { $set: updateDoctorantDto },
+                { new: true, strict: false }
+            ).exec();
+
+            if (updated) {
+                // Force Mongoose to see these arrays as modified
+                updated.markModified('responses');
+                updated.markModified('referentResponses');
+                await updated.save();
+            }
+            return updated;
 
       if (!updated) {
         throw new NotFoundException(
