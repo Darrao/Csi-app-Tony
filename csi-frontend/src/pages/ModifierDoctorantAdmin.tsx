@@ -438,11 +438,11 @@ const ModifierDoctorantAdmin: React.FC = () => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <input
                                             type="range" min="1" max="5" step="1"
-                                            value={Number(resp.value) || 1}
+                                            value={Number(resp.value) || 3}
                                             onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
                                             style={{ flex: 1, cursor: 'pointer' }}
                                         />
-                                        <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>{resp.value || '-'}</span>
+                                        <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>{resp.value || '3'}</span>
                                     </div>
                                 </div>
                             ) : q.type === 'multiple_choice' ? (

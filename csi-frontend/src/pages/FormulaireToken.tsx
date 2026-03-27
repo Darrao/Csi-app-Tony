@@ -138,13 +138,14 @@ const FormulaireToken: React.FC = () => {
     });
 
     // Initialize Shared Questions Fields
-    if (sharedQuestions) {
+    if (sharedQuestions && doctorant.responses) {
         sharedQuestions.forEach(q => {
-            // We use a specific structure for the review logic
-            // validation: 'true' | 'false' (agree or disagree)
-            // corrected: { value: '', comment: '' }
+            const studentResp = doctorant.responses.find((r: any) => r.questionId === q._id);
             initialValues.responses[`${q._id}_validation`] = 'true';
-            initialValues.responses[`${q._id}_corrected`] = { value: '', comment: '' };
+            initialValues.responses[`${q._id}_corrected`] = { 
+                value: studentResp?.value || '3', 
+                comment: '' 
+            };
         });
     }
 
