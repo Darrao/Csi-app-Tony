@@ -353,40 +353,32 @@ export class DoctorantService implements OnModuleInit {
         updateDoctorantDto?.responses?.length,
       );
 
-      // 🔥 BULLETPROOF UPDATE: Fetch, Merge, Mark, Save
-      const doctorant = await this.doctorantModel.findById(id);
-      if (!doctorant) {
-          throw new NotFoundException(`❌ Doctorant avec l'ID ${id} introuvable.`);
+      // 🔥 ATOMIC DIRECT-WRITE: Bypass Mongoose Validation & Middlewares
+      try {
+          // Convert string ID to ObjectId for direct collection access
+          const { ObjectId } = require('mongodb');
+          const docId = new ObjectId(id);
+
+          // Prepare atomic update payload
+          const { _id: _unusedId, __v: _unusedV, ...directUpdateData } = updateDoctorantDto;
+          
+          await this.doctorantModel.collection.updateOne(
+              { _id: docId },
+              { $set: directUpdateData }
+          );
+
+          console.log(`🚀 [ATOMIC SUCCESS] Doctorant ${id} written directly to MongoDB. Responses: ${directUpdateData.responses?.length}`);
+          
+          // Fetch the result via Mongoose to return a valid object
+          return await this.doctorantModel.findById(id).exec();
+      } catch (atomicError) {
+          console.error("❌ [ATOMIC FAILURE] Direct write failed:", atomicError);
+          // Fallback to fetch-merge-save for safety if direct write failed
+          const doctorant = await this.doctorantModel.findById(id);
+          if (!doctorant) throw new NotFoundException(`❌ Doctorant ${id} introuvable.`);
+          Object.assign(doctorant, updateDoctorantDto);
+          return await doctorant.save();
       }
-
-      // Cleanup payload and merge
-      const { _id, __v, ...updateData } = updateDoctorantDto;
-      Object.assign(doctorant, updateData);
-
-      // Force Mongoose to see nested arrays as modified
-      if (updateData.responses) {
-          doctorant.markModified('responses');
-      }
-      if (updateData.referentResponses) {
-          doctorant.markModified('referentResponses');
-      }
-
-      const updated = await doctorant.save();
-      console.log(`✅ [BACKEND SUCCESS] Doctorant ${id} saved. Responses: ${updated.responses?.length}, Referent: ${updated.referentResponses?.length}`);
-      
-      return updated;
-
-      if (!updated) {
-        throw new NotFoundException(
-          `❌ Doctorant avec l'ID ${id} introuvable.`,
-        );
-      }
-
-      console.log(
-        '✅ Saved responses count:',
-        (updated as any)?.responses?.length,
-      );
-      return updated;
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour :', error);
       throw new InternalServerErrorException(error.message);
