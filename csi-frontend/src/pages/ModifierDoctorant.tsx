@@ -218,6 +218,28 @@ const ModifierDoctorant: React.FC = () => {
         setMessage(null);
         setError(null);
 
+        // 🔥 Injection de sécurité pour les réponses par défaut des sliders (si pas touchés)
+        // On le fait AVANT la validation pour que les questions "required" passent
+        const currentResponses = [...(doctorant.responses || [])];
+        questions.forEach((q: any) => {
+            if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                const exists = currentResponses.find((r: any) => r.questionId === q._id);
+                if (!exists) {
+                    currentResponses.push({
+                        questionId: q._id,
+                        value: '3',
+                        comment: ''
+                    });
+                }
+            }
+        });
+
+        // Fonction locale de recherche de réponse pour utiliser les réponses injectées lors de la validation
+        const getVal = (qId: string) => {
+            const r = currentResponses.find(resp => resp.questionId === qId);
+            return r ? r.value : '';
+        };
+
         // Vérification des champs obligatoires
         const requiredFields = [
             "prenom", "nom", "email", "datePremiereInscription", "ID_DOCTORANT",
@@ -236,12 +258,11 @@ const ModifierDoctorant: React.FC = () => {
         }
 
         // 🔴 Vérifier les questions dynamiques obligatoires
-
         const missingQuestions: string[] = [];
         const missingQuestionIds: string[] = [];
         questions.forEach(q => {
             if (q.required) {
-                const val = getResponseValue(q._id, 'value');
+                const val = getVal(q._id);
                 if (!val || val.trim() === '') {
                     missingQuestions.push(q.content);
                     missingQuestionIds.push(q._id);
@@ -252,7 +273,6 @@ const ModifierDoctorant: React.FC = () => {
         if (missing.length > 0 || missingQuestions.length > 0) {
             const allMissing = [...missing, ...missingQuestionIds];
             setMissingFields(allMissing); // Stocker les IDs des champs manquants
-            // Removed alert
             return;
         }
 
@@ -261,21 +281,6 @@ const ModifierDoctorant: React.FC = () => {
         if (!confirmation) return;
 
         setSubmitting(true);
-
-        // 🔥 Injection de sécurité pour les réponses par défaut des sliders (si pas touchés)
-        const currentResponses = [...(doctorant.responses || [])];
-        questions.forEach((q: any) => {
-            if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
-                const exists = currentResponses.find((r: any) => r.questionId === q._id);
-                if (!exists) {
-                    currentResponses.push({
-                        questionId: q._id,
-                        value: '3',
-                        comment: ''
-                    });
-                }
-            }
-        });
 
         const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
         sanitizedDoctorant.responses = currentResponses; // Force l'utilisation du tableau injecté

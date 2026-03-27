@@ -1729,7 +1729,7 @@ export class DoctorantService implements OnModuleInit {
 
       // Referent Correction
       const correctionId = `${q._id}_corrected_referent`;
-      const correction = doctorant.responses?.find(
+      const correction = doctorant.referentResponses?.find(
         (r) => r.questionId === correctionId,
       );
       if (correction) {
