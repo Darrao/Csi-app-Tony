@@ -288,7 +288,7 @@ export class EmailController {
       //   doctorantEmail,
       //   this.doctorantService,
       //   doctorantEmail,
-      // );
+      //   );
       const token = generateDoctorantToken(
         doctorant._id.toString(),
         doctorantEmail,
@@ -296,8 +296,10 @@ export class EmailController {
 
       const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
 
-      // 📄 Génération du PDF
-      const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+      // 📄 Génération du PDF avec les informations confidentielles pour les Directeurs de Département
+      const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant, {
+        showConfidential: true,
+      });
       const pdfFileName = `Rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
 
       // ✉️ Construction du contenu de l'email depuis la config

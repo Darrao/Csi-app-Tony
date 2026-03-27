@@ -978,7 +978,9 @@ export class DoctorantController {
 
       console.log(`✅ Doctorant trouvé : ${doctorant.nom} ${doctorant.prenom}`);
 
-      const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant);
+      const pdfBuffer = await this.doctorantService.generateNewPDF(doctorant, {
+        showConfidential: true,
+      });
 
       res.set({
         'Content-Type': 'application/pdf',
@@ -1008,7 +1010,9 @@ export class DoctorantController {
       }
 
       // Force l'utilisation d'une méthode publique qui génère et sauvegarde
-      const pdfPath = await this.doctorantService.generateNewPDF(doctorant);
+      const pdfPath = await this.doctorantService.generateNewPDF(doctorant, {
+        showConfidential: true,
+      });
       return res
         .status(200)
         .json({ message: 'PDF régénéré avec succès.', path: pdfPath });

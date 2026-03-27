@@ -125,16 +125,10 @@ export class DoctorantService implements OnModuleInit {
     archive.on('data', (data) => outputBuffers.push(data));
 
     for (const doctorant of doctorants) {
-      if (!doctorant.rapport?.cheminStockage) continue;
-
-      const filePath = path.join(
-        __dirname,
-        '../../',
-        doctorant.rapport.cheminStockage,
-      );
-      if (!fs.existsSync(filePath)) continue;
-
-      const fileStream = fs.createReadStream(filePath);
+      // 🔥 REGENERATE PDF for Admin export (with confidential info)
+      const pdfBuffer = await this.generateNewPDF(doctorant, {
+        showConfidential: true,
+      });
       const folderName = doctorant.ID_DOCTORANT || doctorant._id;
       const safeFolderName = folderName
         .toString()
@@ -142,7 +136,7 @@ export class DoctorantService implements OnModuleInit {
 
       const archivePath = `doctorants/${safeFolderName}/rapport_${doctorant.nom}_${doctorant.prenom}.pdf`;
 
-      archive.append(fileStream, { name: archivePath });
+      archive.append(pdfBuffer, { name: archivePath });
     }
 
     await archive.finalize();
@@ -1019,7 +1013,10 @@ export class DoctorantService implements OnModuleInit {
       .sort({ importDate: -1 });
   }
 
-  async generateNewPDF(doctorant: Doctorant): Promise<Buffer> {
+  async generateNewPDF(
+    doctorant: Doctorant,
+    options?: { showConfidential?: boolean },
+  ): Promise<Buffer> {
     console.log('🔍 Génération du PDF pour :', doctorant.nom, doctorant.prenom);
 
     // 📄 Création du PDF
@@ -1603,6 +1600,10 @@ export class DoctorantService implements OnModuleInit {
     // --- RENDER DOCTORANT QUESTIONS ---
 
     for (const q of doctorantQuestions) {
+      const isConfidential =
+        q.section?.toLowerCase().includes('confidential') ||
+        q.content?.toLowerCase().includes('confidential');
+
       // 1. Global Section Handling
       if (
         q.type !== 'chapter_title' &&
@@ -1617,6 +1618,12 @@ export class DoctorantService implements OnModuleInit {
 
       // A. SYSTEM BLOCK
       if (q.systemId) {
+        if (q.visibleInPdf === false) {
+          if (!options?.showConfidential || !isConfidential) {
+            continue;
+          }
+        }
+
         if (pendingSectionTitle) {
           addSectionTitle(pendingSectionTitle);
           pendingSectionTitle = '';
@@ -1634,7 +1641,12 @@ export class DoctorantService implements OnModuleInit {
 
       // B. CHAPTER TITLE
       if (q.type === 'chapter_title') {
-        if (q.visibleInPdf === false) continue;
+        if (q.visibleInPdf === false) {
+          if (!options?.showConfidential || !isConfidential) {
+            continue;
+          }
+        }
+
         pendingSectionTitle = ''; // Chapter title clears pending section
         if (y <= marginBottom + 100) newPage();
         y -= 40;
@@ -1658,7 +1670,12 @@ export class DoctorantService implements OnModuleInit {
 
       // B2. DESCRIPTION BLOCK
       if (q.type === 'description') {
-        if (q.visibleInPdf === false) continue;
+        if (q.visibleInPdf === false) {
+          if (!options?.showConfidential || !isConfidential) {
+            continue;
+          }
+        }
+
         if (pendingSectionTitle) {
           addSectionTitle(pendingSectionTitle);
           pendingSectionTitle = '';
@@ -1708,7 +1725,11 @@ export class DoctorantService implements OnModuleInit {
       }
 
       // C. REGULAR QUESTION
-      if (q.visibleInPdf === false) continue;
+      if (q.visibleInPdf === false) {
+        if (!options?.showConfidential || !isConfidential) {
+          continue;
+        }
+      }
 
       if (pendingSectionTitle) {
         addSectionTitle(pendingSectionTitle);
@@ -1840,6 +1861,10 @@ export class DoctorantService implements OnModuleInit {
       currentSection = '';
 
       for (const q of referentQuestions) {
+        const isConfidential =
+          q.section?.toLowerCase().includes('confidential') ||
+          q.content?.toLowerCase().includes('confidential');
+
         // 1. Global Section Handling
         if (
           q.type !== 'chapter_title' &&
@@ -1852,11 +1877,20 @@ export class DoctorantService implements OnModuleInit {
           currentSection = q.section;
         }
 
+
+        // Referent questions usually don't have System Blocks
+
         // Referent questions usually don't have System Blocks (except maybe custom ones, but 'identity' etc are Doctorant)
         // But if they did, the loop handles it IF specific renderers existed. (Likely none).
 
         // A. SYSTEM BLOCK (Added for Conclusion/Recommendations which might be a System Block in Referent section)
         if (q.systemId) {
+          if (q.visibleInPdf === false) {
+            if (!options?.showConfidential || !isConfidential) {
+              continue;
+            }
+          }
+
           if (pendingSectionTitle) {
             addSectionTitle(pendingSectionTitle);
             pendingSectionTitle = '';
@@ -1869,7 +1903,12 @@ export class DoctorantService implements OnModuleInit {
 
         // B. CHAPTER TITLE
         if (q.type === 'chapter_title') {
-          if (q.visibleInPdf === false) continue;
+          if (q.visibleInPdf === false) {
+            if (!options?.showConfidential || !isConfidential) {
+              continue;
+            }
+          }
+
           pendingSectionTitle = ''; // New chapter clears pending section from previous chapter
           if (y <= marginBottom + 100) newPage();
           y -= 40;
@@ -1893,7 +1932,12 @@ export class DoctorantService implements OnModuleInit {
 
         // B2. DESCRIPTION BLOCK
         if (q.type === 'description') {
-          if (q.visibleInPdf === false) continue;
+          if (q.visibleInPdf === false) {
+            if (!options?.showConfidential || !isConfidential) {
+              continue;
+            }
+          }
+
           if (pendingSectionTitle) {
             addSectionTitle(pendingSectionTitle);
             pendingSectionTitle = '';
@@ -1929,7 +1973,11 @@ export class DoctorantService implements OnModuleInit {
         }
 
         // C. REGULAR QUESTION
-        if (q.visibleInPdf === false) continue;
+        if (q.visibleInPdf === false) {
+          if (!options?.showConfidential || !isConfidential) {
+            continue;
+          }
+        }
 
         if (pendingSectionTitle) {
           addSectionTitle(pendingSectionTitle);
