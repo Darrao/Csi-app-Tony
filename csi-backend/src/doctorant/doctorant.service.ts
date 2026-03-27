@@ -1786,7 +1786,7 @@ export class DoctorantService implements OnModuleInit {
         // C. REGULAR QUESTION
         if (q.visibleInPdf === false) continue;
 
-        const response = doctorant.responses?.find(
+        const response = doctorant.referentResponses?.find(
           (r) => r.questionId === q._id.toString(),
         );
         let val = response?.value;
