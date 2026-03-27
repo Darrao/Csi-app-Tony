@@ -1598,6 +1598,7 @@ export class DoctorantService implements OnModuleInit {
     };
 
     let currentSection = '';
+    let pendingSectionTitle = '';
 
     // --- RENDER DOCTORANT QUESTIONS ---
 
@@ -1610,12 +1611,16 @@ export class DoctorantService implements OnModuleInit {
         q.section !== 'CHAPTER' &&
         q.section !== currentSection
       ) {
-        addSectionTitle(q.section);
+        pendingSectionTitle = q.section;
         currentSection = q.section;
       }
 
       // A. SYSTEM BLOCK
       if (q.systemId) {
+        if (pendingSectionTitle) {
+          addSectionTitle(pendingSectionTitle);
+          pendingSectionTitle = '';
+        }
         if (renderers[q.systemId]) {
           if (q.systemId === 'documents_upload') {
             renderers[q.systemId](); // Render header text
@@ -1629,6 +1634,8 @@ export class DoctorantService implements OnModuleInit {
 
       // B. CHAPTER TITLE
       if (q.type === 'chapter_title') {
+        if (q.visibleInPdf === false) continue;
+        pendingSectionTitle = ''; // Chapter title clears pending section
         if (y <= marginBottom + 100) newPage();
         y -= 40;
         page.drawText(q.content, {
@@ -1651,6 +1658,11 @@ export class DoctorantService implements OnModuleInit {
 
       // B2. DESCRIPTION BLOCK
       if (q.type === 'description') {
+        if (q.visibleInPdf === false) continue;
+        if (pendingSectionTitle) {
+          addSectionTitle(pendingSectionTitle);
+          pendingSectionTitle = '';
+        }
         if (y <= marginBottom + 50) newPage();
         y -= 10;
 
@@ -1697,6 +1709,11 @@ export class DoctorantService implements OnModuleInit {
 
       // C. REGULAR QUESTION
       if (q.visibleInPdf === false) continue;
+
+      if (pendingSectionTitle) {
+        addSectionTitle(pendingSectionTitle);
+        pendingSectionTitle = '';
+      }
 
       const response = doctorant.responses?.find(
         (r) => r.questionId === q._id.toString(),
@@ -1831,7 +1848,7 @@ export class DoctorantService implements OnModuleInit {
           q.section !== 'CHAPTER' &&
           q.section !== currentSection
         ) {
-          addSectionTitle(q.section);
+          pendingSectionTitle = q.section;
           currentSection = q.section;
         }
 
@@ -1840,6 +1857,10 @@ export class DoctorantService implements OnModuleInit {
 
         // A. SYSTEM BLOCK (Added for Conclusion/Recommendations which might be a System Block in Referent section)
         if (q.systemId) {
+          if (pendingSectionTitle) {
+            addSectionTitle(pendingSectionTitle);
+            pendingSectionTitle = '';
+          }
           if (renderers[q.systemId]) {
             renderers[q.systemId]();
           }
@@ -1848,6 +1869,8 @@ export class DoctorantService implements OnModuleInit {
 
         // B. CHAPTER TITLE
         if (q.type === 'chapter_title') {
+          if (q.visibleInPdf === false) continue;
+          pendingSectionTitle = ''; // New chapter clears pending section from previous chapter
           if (y <= marginBottom + 100) newPage();
           y -= 40;
           page.drawText(q.content, {
@@ -1870,6 +1893,11 @@ export class DoctorantService implements OnModuleInit {
 
         // B2. DESCRIPTION BLOCK
         if (q.type === 'description') {
+          if (q.visibleInPdf === false) continue;
+          if (pendingSectionTitle) {
+            addSectionTitle(pendingSectionTitle);
+            pendingSectionTitle = '';
+          }
           if (y <= marginBottom + 50) newPage();
           y -= 10;
 
@@ -1902,6 +1930,11 @@ export class DoctorantService implements OnModuleInit {
 
         // C. REGULAR QUESTION
         if (q.visibleInPdf === false) continue;
+
+        if (pendingSectionTitle) {
+          addSectionTitle(pendingSectionTitle);
+          pendingSectionTitle = '';
+        }
 
         const response = doctorant.referentResponses?.find(
           (r) => r.questionId === q._id.toString(),
@@ -1946,6 +1979,7 @@ export class DoctorantService implements OnModuleInit {
         y -= 15;
       }
 
+      pendingSectionTitle = ''; // Clean up before final conclusion
       // Force render Conclusion & Recommendations at the end
       if (renderers['conclusion_recommendations']) {
         renderers['conclusion_recommendations']();
