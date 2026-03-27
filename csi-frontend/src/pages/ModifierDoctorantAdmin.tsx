@@ -69,6 +69,51 @@ const ModifierDoctorantAdmin: React.FC = () => {
     }, [id]);
 
     useEffect(() => {
+        if (!loading && doctorant) {
+            let hasChanged = false;
+            const updatedDoctorant = { ...doctorant };
+
+            // Initialisation des réponses Doctorant
+            if (doctorantQuestions.length > 0) {
+                const currentResponses = updatedDoctorant.responses || [];
+                const newResponses = [...currentResponses];
+                let docChanged = false;
+                doctorantQuestions.forEach((q: any) => {
+                    if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                        if (!currentResponses.find((r: any) => r.questionId === q._id)) {
+                            newResponses.push({ questionId: q._id, value: '3', comment: '' });
+                            docChanged = true;
+                            hasChanged = true;
+                        }
+                    }
+                });
+                if (docChanged) updatedDoctorant.responses = newResponses;
+            }
+
+            // Initialisation des réponses Référent
+            if (referentQuestions.length > 0) {
+                const currentRefResponses = updatedDoctorant.referentResponses || [];
+                const newRefResponses = [...currentRefResponses];
+                let refChanged = false;
+                referentQuestions.forEach((q: any) => {
+                    if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                        if (!currentRefResponses.find((r: any) => r.questionId === q._id)) {
+                            newRefResponses.push({ questionId: q._id, value: '3', comment: '' });
+                            refChanged = true;
+                            hasChanged = true;
+                        }
+                    }
+                });
+                if (refChanged) updatedDoctorant.referentResponses = newRefResponses;
+            }
+
+            if (hasChanged) {
+                setDoctorant(updatedDoctorant);
+            }
+        }
+    }, [loading, doctorantQuestions, referentQuestions, doctorant?.responses, doctorant?.referentResponses, doctorant]);
+
+    useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (isDirty) {
                 e.preventDefault();

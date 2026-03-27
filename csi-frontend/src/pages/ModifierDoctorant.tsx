@@ -94,12 +94,35 @@ const ModifierDoctorant: React.FC = () => {
         fetchDoctorant();
     }, [id]);
 
+    useEffect(() => {
+        if (!loading && questions.length > 0 && doctorant) {
+            const currentResponses = doctorant.responses || [];
+            let hasChanged = false;
+            const updatedResponses = [...currentResponses];
+
+            questions.forEach((q: any) => {
+                if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                    const exists = currentResponses.find((r: any) => r.questionId === q._id);
+                    if (!exists) {
+                        updatedResponses.push({
+                            questionId: q._id,
+                            value: '3', // Valeur par défaut visuelle du slider
+                            comment: ''
+                        });
+                        hasChanged = true;
+                    }
+                }
+            });
+
+            if (hasChanged) {
+                setDoctorant((prev: any) => ({ ...prev, responses: updatedResponses }));
+            }
+        }
+    }, [loading, questions, doctorant?.responses, doctorant]);
+
     // Auto-scroll to error
     useEffect(() => {
         if (missingFields.length > 0) {
-            // Find first element with class 'input-error'
-            // We need to wait slightly for render? Usually useEffect runs after render.
-            // Using a small timeout to ensure DOM update
             const timer = setTimeout(() => {
                 const firstError = document.querySelector('.input-error');
                 if (firstError) {
