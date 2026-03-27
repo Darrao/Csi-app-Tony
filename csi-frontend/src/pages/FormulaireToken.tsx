@@ -343,9 +343,9 @@ const FormulaireToken: React.FC = () => {
 
                             {/* DYNAMIC QUESTIONS RENDERED IN ORDER (respects order field) */}
                             {(() => {
-                                const elements: JSX.Element[] = [];
+                                const elements: any[] = [];
                                 let currentSection: string | null = null;
-                                let sectionContent: JSX.Element[] = [];
+                                let sectionContent: any[] = [];
 
                                 const flushSection = () => {
                                     if (currentSection !== null && sectionContent.length > 0) {

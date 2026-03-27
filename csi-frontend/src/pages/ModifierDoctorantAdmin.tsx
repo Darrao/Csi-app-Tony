@@ -303,9 +303,9 @@ const ModifierDoctorantAdmin: React.FC = () => {
         if (filtered.length === 0) return null;
 
         // Build section-grouped elements in order
-        const sectionElements: JSX.Element[] = [];
+        const sectionElements: any[] = [];
         let currentSection: string | null = null;
-        let sectionContent: JSX.Element[] = [];
+        let sectionContent: any[] = [];
 
         const flushSection = () => {
             if (currentSection !== null && sectionContent.length > 0) {
