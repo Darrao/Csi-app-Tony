@@ -1532,7 +1532,7 @@ export class DoctorantService implements OnModuleInit {
 
     // 0. Official Preamble Placeholder
     const preambleText =
-      'Ce document constitue le rapport final du Comité de Suivi Individuel (CSI). Il est destiné à l’École Doctorale et doit être conservé par le doctorant et ses encadrants. Les informations contenues sont strictement confidentielles.';
+      `This document constitutes the official report of the Individual Monitoring Committee (CSI). It outlines the committee's evaluation of the doctoral student's scientific progress, training conditions, and the newly introduced Skills Portfolio. The committee's feedback and recommendations aim to provide clear, actionable guidance to support the student's professional development, foster a constructive dialogue, and ensure the successful completion of the thesis project.`;
     // (Placeholder text - Tony will provide the final official version)
 
     if (preambleText) {
