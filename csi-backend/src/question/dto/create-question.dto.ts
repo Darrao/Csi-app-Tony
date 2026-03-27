@@ -52,11 +52,4 @@ export class CreateQuestionDto {
     @IsString()
     @IsOptional()
     systemId?: string;
-
-    @IsOptional()
-    options?: string[];
-
-    @IsBoolean()
-    @IsOptional()
-    allowMultipleSelection?: boolean;
 }
