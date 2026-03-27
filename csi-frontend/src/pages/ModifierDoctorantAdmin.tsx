@@ -223,7 +223,30 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
         setSubmitting(true);
 
+        // 🔥 Defensive Induction des réponses par défaut (Doctorant)
+        const currentDocResponses = [...(doctorant.responses || [])];
+        doctorantQuestions.forEach((q: any) => {
+            if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                if (!currentDocResponses.find((r: any) => r.questionId === q._id)) {
+                    currentDocResponses.push({ questionId: q._id, value: '3', comment: '' });
+                }
+            }
+        });
+
+        // 🔥 Defensive Induction des réponses par défaut (Référent)
+        const currentRefResponses = [...(doctorant.referentResponses || [])];
+        referentQuestions.forEach((q: any) => {
+            if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                if (!currentRefResponses.find((r: any) => r.questionId === q._id)) {
+                    currentRefResponses.push({ questionId: q._id, value: '3', comment: '' });
+                }
+            }
+        });
+
         const { _id: _unusedId, id: _unusedRawId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+        
+        sanitizedDoctorant.responses = currentDocResponses; // Force l'utilisation du tableau injecté
+        sanitizedDoctorant.referentResponses = currentRefResponses; // Force l'utilisation du tableau injecté
 
         console.log("📤 Données envoyées au backend :", sanitizedDoctorant);
 

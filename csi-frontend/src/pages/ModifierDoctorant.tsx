@@ -262,7 +262,23 @@ const ModifierDoctorant: React.FC = () => {
 
         setSubmitting(true);
 
+        // 🔥 Injection de sécurité pour les réponses par défaut des sliders (si pas touchés)
+        const currentResponses = [...(doctorant.responses || [])];
+        questions.forEach((q: any) => {
+            if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
+                const exists = currentResponses.find((r: any) => r.questionId === q._id);
+                if (!exists) {
+                    currentResponses.push({
+                        questionId: q._id,
+                        value: '3',
+                        comment: ''
+                    });
+                }
+            }
+        });
+
         const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
+        sanitizedDoctorant.responses = currentResponses; // Force l'utilisation du tableau injecté
 
         // 🔥 Supprime les champs vides (backend peut les rejeter)
         Object.keys(sanitizedDoctorant).forEach((key) => {

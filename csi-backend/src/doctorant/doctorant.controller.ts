@@ -113,7 +113,12 @@ export class DoctorantController {
 
       // Aplatir les réponses dynamiques
       allQuestions.forEach(q => {
-        if (q.type === 'system' || q.type === 'chapter_title' || q.type === 'description') return;
+        if (
+        q.type === 'system' ||
+        q.type === 'chapter_title' ||
+        q.type === 'description'
+      )
+        return;
         
         const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
         
@@ -178,11 +183,11 @@ export class DoctorantController {
 
   //pour doctorant
   @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateDoctorantDto: any,
-  ) {
-    console.log(`🔄 Mise à jour du doctorant ${id} avec`, JSON.stringify(updateDoctorantDto?.responses?.length));
+  async update(@Param('id') id: string, @Body() updateDoctorantDto: any) {
+    console.log(
+      `🔄 Mise à jour du doctorant ${id} avec`,
+      JSON.stringify(updateDoctorantDto?.responses?.length),
+    );
     return this.doctorantService.update(id, updateDoctorantDto);
   }
 
@@ -659,7 +664,12 @@ export class DoctorantController {
 
         // Fill dynamic questions
         allQuestions.forEach(q => {
-          if (q.type === 'system' || q.type === 'chapter_title' || q.type === 'description') return;
+          if (
+          q.type === 'system' ||
+          q.type === 'chapter_title' ||
+          q.type === 'description'
+        )
+          return;
           
           const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
           const response = doc.responses?.find(r => r.questionId === q._id.toString());
