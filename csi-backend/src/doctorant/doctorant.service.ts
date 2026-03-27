@@ -344,32 +344,36 @@ export class DoctorantService implements OnModuleInit {
     return { message: 'Doctorant supprimé avec succès' };
   }
 
-  async update(
-    id: string,
-    updateDoctorantDto: UpdateDoctorantDto,
-  ): Promise<Doctorant> {
+  async update(id: string, updateDoctorantDto: any): Promise<Doctorant> {
     try {
-      console.log('🔄 Mise à jour du doctorant (Standard) :', id);
+      console.log(
+        '🔄 UPDATE doctorant:',
+        id,
+        '| responses count:',
+        updateDoctorantDto?.responses?.length,
+      );
 
-      const doc = await this.doctorantModel.findById(id).exec();
-      if (!doc) {
+      // Utilise $set + strict:false pour écrire DIRECTEMENT dans MongoDB
+      // sans que Mongoose filtre les champs selon le schéma
+      const updated = await this.doctorantModel
+        .findByIdAndUpdate(
+          id,
+          { $set: updateDoctorantDto },
+          { new: true, strict: false },
+        )
+        .exec();
+
+      if (!updated) {
         throw new NotFoundException(
           `❌ Doctorant avec l'ID ${id} introuvable.`,
         );
       }
 
-      // Copie les propriétés du DTO vers le document Mongoose
-      Object.assign(doc, updateDoctorantDto);
-
-      // Force la détection des changements pour les tableaux complexes
-      if (updateDoctorantDto.responses) {
-        doc.markModified('responses');
-      }
-      if (updateDoctorantDto.referentResponses) {
-        doc.markModified('referentResponses');
-      }
-
-      return await doc.save();
+      console.log(
+        '✅ Saved responses count:',
+        (updated as any)?.responses?.length,
+      );
+      return updated;
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour :', error);
       throw new InternalServerErrorException(error.message);
