@@ -532,7 +532,6 @@ const FormulaireToken: React.FC = () => {
 
                                                                             {(q.type === 'scale_1_5' || q.type === 'rating_comment') ? (
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                                    <span style={{ fontSize: '0.8em', color: '#666' }}>1</span>
                                                                                     <div style={{ flex: 1 }}>
                                                                                         <Field
                                                                                             type="range"
@@ -546,7 +545,6 @@ const FormulaireToken: React.FC = () => {
                                                                                             <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
                                                                                         </div>
                                                                                     </div>
-                                                                                    <span style={{ fontSize: '0.8em', color: '#666' }}>5</span>
                                                                                 </div>
                                                                             ) : (q.type === 'select' || q.type === 'plus_minus_comment') ? (
                                                                                 <Field as="select" name={`responses.${q._id}_corrected.value`} className="select-input">
