@@ -167,8 +167,8 @@ input[type=range] {
     top: -45px;
     right: 0;
     background-color: white;
-    color: #000;
-    border: 2px solid #000;
+    color: #007bff;
+    border: 2px solid #007bff;
     padding: 4px 12px;
     border-radius: 6px;
     font-weight: 700;

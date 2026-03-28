@@ -501,7 +501,7 @@ const ModifierDoctorant: React.FC = () => {
                                                 step="1"
                                                 value={val || 3}
                                                 onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
-                                                style={{ width: '100%', cursor: 'pointer', accentColor: '#000' }}
+                                                style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
                                             />
                                         </>
                                     );
@@ -594,18 +594,14 @@ const ModifierDoctorant: React.FC = () => {
                 }
                 .slider-badge {
                     position: absolute;
-                    width: 40px;
-                    height: 35px;
-                    background: white;
-                    border: 2px solid #000;
-                    color: #000;
-                    border-radius: 6px;
+                    background: transparent;
+                    border: none;
+                    color: #007bff;
                     display: flex;
                     alignItems: center;
                     justify-content: center;
                     font-weight: bold;
                     font-size: 1.2rem;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     z-index: 10;
                 }
                 .empty-slider::-webkit-slider-thumb {
