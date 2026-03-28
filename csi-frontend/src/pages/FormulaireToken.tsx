@@ -315,9 +315,39 @@ const FormulaireToken: React.FC = () => {
                         <label>First Name</label>
                         <span>{doctorant.prenom}</span>
                     </div>
+                    <div className="info-item">
+                        <label>Department</label>
+                        <span>{doctorant.departementDoctorant}</span>
+                    </div>
                     <div className="info-item" style={{ gridColumn: '1 / -1' }}>
                         <label>Thesis Title</label>
                         <span>{doctorant.titreThese}</span>
+                    </div>
+
+                    <div className="info-item">
+                        <label>UR Title</label>
+                        <span>{doctorant.intituleUR}</span>
+                    </div>
+                    <div className="info-item">
+                        <label>Team Title</label>
+                        <span>{doctorant.intituleEquipe}</span>
+                    </div>
+                    <div className="info-item">
+                        <label>Team Director</label>
+                        <span>{doctorant.directeurEquipe}</span>
+                    </div>
+
+                    <div className="info-item">
+                        <label>Thesis Director (HDR)</label>
+                        <span>{doctorant.nomPrenomHDR}</span>
+                    </div>
+                    <div className="info-item">
+                        <label>Committee Member 1</label>
+                        <span>{doctorant.nomMembre1}</span>
+                    </div>
+                    <div className="info-item">
+                        <label>Committee Member 2</label>
+                        <span>{doctorant.nomMembre2}</span>
                     </div>
                 </div>
             </div>
