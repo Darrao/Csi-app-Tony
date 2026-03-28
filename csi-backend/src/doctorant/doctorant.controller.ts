@@ -102,39 +102,54 @@ export class DoctorantController {
         doc.ID_UNIQUE_IMPORT ||
         `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
 
+      const { responses, referentResponses, ...docWithoutArrays } = doc;
+
       const flattenedDoc: any = {
-        ...doc,
+        ...docWithoutArrays,
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend 
+        pdfDownloadUrl: doc.finalSend
           ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
           : null,
       };
 
-      // Aplatir les réponses dynamiques
-      allQuestions.forEach(q => {
+      // Aplatir les réponses dynamiques avec des clés normalisées
+      allQuestions.forEach((q) => {
         if (
-        q.type === 'system' ||
-        q.type === 'chapter_title' ||
-        q.type === 'description'
-      )
-        return;
-        
-        const label = q.content.replace(/[,;\n]/g, ' ').substring(0, 50).trim();
-        
-        // Find respective response
-        const response = doc.responses?.find((r: any) => r.questionId === q._id.toString());
-        const referentResponse = doc.referentResponses?.find((r: any) => r.questionId === q._id.toString());
-        
-        // Pick the one that exists or based on target
-        const activeResp = q.target === 'referent' ? referentResponse : response;
-        
-        let val = activeResp?.value ?? '';
-        if (Array.isArray(val)) {
-            val = val.join(', ');
+          q.type === 'system' ||
+          q.type === 'chapter_title' ||
+          q.type === 'description'
+        )
+          return;
+
+        // Extraire le préfixe (ex: B1_1, Q1, etc.)
+        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        const key = prefixMatch
+          ? prefixMatch[1].toUpperCase()
+          : q.content.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+
+        // Récupérer les réponses de l'étudiant et du référent
+        const studentResp = doc.responses?.find(
+          (r: any) => r.questionId === q._id.toString(),
+        );
+        const referentResp = doc.referentResponses?.find(
+          (r: any) => r.questionId === q._id.toString(),
+        );
+
+        // Mapper les valeurs de l'étudiant
+        let studentVal = studentResp?.value ?? '';
+        if (Array.isArray(studentVal)) {
+          studentVal = studentVal.join(', ');
         }
-        
-        flattenedDoc[label] = val;
-        flattenedDoc[`${label}_comment`] = activeResp?.comment ?? '';
+        flattenedDoc[key] = studentVal;
+        flattenedDoc[`${key}_comment`] = studentResp?.comment ?? '';
+
+        // Mapper les valeurs du référent (préfixées par 'd')
+        let referentVal = referentResp?.value ?? '';
+        if (Array.isArray(referentVal)) {
+          referentVal = referentVal.join(', ');
+        }
+        flattenedDoc[`d${key}`] = referentVal;
+        flattenedDoc[`d${key}_comment`] = referentResp?.comment ?? '';
       });
 
       return flattenedDoc;
