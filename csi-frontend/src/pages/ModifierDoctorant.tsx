@@ -501,7 +501,7 @@ const ModifierDoctorant: React.FC = () => {
                                                 step="1"
                                                 value={val || 3}
                                                 onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
-                                                style={{ width: '100%', cursor: 'pointer' }}
+                                                style={{ width: '100%', cursor: 'pointer', accentColor: '#000' }}
                                             />
                                         </>
                                     );
@@ -597,8 +597,8 @@ const ModifierDoctorant: React.FC = () => {
                     width: 40px;
                     height: 35px;
                     background: white;
-                    border: 2px solid #007bff;
-                    color: #007bff;
+                    border: 2px solid #000;
+                    color: #000;
                     border-radius: 6px;
                     display: flex;
                     alignItems: center;

@@ -457,7 +457,7 @@ const FormulaireToken: React.FC = () => {
                                                                             max="5"
                                                                             step="1"
                                                                             className={!hasValue ? "empty-slider" : ""}
-                                                                            style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
+                                                                            style={{ width: '100%', cursor: 'pointer', accentColor: '#000' }}
                                                                         />
                                                                     </>
                                                                 );
