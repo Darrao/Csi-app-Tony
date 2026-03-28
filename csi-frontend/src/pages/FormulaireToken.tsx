@@ -357,7 +357,7 @@ const FormulaireToken: React.FC = () => {
                 validationSchema={validationSchema}
                 onSubmit={onSubmit}
             >
-                {({ errors, touched, submitCount, isValid }) => {
+                {({ errors, touched, submitCount, isValid, values }) => {
                     return (
                         <Form>
                             <FormAutoScroll />
@@ -441,17 +441,27 @@ const FormulaireToken: React.FC = () => {
                                                         <option value="NotAddressed">Not Addressed</option>
                                                     </Field>
                                                 ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                    <div className="slider-container">
                                                         <span style={{ fontSize: '0.9em', color: '#666', fontWeight: 600 }}>Low (1)</span>
-                                                        <div style={{ flex: 1, position: 'relative' }}>
-                                                            <Field
-                                                                type="range"
-                                                                name={`responses.${q._id}.value`}
-                                                                min="1"
-                                                                max="5"
-                                                                step="1"
-                                                                style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
-                                                            />
+                                                        <div className="slider-wrapper">
+                                                            {(() => {
+                                                                const val = (values.responses as any)?.[q._id]?.value;
+                                                                const hasValue = val !== '' && val !== undefined;
+                                                                return (
+                                                                    <>
+                                                                        {hasValue && <div className="slider-badge">{val}</div>}
+                                                                        <Field
+                                                                            type="range"
+                                                                            name={`responses.${q._id}.value`}
+                                                                            min="1"
+                                                                            max="5"
+                                                                            step="1"
+                                                                            className={!hasValue ? "empty-slider" : ""}
+                                                                            style={{ width: '100%', cursor: 'pointer', accentColor: '#007bff' }}
+                                                                        />
+                                                                    </>
+                                                                );
+                                                            })()}
                                                             <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '5px' }}>
                                                                 <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
                                                             </div>
@@ -490,15 +500,18 @@ const FormulaireToken: React.FC = () => {
                                             </div>
                                             <ErrorMessage name={`responses.${q._id}.value`} component="div" className="error-msg" />
 
-                                            <div className="input-group" style={{ marginTop: '15px' }}>
-                                                <Field
-                                                    as="textarea"
-                                                    name={`responses.${q._id}.comment`}
-                                                    className="comment-box"
-                                                    placeholder="Additional comments (optional)..."
-                                                />
-                                                <ErrorMessage name={`responses.${q._id}.comment`} component="div" className="error-msg" />
-                                            </div>
+                                            {/* Suppress redundant comment for question-only blocks */}
+                                            {q.content.toLowerCase() !== 'confidential comment' && (
+                                                <div className="input-group" style={{ marginTop: '15px' }}>
+                                                    <Field
+                                                        as="textarea"
+                                                        name={`responses.${q._id}.comment`}
+                                                        className="comment-box"
+                                                        placeholder="Additional comments (optional)..."
+                                                    />
+                                                    <ErrorMessage name={`responses.${q._id}.comment`} component="div" className="error-msg" />
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 });
@@ -561,17 +574,27 @@ const FormulaireToken: React.FC = () => {
                                                                             <label className="question-text" style={{ color: '#dc3545' }}>Corrected Answer</label>
 
                                                                             {(q.type === 'scale_1_5' || q.type === 'rating_comment') ? (
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                                    <div style={{ flex: 1 }}>
-                                                                                        <Field
-                                                                                            type="range"
-                                                                                            name={`responses.${q._id}_corrected.value`}
-                                                                                            min="1"
-                                                                                            max="5"
-                                                                                            step="1"
-                                                                                            style={{ width: '100%', cursor: 'pointer', accentColor: '#dc3545' }}
-                                                                                        />
-                                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                                                                                <div className="slider-container">
+                                                                                    <div className="slider-wrapper">
+                                                                                        {(() => {
+                                                                                            const val = (values.responses as any)?.[`${q._id}_corrected`]?.value;
+                                                                                            const hasValue = val !== '' && val !== undefined;
+                                                                                            return (
+                                                                                                <>
+                                                                                                    {hasValue && <div className="slider-badge corrected-badge">{val}</div>}
+                                                                                                    <Field
+                                                                                                        type="range"
+                                                                                                        name={`responses.${q._id}_corrected.value`}
+                                                                                                        min="1"
+                                                                                                        max="5"
+                                                                                                        step="1"
+                                                                                                        className={!hasValue ? "empty-slider" : ""}
+                                                                                                        style={{ width: '100%', cursor: 'pointer', accentColor: '#dc3545' }}
+                                                                                                    />
+                                                                                                </>
+                                                                                            );
+                                                                                        })()}
+                                                                                        <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
                                                                                             <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
                                                                                         </div>
                                                                                     </div>
