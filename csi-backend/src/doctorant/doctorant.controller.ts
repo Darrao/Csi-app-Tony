@@ -95,12 +95,9 @@ export class DoctorantController {
     const allQuestions = await this.questionModel.find({ active: true }).sort({ order: 1 }).lean();
 
     // On transforme la liste pour ajouter l'URL du PDF et aplatir les réponses
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = `https://${req.get('host')}`; // Force HTTPS for Claris Connect as per requirement
 
     return doctorants.map((doc: any) => {
-      // Calculer ID_UNIQUE_IMPORT à la volée s'il n'existe pas encore en base
       const computedUniqueId =
         doc.ID_UNIQUE_IMPORT ||
         `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
@@ -108,7 +105,9 @@ export class DoctorantController {
       const flattenedDoc: any = {
         ...doc,
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}`,
+        pdfDownloadUrl: doc.finalSend 
+          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
+          : null,
       };
 
       // Aplatir les réponses dynamiques
@@ -966,8 +965,16 @@ export class DoctorantController {
   }
 
   @Get('export/pdf/:id')
-  async exportDoctorantPDF(@Param('id') id: string, @Res() res: Response) {
+  async exportDoctorantPDF(
+    @Param('id') id: string, 
+    @Res() res: Response,
+    @Query('apiKey') apiKey?: string,
+  ) {
     try {
+      // Authentification par URL pour Claris Connect
+      if (apiKey && apiKey !== config.CLARIS_API_KEY) {
+          throw new UnauthorizedException('Clé API invalide');
+      }
       console.log(`📥 Demande d'export du PDF pour l'ID : ${id}`);
 
       const doctorant = await this.doctorantService.findOne(id);
