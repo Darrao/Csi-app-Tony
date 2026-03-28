@@ -492,7 +492,7 @@ const ModifierDoctorant: React.FC = () => {
                                     const hasValue = val !== '' && val !== undefined;
                                     return (
                                         <>
-                                            {hasValue && <div className="slider-badge" style={{ right: '-50px', top: '50%', transform: 'translateY(-50%)' }}>{val}</div>}
+                                            {hasValue && <div className="slider-badge" style={{ right: '0', top: '-30px' }}>{val}</div>}
                                             <input
                                                 className={`${isMissing ? 'input-error' : ''} ${!hasValue ? 'empty-slider' : ''}`}
                                                 type="range"
@@ -586,7 +586,7 @@ const ModifierDoctorant: React.FC = () => {
                 }
                 .slider-container {
                     margin: 10px 0 25px 0;
-                    padding-right: 60px; /* Space for the badge */
+                    position: relative;
                 }
                 .slider-wrapper {
                     position: relative;
@@ -594,15 +594,18 @@ const ModifierDoctorant: React.FC = () => {
                 }
                 .slider-badge {
                     position: absolute;
-                    background: transparent;
-                    border: none;
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                     color: #007bff;
                     display: flex;
-                    alignItems: center;
+                    align-items: center;
                     justify-content: center;
                     font-weight: bold;
                     font-size: 1.2rem;
                     z-index: 10;
+                    width: auto;
+                    height: auto;
                 }
                 .empty-slider::-webkit-slider-thumb {
                     opacity: 0;
