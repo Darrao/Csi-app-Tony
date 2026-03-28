@@ -607,7 +607,8 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
 
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
+                {/* VERSION: 2.1 - Added Directeur Dpt. toggle */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
                     {[
                         { key: 'sendToDoctorant', label: 'Envoyé au Doc.' },
                         { key: 'doctorantValide', label: 'Validé par Doc.' },
