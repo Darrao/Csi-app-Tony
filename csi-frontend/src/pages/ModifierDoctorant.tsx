@@ -106,7 +106,7 @@ const ModifierDoctorant: React.FC = () => {
                     if (!exists) {
                         updatedResponses.push({
                             questionId: q._id,
-                            value: '3', // Valeur par défaut visuelle du slider
+                            value: '', // No default value
                             comment: ''
                         });
                         hasChanged = true;
@@ -227,7 +227,7 @@ const ModifierDoctorant: React.FC = () => {
                 if (!exists) {
                     currentResponses.push({
                         questionId: q._id,
-                        value: '3',
+                        value: '',
                         comment: ''
                     });
                 }
@@ -485,25 +485,31 @@ const ModifierDoctorant: React.FC = () => {
                             <option value="NotAddressed">Not Addressed</option>
                         </select>
                     ) : q.type === 'scale_1_5' || q.type === 'rating_comment' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <span style={{ fontSize: '0.9em', color: '#666' }}>Low (1)</span>
-                            <div style={{ flex: 1 }}>
-                                <input
-                                    className={isMissing ? 'input-error' : ''}
-                                    type="range"
-                                    min="1"
-                                    max="5"
-                                    step="1"
-                                    value={getResponseValue(q._id, 'value') || 3}
-                                    onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
-                                    style={{ width: '100%', cursor: 'pointer' }}
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                        <div className="slider-container">
+                            <div className="slider-wrapper">
+                                {(() => {
+                                    const val = getResponseValue(q._id, 'value');
+                                    const hasValue = val !== '' && val !== undefined;
+                                    return (
+                                        <>
+                                            {hasValue && <div className="slider-badge" style={{ right: '-50px', top: '50%', transform: 'translateY(-50%)' }}>{val}</div>}
+                                            <input
+                                                className={`${isMissing ? 'input-error' : ''} ${!hasValue ? 'empty-slider' : ''}`}
+                                                type="range"
+                                                min="1"
+                                                max="5"
+                                                step="1"
+                                                value={val || 3}
+                                                onChange={(e) => handleResponseChange(q._id, 'value', e.target.value)}
+                                                style={{ width: '100%', cursor: 'pointer' }}
+                                            />
+                                        </>
+                                    );
+                                })()}
+                                <div className="slider-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                                     <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
                                 </div>
                             </div>
-                            <span style={{ fontSize: '0.9em', color: '#666' }}>High (5)</span>
-                            <span style={{ fontWeight: 'bold', marginLeft: '10px' }}>{getResponseValue(q._id, 'value') || '?'}</span>
                         </div>
                     ) : q.type === 'multiple_choice' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', marginBottom: '10px' }}>
@@ -577,6 +583,39 @@ const ModifierDoctorant: React.FC = () => {
                 .input-error-block {
                     border-color: #dc3545 !important;
                     background-color: #fff8f8 !important;
+                }
+                .slider-container {
+                    margin: 10px 0 25px 0;
+                    padding-right: 60px; /* Space for the badge */
+                }
+                .slider-wrapper {
+                    position: relative;
+                    width: 100%;
+                }
+                .slider-badge {
+                    position: absolute;
+                    width: 40px;
+                    height: 35px;
+                    background: white;
+                    border: 2px solid #007bff;
+                    color: #007bff;
+                    border-radius: 6px;
+                    display: flex;
+                    alignItems: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 1.2rem;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    z-index: 10;
+                }
+                .empty-slider::-webkit-slider-thumb {
+                    opacity: 0;
+                }
+                .empty-slider::-moz-range-thumb {
+                    opacity: 0;
+                }
+                .empty-slider::-ms-thumb {
+                    opacity: 0;
                 }
             `}</style>
             <div className="form-header">

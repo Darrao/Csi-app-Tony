@@ -81,7 +81,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 doctorantQuestions.forEach((q: any) => {
                     if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
                         if (!currentResponses.find((r: any) => r.questionId === q._id)) {
-                            newResponses.push({ questionId: q._id, value: '3', comment: '' });
+                            newResponses.push({ questionId: q._id, value: '', comment: '' });
                             docChanged = true;
                             hasChanged = true;
                         }
@@ -98,7 +98,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                 referentQuestions.forEach((q: any) => {
                     if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
                         if (!currentRefResponses.find((r: any) => r.questionId === q._id)) {
-                            newRefResponses.push({ questionId: q._id, value: '3', comment: '' });
+                            newRefResponses.push({ questionId: q._id, value: '', comment: '' });
                             refChanged = true;
                             hasChanged = true;
                         }
@@ -228,7 +228,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
         doctorantQuestions.forEach((q: any) => {
             if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
                 if (!currentDocResponses.find((r: any) => r.questionId === q._id)) {
-                    currentDocResponses.push({ questionId: q._id, value: '3', comment: '' });
+                    currentDocResponses.push({ questionId: q._id, value: '', comment: '' });
                 }
             }
         });
@@ -238,7 +238,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
         referentQuestions.forEach((q: any) => {
             if (q.type === 'scale_1_5' || q.type === 'rating_comment') {
                 if (!currentRefResponses.find((r: any) => r.questionId === q._id)) {
-                    currentRefResponses.push({ questionId: q._id, value: '3', comment: '' });
+                    currentRefResponses.push({ questionId: q._id, value: '', comment: '' });
                 }
             }
         });
@@ -435,14 +435,35 @@ const ModifierDoctorantAdmin: React.FC = () => {
                             {isScale ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                     {!hasValue && <span style={{ fontSize: '0.8em', color: '#e53e3e', fontWeight: 'bold' }}>⚠️ Non répondu</span>}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '50px' }}>
                                         <input
                                             type="range" min="1" max="5" step="1"
                                             value={Number(resp.value) || 3}
+                                            className={!hasValue ? 'empty-slider' : ''}
                                             onChange={(e) => changeHandler(q._id, 'value', e.target.value)}
                                             style={{ flex: 1, cursor: 'pointer' }}
                                         />
-                                        <span style={{ fontWeight: 'bold', minWidth: '30px', textAlign: 'center' }}>{resp.value || '3'}</span>
+                                        {hasValue && (
+                                            <div className="slider-badge" style={{
+                                                position: 'absolute',
+                                                right: 0,
+                                                width: '40px',
+                                                height: '35px',
+                                                background: 'white',
+                                                border: '2px solid #007bff',
+                                                color: '#007bff',
+                                                borderRadius: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontWeight: 'bold',
+                                                fontSize: '1.2rem',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                zIndex: 10
+                                            }}>
+                                                {resp.value}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ) : q.type === 'multiple_choice' ? (
@@ -508,6 +529,17 @@ const ModifierDoctorantAdmin: React.FC = () => {
 
     return (
         <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '100px', backgroundColor: '#f8f9fa', position: 'relative', fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
+            <style>{`
+                .empty-slider::-webkit-slider-thumb {
+                    opacity: 0;
+                }
+                .empty-slider::-moz-range-thumb {
+                    opacity: 0;
+                }
+                .empty-slider::-ms-thumb {
+                    opacity: 0;
+                }
+            `}</style>
 
             {/* FLOATING UNSAVED CHANGES WARNING */}
             {isDirty && (
