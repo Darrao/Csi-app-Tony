@@ -128,28 +128,32 @@ export class DoctorantController {
           : q.content.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
 
         // Récupérer les réponses de l'étudiant et du référent
-        const studentResp = doc.responses?.find(
+        const docResp = doc.responses?.find(
           (r: any) => r.questionId === q._id.toString(),
         );
         const referentResp = doc.referentResponses?.find(
           (r: any) => r.questionId === q._id.toString(),
         );
 
-        // Mapper les valeurs de l'étudiant
-        let studentVal = studentResp?.value ?? '';
-        if (Array.isArray(studentVal)) {
-          studentVal = studentVal.join(', ');
-        }
-        flattenedDoc[key] = studentVal;
-        flattenedDoc[`${key}_comment`] = studentResp?.comment ?? '';
+        // Logic Corrigée selon demande utilisateur :
+        // dB... = Doctorant (Auto-évaluation - responses)
+        // B...  = Référent (Évaluation - referentResponses)
 
-        // Mapper les valeurs du référent (préfixées par 'd')
+        // 1. Mapper les valeurs du DOCTORANT (avec préfixe 'd')
+        let docVal = docResp?.value ?? '';
+        if (Array.isArray(docVal)) {
+          docVal = docVal.join(', ');
+        }
+        flattenedDoc[`d${key}`] = docVal;
+        flattenedDoc[`d${key}_comment`] = docResp?.comment ?? '';
+
+        // 2. Mapper les valeurs du RÉFÉRENT (SANS préfixe d)
         let referentVal = referentResp?.value ?? '';
         if (Array.isArray(referentVal)) {
           referentVal = referentVal.join(', ');
         }
-        flattenedDoc[`d${key}`] = referentVal;
-        flattenedDoc[`d${key}_comment`] = referentResp?.comment ?? '';
+        flattenedDoc[key] = referentVal;
+        flattenedDoc[`${key}_comment`] = referentResp?.comment ?? '';
       });
 
       return flattenedDoc;
