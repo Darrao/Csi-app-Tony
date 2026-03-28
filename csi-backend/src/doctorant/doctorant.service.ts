@@ -349,29 +349,36 @@ export class DoctorantService implements OnModuleInit {
 
       // 🔥 ATOMIC DIRECT-WRITE: Bypass Mongoose Validation & Middlewares
       try {
-          // Convert string ID to ObjectId for direct collection access
-          const { ObjectId } = require('mongodb');
-          const docId = new ObjectId(id);
+        // Convert string ID to ObjectId for direct collection access
+        const { ObjectId } = require('mongodb');
+        const docId = new ObjectId(id);
 
-          // Prepare atomic update payload
-          const { _id: _unusedId, __v: _unusedV, ...directUpdateData } = updateDoctorantDto;
-          
-          await this.doctorantModel.collection.updateOne(
-              { _id: docId },
-              { $set: directUpdateData }
-          );
+        // Prepare atomic update payload
+        const {
+          _id: _unusedId,
+          __v: _unusedV,
+          ...directUpdateData
+        } = updateDoctorantDto;
 
-          console.log(`🚀 [ATOMIC SUCCESS] Doctorant ${id} written directly to MongoDB. Responses: ${directUpdateData.responses?.length}`);
-          
-          // Fetch the result via Mongoose to return a valid object
-          return await this.doctorantModel.findById(id).exec();
+        await this.doctorantModel.collection.updateOne(
+          { _id: docId },
+          { $set: directUpdateData },
+        );
+
+        console.log(
+          `🚀 [ATOMIC SUCCESS] Doctorant ${id} written directly to MongoDB. Responses: ${directUpdateData.responses?.length}`,
+        );
+
+        // Fetch the result via Mongoose to return a valid object
+        return await this.doctorantModel.findById(id).exec();
       } catch (atomicError) {
-          console.error("❌ [ATOMIC FAILURE] Direct write failed:", atomicError);
-          // Fallback to fetch-merge-save for safety if direct write failed
-          const doctorant = await this.doctorantModel.findById(id);
-          if (!doctorant) throw new NotFoundException(`❌ Doctorant ${id} introuvable.`);
-          Object.assign(doctorant, updateDoctorantDto);
-          return await doctorant.save();
+        console.error('❌ [ATOMIC FAILURE] Direct write failed:', atomicError);
+        // Fallback to fetch-merge-save for safety if direct write failed
+        const doctorant = await this.doctorantModel.findById(id);
+        if (!doctorant)
+          throw new NotFoundException(`❌ Doctorant ${id} introuvable.`);
+        Object.assign(doctorant, updateDoctorantDto);
+        return await doctorant.save();
       }
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour :', error);
@@ -1531,8 +1538,7 @@ export class DoctorantService implements OnModuleInit {
     // 🔥 MAIN RENDERING LOOP 🔥
 
     // 0. Official Preamble Placeholder
-    const preambleText =
-      `This document constitutes the official report of the Individual Monitoring Committee (CSI). It outlines the committee's evaluation of the doctoral student's scientific progress, training conditions, and the newly introduced Skills Portfolio. The committee's feedback and recommendations aim to provide clear, actionable guidance to support the student's professional development, foster a constructive dialogue, and ensure the successful completion of the thesis project.`;
+    const preambleText = `This document constitutes the official report of the Individual Monitoring Committee (CSI). It outlines the committee's evaluation of the doctoral student's scientific progress, training conditions, and the newly introduced Skills Portfolio. The committee's feedback and recommendations aim to provide clear, actionable guidance to support the student's professional development, foster a constructive dialogue, and ensure the successful completion of the thesis project.`;
     // (Placeholder text - Tony will provide the final official version)
 
     if (preambleText) {
@@ -1876,7 +1882,6 @@ export class DoctorantService implements OnModuleInit {
           pendingSectionTitle = q.section;
           currentSection = q.section;
         }
-
 
         // Referent questions usually don't have System Blocks
 

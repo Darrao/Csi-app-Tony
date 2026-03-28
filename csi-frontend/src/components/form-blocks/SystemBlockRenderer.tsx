@@ -23,9 +23,14 @@ const IdentityBlock: React.FC<SystemBlockProps> = ({ data, onChange, readOnly })
         </div>
         <div className='info-item' style={{ gridColumn: '1 / -1', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
             <label style={{ color: '#007bff', fontWeight: 'bold' }}>Your ORCID identification number</label>
-            <p style={{ fontSize: '0.85em', color: '#666', marginBottom: '8px' }}>
-                Please indicate your ORCID number.
+            <p style={{ fontSize: '0.85em', color: '#666', marginBottom: '8px', lineHeight: '1.4' }}>
+                Please provide your ORCID iD. If you don’t have one yet, you can register in minutes at <a href="https://orcid.org/" target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', textDecoration: 'underline' }}>https://orcid.org/</a>
             </p>
+            <ul style={{ fontSize: '0.8em', color: '#666', margin: '0 0 12px 20px', padding: 0, lineHeight: '1.5' }}>
+                <li style={{ marginBottom: '4px' }}>You can (and should) register even if you haven't published yet.</li>
+                <li style={{ marginBottom: '4px' }}>This unique ID follows you throughout your entire career, regardless of changes in name, institution, or field.</li>
+                <li>Please ensure your profile visibility is set to "Public". This allows us to follow your academic progress during your PhD and support your career path long after graduation.</li>
+            </ul>
             <input className="select-input" type="text" name="orcid" value={data?.orcid || ''} onChange={onChange} disabled={readOnly} style={{ width: '100%', borderColor: '#007bff' }} />
         </div>
         <div className='info-item'>

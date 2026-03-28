@@ -613,6 +613,7 @@ const ModifierDoctorantAdmin: React.FC = () => {
                         { key: 'doctorantValide', label: 'Validé par Doc.' },
                         { key: 'sendToRepresentants', label: 'Envoyé aux Réf.' },
                         { key: 'representantValide', label: 'Validé par Réf.' },
+                        { key: 'gestionnaireDirecteurValide', label: 'Directeur Dpt.' },
                         { key: 'finalSend', label: 'Envoi Final' }
                     ].map(status => (
                         <div key={status.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '15px', background: '#fff', border: '1px solid', borderColor: doctorant[status.key] ? '#c6f6d5' : '#fed7d7', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
