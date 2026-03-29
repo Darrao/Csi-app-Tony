@@ -149,24 +149,26 @@ export class DoctorantController {
         );
 
         // Logic Corrigée selon demande utilisateur :
-        // dB... = Doctorant (Auto-évaluation - responses)
-        // B...  = Référent (Évaluation - referentResponses)
+        // d_B... = Doctorant (Auto-évaluation - responses)
+        // d_B..._c = Commentaire Doctorant
+        // B...   = Référent (Évaluation - referentResponses)
+        // B..._c  = Commentaire Référent
 
-        // 1. Mapper les valeurs du DOCTORANT (avec préfixe 'd')
+        // 1. Mapper les valeurs du DOCTORANT (avec préfixe 'd_')
         let docVal = docResp?.value ?? '';
         if (Array.isArray(docVal)) {
           docVal = docVal.join(', ');
         }
-        flattenedDoc[`d${key}`] = docVal;
-        flattenedDoc[`d${key}_comment`] = docResp?.comment ?? '';
+        flattenedDoc[`d_${key}`] = docVal;
+        flattenedDoc[`d_${key}_c`] = docResp?.comment ?? '';
 
-        // 2. Mapper les valeurs du RÉFÉRENT (SANS préfixe d)
+        // 2. Mapper les valeurs du RÉFÉRENT (SANS préfixe d, suffixe _c)
         let referentVal = referentResp?.value ?? '';
         if (Array.isArray(referentVal)) {
           referentVal = referentVal.join(', ');
         }
         flattenedDoc[key] = referentVal;
-        flattenedDoc[`${key}_comment`] = referentResp?.comment ?? '';
+        flattenedDoc[`${key}_c`] = referentResp?.comment ?? '';
       });
 
       return flattenedDoc;
