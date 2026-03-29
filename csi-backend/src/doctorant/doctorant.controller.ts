@@ -174,8 +174,15 @@ export class DoctorantController {
     });
   }
 
-  @Get('/claris-export/stringified')
-  async exportForClarisStringified(@Req() req: any) {
+  @Get('claris-export/stringified')
+  async exportForClarisStringified(
+    @Headers('x-api-key') apiKey: string,
+    @Req() req: any,
+  ) {
+    if (apiKey !== config.CLARIS_API_KEY) {
+      throw new UnauthorizedException('Clé API invalide');
+    }
+    console.log('✅ Export Claris Stringified demandé');
     const doctorants = await this.doctorantService.findAll();
     const allQuestions = await this.questionModel
       .find({ active: true })
