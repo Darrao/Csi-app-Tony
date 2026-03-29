@@ -104,39 +104,26 @@ export class DoctorantController {
 
       const { responses, referentResponses, ...docWithoutArrays } = doc;
 
-      // ✅ Liste des champs autorisés (cœur du dossier)
-      const allowedKeys = [
-        '_id', 'prenom', 'nom', 'email', 'ID_DOCTORANT', 'importDate',
-        'departementDoctorant', 'datePremiereInscription', 'anneeThese',
-        'typeFinancement', 'missions', 'titreThese', 'intituleUR', 'directeurUR',
-        'intituleEquipe', 'directeurEquipe', 'nomPrenomHDR', 'email_HDR', 'coDirecteurThese',
-        'prenomMembre1', 'nomMembre1', 'emailMembre1', 'univesityMembre1',
-        'prenomMembre2', 'nomMembre2', 'emailMembre2', 'univesityMembre2',
-        'prenomAdditionalMembre', 'nomAdditionalMembre', 'emailAdditionalMembre', 'universityAdditionalMembre',
-        'report', 'nbHoursScientificModules', 'nbHoursCrossDisciplinaryModules',
-        'nbHoursProfessionalIntegrationModules', 'totalNbHours', 'posters',
-        'conferencePapers', 'publications', 'publicCommunication', 'dateValidation',
-        'additionalInformation', 'conclusion', 'recommendation', 'recommendation_comment',
-        'fichiersExternes', 'sendToDoctorant', 'NbSendToDoctorant', 'doctorantValide',
-        'sendToRepresentants', 'NbSendToRepresentants', 'representantValide',
-        'gestionnaireDirecteurValide', 'finalSend', 'NbFinalSend', 'dateEntretien',
-        'orcid', 'selfEvaluation', 'referentRating', 'referentComment', 'suiviComment',
-        '__v'
-      ];
-
-      const flattenedDoc: any = {
+      // ✅ Filtrage dynamique : On retire les anciennes clés "phrases" persitantes (ex: dHow_is_the...)
+      // On garde tout le reste (ce qui permet d'ajouter des champs futurs au schéma sans modif ici)
+      const cleanDoc: any = {
         ID_UNIQUE_IMPORT: computedUniqueId,
         pdfDownloadUrl: doc.finalSend
           ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
           : null,
       };
 
-      // Copier uniquement les champs autorisés
-      allowedKeys.forEach(k => {
-          if (docWithoutArrays[k] !== undefined) {
-              flattenedDoc[k] = docWithoutArrays[k];
-          }
+      //Regex pour détecter les clés de type "Phrase_Slug" (ex: dWord_Word_...)
+      // d + Mot (au moins 2 lettres minuscules) + underscore
+      const slugKeyRegex = /^d?[A-Z][a-z]{2,}_/;
+
+      Object.keys(docWithoutArrays).forEach((k) => {
+        if (!slugKeyRegex.test(k)) {
+          cleanDoc[k] = docWithoutArrays[k];
+        }
       });
+
+      const flattenedDoc = { ...cleanDoc };
 
       // Aplatir les réponses dynamiques avec des clés normalisées
       allQuestions.forEach((q) => {
