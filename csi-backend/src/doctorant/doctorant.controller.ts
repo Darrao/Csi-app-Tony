@@ -174,6 +174,84 @@ export class DoctorantController {
     });
   }
 
+  @Get('/export/claris/stringified')
+  async exportForClarisStringified(@Req() req: any) {
+    const doctorants = await this.doctorantService.findAll();
+    const allQuestions = await this.questionModel
+      .find({ active: true })
+      .sort({ order: 1 })
+      .lean();
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    return doctorants.map((doc: any) => {
+      const computedUniqueId =
+        doc.ID_UNIQUE_IMPORT ||
+        `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
+
+      const { responses, referentResponses, ...docWithoutArrays } = doc;
+
+      // 1. Filtrage dynamique pour les champs de base (on enlève les vieux slugs)
+      const slugKeyRegex = /^d?[A-Z][a-z]{2,}_/;
+      const cleanDoc: any = {};
+      Object.keys(docWithoutArrays).forEach((k) => {
+        if (!slugKeyRegex.test(k)) {
+          cleanDoc[k] = docWithoutArrays[k];
+        }
+      });
+
+      // 2. Construction de l'objet d'évaluations qui sera "stringifié"
+      const evalObj: any = {};
+      allQuestions.forEach((q) => {
+        if (
+          q.type === 'system' ||
+          q.type === 'chapter_title' ||
+          q.type === 'description'
+        )
+          return;
+
+        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        if (!prefixMatch) return;
+
+        const key = prefixMatch[1].toUpperCase();
+
+        const docResp = doc.responses?.find(
+          (r: any) => r.questionId === q._id.toString(),
+        );
+        const referentResp = doc.referentResponses?.find(
+          (r: any) => r.questionId === q._id.toString(),
+        );
+
+        // Nomenclature spécifique demandée par l'utilisateur
+        // Score Doc (d_B1_1), Comment Doc (dB1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
+        
+        // Doctorant
+        let dVal = docResp?.value ?? '';
+        if (Array.isArray(dVal)) dVal = dVal.join(', ');
+        evalObj[`d_${key}`] = dVal;
+        evalObj[`d${key}_comment`] = docResp?.comment ?? '';
+
+        // Référent
+        let rVal = referentResp?.value ?? '';
+        if (Array.isArray(rVal)) rVal = rVal.join(', ');
+        evalObj[key] = rVal;
+        evalObj[`${key}_comment`] = referentResp?.comment ?? '';
+      });
+
+      // 3. Objet final retourné à Claris
+      return {
+        ...cleanDoc,
+        ID_UNIQUE_IMPORT: computedUniqueId,
+        pdfDownloadUrl: doc.finalSend
+          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
+          : null,
+        evaluations_json: JSON.stringify(evalObj), // 🔥 LA CHARGE UTILE UNIQUE
+      };
+    });
+  }
+
   @Get('/export/zip')
   async exportZip(
     @Query('searchTerm') searchTerm: string,
