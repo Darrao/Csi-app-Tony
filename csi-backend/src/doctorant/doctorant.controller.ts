@@ -209,8 +209,8 @@ export class DoctorantController {
         }
       });
 
-      // 2. Construction de l'objet d'évaluations qui sera "stringifié"
-      const evalObj: any = {};
+      // 2. Construction de la charge utile (payload) qui contient tout le reste
+      const payloadObj: any = { ...cleanDoc };
       allQuestions.forEach((q) => {
         if (
           q.type === 'system' ||
@@ -234,27 +234,24 @@ export class DoctorantController {
         // Nomenclature spécifique demandée par l'utilisateur
         // Score Doc (d_B1_1), Comment Doc (dB1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
         
-        // Doctorant
         let dVal = docResp?.value ?? '';
         if (Array.isArray(dVal)) dVal = dVal.join(', ');
-        evalObj[`d_${key}`] = dVal;
-        evalObj[`d${key}_comment`] = docResp?.comment ?? '';
+        payloadObj[`d_${key}`] = dVal;
+        payloadObj[`d${key}_comment`] = docResp?.comment ?? '';
 
-        // Référent
         let rVal = referentResp?.value ?? '';
         if (Array.isArray(rVal)) rVal = rVal.join(', ');
-        evalObj[key] = rVal;
-        evalObj[`${key}_comment`] = referentResp?.comment ?? '';
+        payloadObj[key] = rVal;
+        payloadObj[`${key}_comment`] = referentResp?.comment ?? '';
       });
 
-      // 3. Objet final retourné à Claris
+      // 3. Objet final hybride retourné à Claris
       return {
-        ...cleanDoc,
         ID_UNIQUE_IMPORT: computedUniqueId,
         pdfDownloadUrl: doc.finalSend
           ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
           : null,
-        evaluations_json: JSON.stringify(evalObj), // 🔥 LA CHARGE UTILE UNIQUE
+        payload_json: JSON.stringify(payloadObj), // 🔥 TOUTE LA DONNÉE EST ICI
       };
     });
   }
