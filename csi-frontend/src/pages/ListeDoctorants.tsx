@@ -298,13 +298,15 @@ const ListeDoctorants: React.FC = () => {
         
         batchCount++;
         
-        // Délai de salve (tous les 5 emails)
+        // Délai de salve (tous les 5 emails) avec un peu d'aléatoire pour faire "humain"
         if (batchCount % 5 === 0 && batchCount < total) {
-            console.log("🐢 Pause de salve de 5 secondes...");
-            await new Promise((resolve) => setTimeout(resolve, 5000));
+          const salveDelay = 5000 * (0.8 + Math.random() * 0.4); // Entre 4s et 6s
+          console.log(`🐢 Pause de salve de ${Math.round(salveDelay/1000)} secondes...`);
+          await new Promise((resolve) => setTimeout(resolve, salveDelay));
         } else {
-            // Délai individuel régulier (1.5s)
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+          // Délai individuel régulier avec aléatoire (entre ~1s et ~2s)
+          const individualDelay = 1500 * (0.7 + Math.random() * 0.6);
+          await new Promise((resolve) => setTimeout(resolve, individualDelay));
         }
       } catch (error) {
         console.error(`Erreur d'envoi pour ${prenom} :`, error);
@@ -358,13 +360,15 @@ const ListeDoctorants: React.FC = () => {
         
         batchCount++;
 
-        // Délai de salve (tous les 5 emails)
+        // Délai de salve (tous les 5 emails) avec aléatoire
         if (batchCount % 5 === 0 && batchCount < total) {
-            console.log("🐢 Pause de salve de 5 secondes...");
-            await new Promise((resolve) => setTimeout(resolve, 5000));
+          const salveDelay = 5000 * (0.8 + Math.random() * 0.4); // Entre 4s et 6s
+          console.log(`🐢 Pause de salve de ${Math.round(salveDelay/1000)} secondes...`);
+          await new Promise((resolve) => setTimeout(resolve, salveDelay));
         } else {
-            // Délai individuel régulier (1.5s)
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+          // Délai individuel régulier avec aléatoire (entre ~1s et ~2s)
+          const individualDelay = 1500 * (0.7 + Math.random() * 0.6);
+          await new Promise((resolve) => setTimeout(resolve, individualDelay));
         }
       } catch (error) {
         console.error(`❌ Erreur d'envoi aux référents de ${prenom} :`, error);
