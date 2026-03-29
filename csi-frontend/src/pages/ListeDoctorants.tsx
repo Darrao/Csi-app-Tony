@@ -282,6 +282,7 @@ const ListeDoctorants: React.FC = () => {
     setCurrentSent(0);
     setSendingProgress(0);
 
+    let batchCount = 0;
     for (const doc of doctorantsToEmail) {
       const { _id, email, prenom, nom } = doc;
 
@@ -294,9 +295,17 @@ const ListeDoctorants: React.FC = () => {
         await handleSendEmail(_id, email, prenom, nom);
         setCurrentSent((prev) => prev + 1);
         setSendingProgress((prev) => (prev !== null ? ((prev + 1) / total) * 100 : 100));
-
-        const delay = 10 + Math.random() * 5;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        
+        batchCount++;
+        
+        // Délai de salve (tous les 5 emails)
+        if (batchCount % 5 === 0 && batchCount < total) {
+            console.log("🐢 Pause de salve de 5 secondes...");
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+        } else {
+            // Délai individuel régulier (1.5s)
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
       } catch (error) {
         console.error(`Erreur d'envoi pour ${prenom} :`, error);
       }
@@ -320,6 +329,7 @@ const ListeDoctorants: React.FC = () => {
     setCurrentSent(0);
     setSendingProgress(0);
 
+    let batchCount = 0;
     for (const doc of doctorantsWithoutReferentEmails) {
       const { prenom, nom, email, email_HDR, emailMembre1, emailMembre2, emailAdditionalMembre } = doc;
 
@@ -345,9 +355,17 @@ const ListeDoctorants: React.FC = () => {
         setSendingProgress((prev) =>
           prev !== null ? ((prev + 1) / total) * 100 : 100
         );
+        
+        batchCount++;
 
-        const delay = 10 + Math.random() * 5;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        // Délai de salve (tous les 5 emails)
+        if (batchCount % 5 === 0 && batchCount < total) {
+            console.log("🐢 Pause de salve de 5 secondes...");
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+        } else {
+            // Délai individuel régulier (1.5s)
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
       } catch (error) {
         console.error(`❌ Erreur d'envoi aux référents de ${prenom} :`, error);
       }
