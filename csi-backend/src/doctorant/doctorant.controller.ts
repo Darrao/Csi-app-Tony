@@ -174,7 +174,7 @@ export class DoctorantController {
     });
   }
 
-  @Get('/export/claris/stringified')
+  @Get('/claris-export/stringified')
   async exportForClarisStringified(@Req() req: any) {
     const doctorants = await this.doctorantService.findAll();
     const allQuestions = await this.questionModel
