@@ -123,9 +123,9 @@ export class DoctorantController {
 
         // Extraire le préfixe (ex: B1_1, Q1, etc.)
         const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-        const key = prefixMatch
-          ? prefixMatch[1].toUpperCase()
-          : q.content.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+        if (!prefixMatch) return; // ✅ Ignore les questions sans préfixe (phrases entières) as per requirement
+
+        const key = prefixMatch[1].toUpperCase();
 
         // Récupérer les réponses de l'étudiant et du référent
         const docResp = doc.responses?.find(
