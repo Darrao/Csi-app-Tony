@@ -160,15 +160,14 @@ export class DoctorantController {
           docVal = docVal.join(', ');
         }
         flattenedDoc[`d_${key}`] = docVal;
-        flattenedDoc[`d_${key}_c`] = docResp?.comment ?? '';
-
+        flattenedDoc[`d${key}_comment`] = docResp?.comment ?? '';
         // 2. Mapper les valeurs du RÉFÉRENT (SANS préfixe d, suffixe _c)
         let referentVal = referentResp?.value ?? '';
         if (Array.isArray(referentVal)) {
           referentVal = referentVal.join(', ');
         }
         flattenedDoc[key] = referentVal;
-        flattenedDoc[`${key}_c`] = referentResp?.comment ?? '';
+        flattenedDoc[`${key}_comment`] = referentResp?.comment ?? '';
       });
 
       return flattenedDoc;
