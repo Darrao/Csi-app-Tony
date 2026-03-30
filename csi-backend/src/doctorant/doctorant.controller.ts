@@ -232,12 +232,12 @@ export class DoctorantController {
         );
 
         // Nomenclature spécifique demandée par l'utilisateur
-        // Score Doc (d_B1_1), Comment Doc (dB1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
+        // Score Doc (d_B1_1), Comment Doc (d_B1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
         
         let dVal = docResp?.value ?? '';
         if (Array.isArray(dVal)) dVal = dVal.join(', ');
         payloadObj[`d_${key}`] = dVal;
-        payloadObj[`d${key}_comment`] = docResp?.comment ?? '';
+        payloadObj[`d_${key}_comment`] = docResp?.comment ?? '';
 
         let rVal = referentResp?.value ?? '';
         if (Array.isArray(rVal)) rVal = rVal.join(', ');
