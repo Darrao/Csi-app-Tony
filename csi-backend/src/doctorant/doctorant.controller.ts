@@ -189,6 +189,24 @@ export class DoctorantController {
       .sort({ order: 1 })
       .lean();
 
+    // 0. Pré-calcul d'une table de correspondance pour les codes (Fallback dynamique)
+    let qCount = 0;
+    const questionToCode = new Map<string, string>();
+    allQuestions.forEach((q) => {
+      if (['system', 'chapter_title', 'description'].includes(q.type)) return;
+
+      const content = (q.content || '').trim();
+      const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+
+      if (prefixMatch) {
+        questionToCode.set(q._id.toString(), prefixMatch[1].toUpperCase());
+      } else {
+        // Fallback pour les questions "historiques" sans préfixe
+        qCount++;
+        questionToCode.set(q._id.toString(), `Q${qCount}`);
+      }
+    });
+
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
     const baseUrl = `${protocol}://${host}`;
@@ -212,20 +230,8 @@ export class DoctorantController {
       // 2. Construction de la charge utile (payload) qui contient tout le reste
       const payloadObj: any = { ...cleanDoc };
       allQuestions.forEach((q) => {
-        if (
-          q.type === 'system' ||
-          q.type === 'chapter_title' ||
-          q.type === 'description'
-        )
-          return;
-
-        // On trim le contenu pour éviter les espaces invisibles au début
-        const content = (q.content || '').trim();
-        const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-        
-        if (!prefixMatch) return;
-
-        const key = prefixMatch[1].toUpperCase();
+        const key = questionToCode.get(q._id.toString());
+        if (!key) return;
 
         const docResp = doc.responses?.find(
           (r: any) => r.questionId === q._id.toString(),
@@ -236,7 +242,7 @@ export class DoctorantController {
 
         // Nomenclature spécifique demandée par l'utilisateur
         // Score Doc (d_B1_1), Comment Doc (d_B1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
-        
+
         let dVal = docResp?.value ?? '';
         if (Array.isArray(dVal)) dVal = dVal.join(', ');
         payloadObj[`d_${key}`] = dVal;
@@ -269,13 +275,24 @@ export class DoctorantController {
       .sort({ order: 1 })
       .lean();
 
+    // Même logique de mapping pour la cohérence
+    let qCount = 0;
     return allQuestions
-      .filter((q) => !['system', 'chapter_title', 'description'].includes(q.type))
+      .filter(
+        (q) => !['system', 'chapter_title', 'description'].includes(q.type),
+      )
       .map((q) => {
         const content = (q.content || '').trim();
         const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-        const identifier = prefixMatch ? prefixMatch[1].toUpperCase() : 'AUCUN_CODE';
-        
+        let identifier: string;
+
+        if (prefixMatch) {
+          identifier = prefixMatch[1].toUpperCase();
+        } else {
+          qCount++;
+          identifier = `Q${qCount}`;
+        }
+
         return {
           code_json: identifier,
           systemId: q.systemId || 'N/A',
