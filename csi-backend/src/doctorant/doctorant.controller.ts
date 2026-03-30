@@ -228,7 +228,13 @@ export class DoctorantController {
       });
 
       // 2. Construction de la charge utile (payload) qui contient tout le reste
-      const payloadObj: any = { ...cleanDoc };
+      const payloadObj: any = {
+        ...cleanDoc,
+        ID_UNIQUE_IMPORT: computedUniqueId,
+        pdfDownloadUrl: doc.finalSend
+          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
+          : null,
+      };
       allQuestions.forEach((q) => {
         const key = questionToCode.get(q._id.toString());
         if (!key) return;
