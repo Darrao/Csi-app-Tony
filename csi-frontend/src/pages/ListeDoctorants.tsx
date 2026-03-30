@@ -180,7 +180,7 @@ const ListeDoctorants: React.FC = () => {
     }
   };
 
-  const handleSendEmail = async (id: string, email: string, prenom: string, nom: string) => {
+  const handleSendEmail = async (id: string, email: string, prenom: string, nom: string, quiet = false) => {
     if (!email) {
       alert("Cet utilisateur n'a pas d'email défini.");
       return;
@@ -193,7 +193,9 @@ const ListeDoctorants: React.FC = () => {
         throw new Error(response.data.message || "Erreur inconnue");
       }
 
-      alert(response.data.message || 'Email envoyé avec succès !');
+      if (!quiet) {
+        alert(response.data.message || 'Email envoyé avec succès !');
+      }
     } catch (error: any) {
       console.error("Erreur lors de l'envoi de l'email :", error);
       const backendMessage = error?.response?.data?.message || error?.message || "Erreur lors de l'envoi de l'email.";
@@ -292,7 +294,7 @@ const ListeDoctorants: React.FC = () => {
       }
 
       try {
-        await handleSendEmail(_id, email, prenom, nom);
+        await handleSendEmail(_id, email, prenom, nom, true);
         setCurrentSent((prev) => prev + 1);
         setSendingProgress((prev) => (prev !== null ? ((prev + 1) / total) * 100 : 100));
         
