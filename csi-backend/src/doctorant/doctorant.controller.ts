@@ -256,6 +256,34 @@ export class DoctorantController {
     });
   }
 
+  @Get('claris-export/mapping')
+  async exportMapping(@Headers('x-api-key') apiKey: string) {
+    if (apiKey !== config.CLARIS_API_KEY) {
+      throw new UnauthorizedException('Clé API invalide');
+    }
+    const allQuestions = await this.questionModel
+      .find({ active: true })
+      .sort({ order: 1 })
+      .lean();
+
+    return allQuestions
+      .filter(
+        (q) => !['system', 'chapter_title', 'description'].includes(q.type),
+      )
+      .map((q) => {
+        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        const identifier = prefixMatch
+          ? prefixMatch[1].toUpperCase()
+          : 'AUCUN_CODE';
+        return {
+          code: identifier,
+          question: q.content,
+          section: q.section,
+          target: q.target,
+        };
+      });
+  }
+
   @Get('/export/zip')
   async exportZip(
     @Query('searchTerm') searchTerm: string,
