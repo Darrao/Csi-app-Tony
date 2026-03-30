@@ -219,7 +219,10 @@ export class DoctorantController {
         )
           return;
 
-        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        // On trim le contenu pour éviter les espaces invisibles au début
+        const content = (q.content || '').trim();
+        const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        
         if (!prefixMatch) return;
 
         const key = prefixMatch[1].toUpperCase();
@@ -267,17 +270,17 @@ export class DoctorantController {
       .lean();
 
     return allQuestions
-      .filter(
-        (q) => !['system', 'chapter_title', 'description'].includes(q.type),
-      )
+      .filter((q) => !['system', 'chapter_title', 'description'].includes(q.type))
       .map((q) => {
-        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-        const identifier = prefixMatch
-          ? prefixMatch[1].toUpperCase()
-          : 'AUCUN_CODE';
+        const content = (q.content || '').trim();
+        const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        const identifier = prefixMatch ? prefixMatch[1].toUpperCase() : 'AUCUN_CODE';
+        
         return {
-          code: identifier,
-          question: q.content,
+          code_json: identifier,
+          systemId: q.systemId || 'N/A',
+          question_complete: q.content,
+          snippet: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
           section: q.section,
           target: q.target,
         };
