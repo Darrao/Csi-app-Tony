@@ -262,15 +262,21 @@ export class DoctorantController {
         // Nomenclature spécifique demandée par l'utilisateur
         // Score Doc (d_B1_1), Comment Doc (d_B1_1_comment), Score Ref (B1_1), Comment Ref (B1_1_comment)
 
-        let dVal = docResp?.value ?? '';
-        if (Array.isArray(dVal)) dVal = dVal.join(', ');
-        payloadObj[`d_${key}`] = dVal;
-        payloadObj[`d_${key}_comment`] = docResp?.comment ?? '';
+        // IMPORTANCE: On ne remplit que SI une réponse existe pour éviter les conflits
+        // quand on dédoublonne Doc/Ref sous le même code.
+        if (docResp) {
+          let dVal = docResp.value ?? '';
+          if (Array.isArray(dVal)) dVal = dVal.join(', ');
+          payloadObj[`d_${key}`] = dVal;
+          payloadObj[`d_${key}_comment`] = docResp.comment ?? '';
+        }
 
-        let rVal = referentResp?.value ?? '';
-        if (Array.isArray(rVal)) rVal = rVal.join(', ');
-        payloadObj[key] = rVal;
-        payloadObj[`${key}_comment`] = referentResp?.comment ?? '';
+        if (referentResp) {
+          let rVal = referentResp.value ?? '';
+          if (Array.isArray(rVal)) rVal = rVal.join(', ');
+          payloadObj[key] = rVal;
+          payloadObj[`${key}_comment`] = referentResp.comment ?? '';
+        }
       });
 
       // 3. Objet final hybride retourné à Claris
