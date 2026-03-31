@@ -197,15 +197,17 @@ export class DoctorantController {
     allQuestions.forEach((q) => {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
 
-      const content = (q.content || '').trim();
+      const rawContent = (q.content || '').trim();
+      // Normalisation du texte (minuscules + virer ponctuation et espaces)
+      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
       
-      // Si on a déjà attribué un code à ce texte exact (ex: version Doc vs Ref)
-      if (contentToCode.has(content)) {
-        questionToCode.set(q._id.toString(), contentToCode.get(content));
+      // Si on a déjà attribué un code à ce texte (ex: version Doc vs Ref)
+      if (contentToCode.has(normalizedContent)) {
+        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
         return;
       }
 
-      const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+      const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
       let code: string;
 
       if (prefixMatch) {
@@ -217,7 +219,7 @@ export class DoctorantController {
       }
 
       questionToCode.set(q._id.toString(), code);
-      contentToCode.set(content, code);
+      contentToCode.set(normalizedContent, code);
     });
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -309,27 +311,29 @@ export class DoctorantController {
         (q) => !['system', 'chapter_title', 'description'].includes(q.type),
       )
       .map((q) => {
-        const content = (q.content || '').trim();
+        const rawContent = (q.content || '').trim();
+        // Normalisation (même logique que l'export)
+        const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
         
         let identifier: string;
-        if (contentToCode.has(content)) {
-          identifier = contentToCode.get(content);
+        if (contentToCode.has(normalizedContent)) {
+          identifier = contentToCode.get(normalizedContent);
         } else {
-          const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+          const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
           if (prefixMatch) {
             identifier = prefixMatch[1].toUpperCase();
           } else {
             qCount++;
             identifier = `Q${qCount}`;
           }
-          contentToCode.set(content, identifier);
+          contentToCode.set(normalizedContent, identifier);
         }
 
         return {
           code_json: identifier,
           systemId: q.systemId || 'N/A',
           question_complete: q.content,
-          snippet: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+          snippet: rawContent.substring(0, 50) + (rawContent.length > 50 ? '...' : ''),
           section: q.section,
           target: q.target,
         };
