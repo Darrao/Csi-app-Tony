@@ -205,7 +205,7 @@ export class DoctorantController {
 
       const rawContent = (q.content || '').trim();
       const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+      const prefixMatch = rawContent.match(/^([A-Z]+[0-9]+(?:[._-][0-9]+)*|Q\d+)/i);
 
       if (prefixMatch) {
          // Codes manuels toujours prioritized (ex: B1_1, Q1:)
@@ -322,7 +322,7 @@ export class DoctorantController {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
       const rawContent = (q.content || '').trim();
       const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+      const prefixMatch = rawContent.match(/^([A-Z]+[0-9]+(?:[._-][0-9]+)*|Q\d+)/i);
 
       if (prefixMatch) {
          const code = prefixMatch[1].toUpperCase();
