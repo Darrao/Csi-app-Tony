@@ -194,32 +194,40 @@ export class DoctorantController {
     const questionToCode = new Map<string, string>();
     const contentToCode = new Map<string, string>(); // Pour dédoublonner Doc/Ref
     
+    // On priorise les questions du Référent pour dicter la numérotation Q1, Q2, Q3...
     allQuestions.forEach((q) => {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
 
       const rawContent = (q.content || '').trim();
-      // Normalisation du texte (minuscules + virer ponctuation et espaces)
       const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      
-      // Si on a déjà attribué un code à ce texte (ex: version Doc vs Ref)
-      if (contentToCode.has(normalizedContent)) {
-        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
-        return;
-      }
-
       const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-      let code: string;
 
       if (prefixMatch) {
-        code = prefixMatch[1].toUpperCase();
-      } else {
-        // Fallback pour les questions "historiques" sans préfixe
-        qCount++;
-        code = `Q${qCount}`;
+         // Les codes manuels (ex: B1_1, Q1) sont prioritaires et fixes
+         const code = prefixMatch[1].toUpperCase();
+         questionToCode.set(q._id.toString(), code);
+         contentToCode.set(normalizedContent, code);
+      } else if (q.target === 'referent') {
+         // Pour les questions historiques sans matricule, le RÉFÉRENT dicte le numéro
+         qCount++;
+         const code = `Q${qCount}`;
+         questionToCode.set(q._id.toString(), code);
+         contentToCode.set(normalizedContent, code);
       }
+    });
 
-      questionToCode.set(q._id.toString(), code);
-      contentToCode.set(normalizedContent, code);
+    // Deuxième passage pour aligner les questions Doctorants sur les numéros du Référent
+    allQuestions.forEach((q) => {
+      if (q.target !== 'doctorant' || questionToCode.has(q._id.toString())) return;
+
+      const rawContent = (q.content || '').trim();
+      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
+      
+      if (contentToCode.has(normalizedContent)) {
+        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
+      }
+      // Note: si une question Doctorant n'a pas de préfixe ET n'a pas de version Référent, 
+      // elle ne prend pas de numéro Qx (pour respecter la synchro demandée).
     });
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -302,38 +310,51 @@ export class DoctorantController {
       .sort({ order: 1 })
       .lean();
 
-    // Même logique de mapping pour la cohérence
+    // Même logique de "Referent Master" pour la cohérence absolue du mapping
     let qCount = 0;
+    const questionToCode = new Map<string, string>();
     const contentToCode = new Map<string, string>();
 
-    return allQuestions
-      .filter(
-        (q) => !['system', 'chapter_title', 'description'].includes(q.type),
-      )
-      .map((q) => {
-        const rawContent = (q.content || '').trim();
-        // Normalisation (même logique que l'export)
-        const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-        
-        let identifier: string;
-        if (contentToCode.has(normalizedContent)) {
-          identifier = contentToCode.get(normalizedContent);
-        } else {
-          const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-          if (prefixMatch) {
-            identifier = prefixMatch[1].toUpperCase();
-          } else {
-            qCount++;
-            identifier = `Q${qCount}`;
-          }
-          contentToCode.set(normalizedContent, identifier);
-        }
+    // Pass 1: Referent dictates the Q1, Q2, Q3 sequence
+    allQuestions.forEach((q) => {
+      if (['system', 'chapter_title', 'description'].includes(q.type)) return;
 
+      const rawContent = (q.content || '').trim();
+      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
+      const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+
+      if (prefixMatch) {
+        const code = prefixMatch[1].toUpperCase();
+        questionToCode.set(q._id.toString(), code);
+        contentToCode.set(normalizedContent, code);
+      } else if (q.target === 'referent') {
+        qCount++;
+        const code = `Q${qCount}`;
+        questionToCode.set(q._id.toString(), code);
+        contentToCode.set(normalizedContent, code);
+      }
+    });
+
+    // Pass 2: Doctorants align on Referents
+    allQuestions.forEach((q) => {
+      if (q.target !== 'doctorant' || questionToCode.has(q._id.toString())) return;
+      const rawContent = (q.content || '').trim();
+      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
+      if (contentToCode.has(normalizedContent)) {
+        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
+      }
+    });
+
+    return allQuestions
+      .filter((q) => questionToCode.has(q._id.toString())) // On ne garde que ceux qui ont un code (synchro)
+      .map((q) => {
+        const identifier = questionToCode.get(q._id.toString());
+        const content = (q.content || '').trim();
         return {
           code_json: identifier,
           systemId: q.systemId || 'N/A',
           question_complete: q.content,
-          snippet: rawContent.substring(0, 50) + (rawContent.length > 50 ? '...' : ''),
+          snippet: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
           section: q.section,
           target: q.target,
         };
