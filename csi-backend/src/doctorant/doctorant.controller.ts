@@ -192,19 +192,32 @@ export class DoctorantController {
     // 0. Pré-calcul d'une table de correspondance pour les codes (Fallback dynamique)
     let qCount = 0;
     const questionToCode = new Map<string, string>();
+    const contentToCode = new Map<string, string>(); // Pour dédoublonner Doc/Ref
+    
     allQuestions.forEach((q) => {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
 
       const content = (q.content || '').trim();
+      
+      // Si on a déjà attribué un code à ce texte exact (ex: version Doc vs Ref)
+      if (contentToCode.has(content)) {
+        questionToCode.set(q._id.toString(), contentToCode.get(content));
+        return;
+      }
+
       const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+      let code: string;
 
       if (prefixMatch) {
-        questionToCode.set(q._id.toString(), prefixMatch[1].toUpperCase());
+        code = prefixMatch[1].toUpperCase();
       } else {
         // Fallback pour les questions "historiques" sans préfixe
         qCount++;
-        questionToCode.set(q._id.toString(), `Q${qCount}`);
+        code = `Q${qCount}`;
       }
+
+      questionToCode.set(q._id.toString(), code);
+      contentToCode.set(content, code);
     });
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -283,20 +296,27 @@ export class DoctorantController {
 
     // Même logique de mapping pour la cohérence
     let qCount = 0;
+    const contentToCode = new Map<string, string>();
+
     return allQuestions
       .filter(
         (q) => !['system', 'chapter_title', 'description'].includes(q.type),
       )
       .map((q) => {
         const content = (q.content || '').trim();
-        const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+        
         let identifier: string;
-
-        if (prefixMatch) {
-          identifier = prefixMatch[1].toUpperCase();
+        if (contentToCode.has(content)) {
+          identifier = contentToCode.get(content);
         } else {
-          qCount++;
-          identifier = `Q${qCount}`;
+          const prefixMatch = content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
+          if (prefixMatch) {
+            identifier = prefixMatch[1].toUpperCase();
+          } else {
+            qCount++;
+            identifier = `Q${qCount}`;
+          }
+          contentToCode.set(content, identifier);
         }
 
         return {
