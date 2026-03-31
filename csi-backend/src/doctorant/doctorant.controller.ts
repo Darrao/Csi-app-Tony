@@ -190,11 +190,16 @@ export class DoctorantController {
       .lean();
 
     // 0. Pré-calcul d'une table de correspondance pour les codes (Fallback dynamique)
-    let qCount = 0;
+    let linkedCount = 0;
     const questionToCode = new Map<string, string>();
     const contentToCode = new Map<string, string>(); // Pour dédoublonner Doc/Ref
     
-    // On priorise les questions du Référent pour dicter la numérotation Q1, Q2, Q3...
+    // Étape 1 : Identifier quels contenus sont "liés" (présents chez Doc ET Ref)
+    const docContents = new Set(allQuestions.filter(q => q.target === 'doctorant').map(q => (q.content || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '')));
+    const refContents = new Set(allQuestions.filter(q => q.target === 'referent').map(q => (q.content || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '')));
+    const linkedContents = new Set([...docContents].filter(c => refContents.has(c)));
+
+    // Étape 2 : Attribution des codes
     allQuestions.forEach((q) => {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
 
@@ -203,31 +208,23 @@ export class DoctorantController {
       const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
 
       if (prefixMatch) {
-         // Les codes manuels (ex: B1_1, Q1) sont prioritaires et fixes
+         // Codes manuels toujours prioritized (ex: B1_1, Q1:)
          const code = prefixMatch[1].toUpperCase();
          questionToCode.set(q._id.toString(), code);
          contentToCode.set(normalizedContent, code);
-      } else if (q.target === 'referent') {
-         // Pour les questions historiques sans matricule, le RÉFÉRENT dicte le numéro
-         qCount++;
-         const code = `Q${qCount}`;
-         questionToCode.set(q._id.toString(), code);
-         contentToCode.set(normalizedContent, code);
+      } else if (linkedContents.has(normalizedContent)) {
+         // On n'incrémente Q1, Q2... QUE pour les questions LIÉES (auto-évaluation)
+         if (!contentToCode.has(normalizedContent)) {
+           linkedCount++;
+           contentToCode.set(normalizedContent, `Q${linkedCount}`);
+         }
+         questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
+      } else {
+         // Question isolée (propre au référent ou doctorant) sans préfixe
+         // On lui donne un code neutre pour ne pas polluer la séquence Q1-Q15
+         const tag = q.target === 'referent' ? 'REF' : 'DOC';
+         questionToCode.set(q._id.toString(), q.systemId && q.systemId !== 'N/A' ? q.systemId : `${tag}_${q.order}`);
       }
-    });
-
-    // Deuxième passage pour aligner les questions Doctorants sur les numéros du Référent
-    allQuestions.forEach((q) => {
-      if (q.target !== 'doctorant' || questionToCode.has(q._id.toString())) return;
-
-      const rawContent = (q.content || '').trim();
-      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      
-      if (contentToCode.has(normalizedContent)) {
-        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
-      }
-      // Note: si une question Doctorant n'a pas de préfixe ET n'a pas de version Référent, 
-      // elle ne prend pas de numéro Qx (pour respecter la synchro demandée).
     });
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -310,43 +307,41 @@ export class DoctorantController {
       .sort({ order: 1 })
       .lean();
 
-    // Même logique de "Referent Master" pour la cohérence absolue du mapping
-    let qCount = 0;
+    // Même logique de "Linked-Only" pour la cohérence absolue du mapping
+    let linkedCount = 0;
     const questionToCode = new Map<string, string>();
     const contentToCode = new Map<string, string>();
 
-    // Pass 1: Referent dictates the Q1, Q2, Q3 sequence
+    // Étape 1 : Identifier quels contenus sont "liés" (Doc ET Ref)
+    const docContents = new Set(allQuestions.filter(q => q.target === 'doctorant').map(q => (q.content || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '')));
+    const refContents = new Set(allQuestions.filter(q => q.target === 'referent').map(q => (q.content || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '')));
+    const linkedContents = new Set([...docContents].filter(c => refContents.has(c)));
+
+    // Étape 2 : Attribution des codes
     allQuestions.forEach((q) => {
       if (['system', 'chapter_title', 'description'].includes(q.type)) return;
-
       const rawContent = (q.content || '').trim();
       const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
       const prefixMatch = rawContent.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
 
       if (prefixMatch) {
-        const code = prefixMatch[1].toUpperCase();
-        questionToCode.set(q._id.toString(), code);
-        contentToCode.set(normalizedContent, code);
-      } else if (q.target === 'referent') {
-        qCount++;
-        const code = `Q${qCount}`;
-        questionToCode.set(q._id.toString(), code);
-        contentToCode.set(normalizedContent, code);
-      }
-    });
-
-    // Pass 2: Doctorants align on Referents
-    allQuestions.forEach((q) => {
-      if (q.target !== 'doctorant' || questionToCode.has(q._id.toString())) return;
-      const rawContent = (q.content || '').trim();
-      const normalizedContent = rawContent.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      if (contentToCode.has(normalizedContent)) {
-        questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
+         const code = prefixMatch[1].toUpperCase();
+         questionToCode.set(q._id.toString(), code);
+         contentToCode.set(normalizedContent, code);
+      } else if (linkedContents.has(normalizedContent)) {
+         if (!contentToCode.has(normalizedContent)) {
+           linkedCount++;
+           contentToCode.set(normalizedContent, `Q${linkedCount}`);
+         }
+         questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
+      } else {
+         const tag = q.target === 'referent' ? 'REF' : 'DOC';
+         questionToCode.set(q._id.toString(), q.systemId && q.systemId !== 'N/A' ? q.systemId : `${tag}_${q.order}`);
       }
     });
 
     return allQuestions
-      .filter((q) => questionToCode.has(q._id.toString())) // On ne garde que ceux qui ont un code (synchro)
+      .filter((q) => questionToCode.has(q._id.toString()))
       .map((q) => {
         const identifier = questionToCode.get(q._id.toString());
         const content = (q.content || '').trim();
