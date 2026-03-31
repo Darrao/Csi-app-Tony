@@ -209,7 +209,7 @@ export class DoctorantController {
 
       if (prefixMatch) {
          // Codes manuels toujours prioritized (ex: B1_1, Q1:)
-         const code = prefixMatch[1].toUpperCase();
+         const code = prefixMatch[1].toUpperCase().replace(/[.-]/g, '_');
          questionToCode.set(q._id.toString(), code);
          contentToCode.set(normalizedContent, code);
       } else if (linkedContents.has(normalizedContent)) {
@@ -325,7 +325,7 @@ export class DoctorantController {
       const prefixMatch = rawContent.match(/^([A-Z]+[0-9]+(?:[._-][0-9]+)*|Q\d+)/i);
 
       if (prefixMatch) {
-         const code = prefixMatch[1].toUpperCase();
+         const code = prefixMatch[1].toUpperCase().replace(/[.-]/g, '_');
          questionToCode.set(q._id.toString(), code);
          contentToCode.set(normalizedContent, code);
       } else if (linkedContents.has(normalizedContent)) {
