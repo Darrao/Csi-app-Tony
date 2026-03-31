@@ -238,8 +238,8 @@ export class DoctorantController {
 
       const { responses, referentResponses, ...docWithoutArrays } = doc;
 
-      // 1. Filtrage dynamique pour les champs de base (on enlève les vieux slugs)
-      const slugKeyRegex = /^d?[A-Z][a-z]{2,}_/;
+      // 1. Filtrage dynamique pour les champs de base (on enlève les vieux slugs et les Q1-Q17 hardcodés)
+      const slugKeyRegex = /^(d?[A-Z][a-z]{2,}_|Q\d+(_comment)?$)/;
       const cleanDoc: any = {};
       Object.keys(docWithoutArrays).forEach((k) => {
         if (!slugKeyRegex.test(k)) {
