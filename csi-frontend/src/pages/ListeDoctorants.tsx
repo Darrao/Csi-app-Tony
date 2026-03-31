@@ -903,7 +903,10 @@ const ListeDoctorants: React.FC = () => {
       (filterStatus === 'Non envoyé aux référents' && !doc.sendToRepresentants) ||
       (filterStatus === 'Référents validés' && doc.representantValide) ||
       (filterStatus === 'Non validé par les référents' && !doc.representantValide) ||
-      (filterStatus === 'Rapport final envoyé' && doc.finalSend);
+      (filterStatus === 'Envoyé au directeur de département' && doc.gestionnaireDirecteurValide) ||
+      (filterStatus === 'Non envoyé au directeur de département' && !doc.gestionnaireDirecteurValide) ||
+      (filterStatus === 'Rapport final envoyé' && doc.finalSend) ||
+      (filterStatus === 'Rapport final non envoyé' && !doc.finalSend);
 
     // Filtres avancés Oui/Non (cumulatifs)
     const matchAdvanced =
@@ -1262,7 +1265,10 @@ const ListeDoctorants: React.FC = () => {
           <option value="Non envoyé aux référents">Non envoyé aux référents</option>
           <option value="Référents validés">Validation par les référents</option>
           <option value="Non validé par les référents">Non validé par les référents</option>
+          <option value="Envoyé au directeur de département">Envoyé au directeur de département</option>
+          <option value="Non envoyé au directeur de département">Non envoyé au directeur de département</option>
           <option value="Rapport final envoyé">Rapport final envoyé au Doctorant et au Directeur UR</option>
+          <option value="Rapport final non envoyé">Rapport final non envoyé</option>
         </select>
       </div>
 
