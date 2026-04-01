@@ -293,6 +293,7 @@ export class DoctorantController {
           ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
           : null,
         payload_json: JSON.stringify(payloadObj), // 🔥 TOUTE LA DONNÉE EST ICI
+        ID_DOCTORANT: doc.ID_DOCTORANT, // ✅ Demandé pour Claris Connect
       };
     });
   }
