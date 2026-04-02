@@ -84,10 +84,10 @@ export class DoctorantController {
   }
 
   @Get('claris-export')
-  @Header('Content-Type', 'application/json')
   async exportForClaris(
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
+    @Res() res: Response,
   ) {
     if (apiKey !== config.CLARIS_API_KEY) {
       throw new UnauthorizedException('Clé API invalide');
@@ -95,11 +95,9 @@ export class DoctorantController {
     console.log('✅ Export Claris demandé');
     const doctorants = await this.doctorantService.findAll();
     const allQuestions = await this.questionModel.find({ active: true }).sort({ order: 1 }).lean();
+    const baseUrl = `https://${req.get('host')}`; 
 
-    // On transforme la liste pour ajouter l'URL du PDF et aplatir les réponses
-    const baseUrl = `https://${req.get('host')}`; // Force HTTPS for Claris Connect as per requirement
-
-    return doctorants.map((doc: any) => {
+    const result = doctorants.map((doc: any) => {
       const computedUniqueId =
         doc.ID_UNIQUE_IMPORT ||
         `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
@@ -176,18 +174,24 @@ export class DoctorantController {
 
       return flattenedDoc;
     });
+
+    return res.status(200).json(result);
   }
 
   @Get('claris-export/stringified')
-  @Header('Content-Type', 'application/json')
   async exportForClarisStringified(
     @Headers('x-api-key') apiKey: string,
     @Req() req: any,
+    @Res() res: Response,
   ) {
     if (apiKey !== config.CLARIS_API_KEY) {
       throw new UnauthorizedException('Clé API invalide');
     }
     console.log('✅ Export Claris Stringified demandé');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
     const doctorants = await this.doctorantService.findAll();
     const allQuestions = await this.questionModel
       .find({ active: true })
@@ -232,11 +236,7 @@ export class DoctorantController {
       }
     });
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.get('host');
-    const baseUrl = `${protocol}://${host}`;
-
-    return doctorants.map((doc: any) => {
+    const result = doctorants.map((doc: any) => {
       const computedUniqueId =
         doc.ID_UNIQUE_IMPORT ||
         `${doc._id}_${doc.sendToDoctorant}_${doc.doctorantValide}_${doc.sendToRepresentants}_${doc.representantValide}_${doc.gestionnaireDirecteurValide}_${doc.finalSend}`;
@@ -301,11 +301,15 @@ export class DoctorantController {
         ID_DOCTORANT: doc.ID_DOCTORANT, // ✅ Demandé pour Claris Connect
       };
     });
+
+    return res.status(200).json(result);
   }
 
   @Get('claris-export/mapping')
-  @Header('Content-Type', 'application/json')
-  async exportMapping(@Headers('x-api-key') apiKey: string) {
+  async exportMapping(
+    @Headers('x-api-key') apiKey: string,
+    @Res() res: Response,
+  ) {
     if (apiKey !== config.CLARIS_API_KEY) {
       throw new UnauthorizedException('Clé API invalide');
     }
@@ -397,7 +401,7 @@ export class DoctorantController {
         };
       });
 
-    return [...systemMappings, ...questionMappings];
+    return res.status(200).json([...systemMappings, ...questionMappings]);
   }
 
   @Get('/export/zip')
