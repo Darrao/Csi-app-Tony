@@ -14,6 +14,7 @@ import {
   UseInterceptors,
   BadRequestException,
   Headers,
+  Header,
   UnauthorizedException,
   Req,
   InternalServerErrorException,
@@ -83,6 +84,7 @@ export class DoctorantController {
   }
 
   @Get('claris-export')
+  @Header('Content-Type', 'application/json')
   async exportForClaris(
     @Headers('x-api-key') apiKey: string,
     @Req() req: Request,
@@ -170,11 +172,14 @@ export class DoctorantController {
         flattenedDoc[`${key}_comment`] = referentResp?.comment ?? '';
       });
 
+      flattenedDoc.ID_DOCTORANT = doc.ID_DOCTORANT; // ✅ Demandé pour Claris Connect
+
       return flattenedDoc;
     });
   }
 
   @Get('claris-export/stringified')
+  @Header('Content-Type', 'application/json')
   async exportForClarisStringified(
     @Headers('x-api-key') apiKey: string,
     @Req() req: any,
@@ -299,6 +304,7 @@ export class DoctorantController {
   }
 
   @Get('claris-export/mapping')
+  @Header('Content-Type', 'application/json')
   async exportMapping(@Headers('x-api-key') apiKey: string) {
     if (apiKey !== config.CLARIS_API_KEY) {
       throw new UnauthorizedException('Clé API invalide');
@@ -341,7 +347,42 @@ export class DoctorantController {
       }
     });
 
-    return allQuestions
+    const systemMappings = [
+      {
+        code_json: 'ID_DOCTORANT',
+        systemId: 'N/A',
+        question_complete: 'ID Doctorant (FileMaker)',
+        snippet: 'ID Doctorant',
+        section: 'System',
+        target: 'system',
+      },
+      {
+        code_json: 'ID_UNIQUE_IMPORT',
+        systemId: 'N/A',
+        question_complete: 'ID Unique Import',
+        snippet: 'ID Unique',
+        section: 'System',
+        target: 'system',
+      },
+      {
+        code_json: 'pdfDownloadUrl',
+        systemId: 'N/A',
+        question_complete: 'URL de téléchargement PDF',
+        snippet: 'URL PDF',
+        section: 'System',
+        target: 'system',
+      },
+      {
+        code_json: 'payload_json',
+        systemId: 'N/A',
+        question_complete: 'Données brutes (JSON stringified)',
+        snippet: 'Payload JSON',
+        section: 'System',
+        target: 'system',
+      },
+    ];
+
+    const questionMappings = allQuestions
       .filter((q) => questionToCode.has(q._id.toString()))
       .map((q) => {
         const identifier = questionToCode.get(q._id.toString());
@@ -355,6 +396,8 @@ export class DoctorantController {
           target: q.target,
         };
       });
+
+    return [...systemMappings, ...questionMappings];
   }
 
   @Get('/export/zip')
