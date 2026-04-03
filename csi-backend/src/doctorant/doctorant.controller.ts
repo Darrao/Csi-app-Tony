@@ -175,7 +175,7 @@ export class DoctorantController {
       return flattenedDoc;
     });
 
-    return res.status(200).json(result);
+    return res.status(200).json({ data: result });
   }
 
   @Get('claris-export/stringified')
@@ -302,7 +302,7 @@ export class DoctorantController {
       };
     });
 
-    return res.status(200).json(result);
+    return res.status(200).json({ data: result });
   }
 
   @Get('claris-export/mapping')
@@ -401,7 +401,7 @@ export class DoctorantController {
         };
       });
 
-    return res.status(200).json([...systemMappings, ...questionMappings]);
+    return res.status(200).json({ data: [...systemMappings, ...questionMappings] });
   }
 
   @Get('/export/zip')
