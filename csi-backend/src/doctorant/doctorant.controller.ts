@@ -104,75 +104,33 @@ export class DoctorantController {
 
       const { responses, referentResponses, ...docWithoutArrays } = doc;
 
-      // ✅ Filtrage dynamique : On retire les anciennes clés "phrases" persitantes (ex: dHow_is_the...)
-      // On garde tout le reste (ce qui permet d'ajouter des champs futurs au schéma sans modif ici)
-      const cleanDoc: any = {
-        ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend
-          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
-          : null,
-      };
-
-      //Regex pour détecter les clés de type "Phrase_Slug" (ex: dWord_Word_...)
-      // d + Mot (au moins 2 lettres minuscules) + underscore
-      const slugKeyRegex = /^d?[A-Z][a-z]{2,}_/;
-
+      // 1. Filtrage dynamique pour les champs de base
+      const slugKeyRegex = /^(d?[A-Z][a-z]{2,}_|Q\d+(_comment)?|__v|initial_)$/;
+      const cleanDoc: any = {};
       Object.keys(docWithoutArrays).forEach((k) => {
         if (!slugKeyRegex.test(k)) {
           cleanDoc[k] = docWithoutArrays[k];
         }
       });
 
-      const flattenedDoc = { ...cleanDoc };
+      // 2. Construction de la charge utile (payload) qui contient tout le reste
+      const payloadObj: any = {
+        ...cleanDoc,
+        ID_UNIQUE_IMPORT: computedUniqueId,
+        pdfDownloadUrl: doc.finalSend
+          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
+          : null,
+      };
 
-      // Aplatir les réponses dynamiques avec des clés normalisées
-      allQuestions.forEach((q) => {
-        if (
-          q.type === 'system' ||
-          q.type === 'chapter_title' ||
-          q.type === 'description'
-        )
-          return;
-
-        // Extraire le préfixe (ex: B1_1, Q1, etc.)
-        const prefixMatch = q.content.match(/^([A-Z0-9]+_\d+|Q\d+)/i);
-        if (!prefixMatch) return; // ✅ Ignore les questions sans préfixe (phrases entières) as per requirement
-
-        const key = prefixMatch[1].toUpperCase();
-
-        // Récupérer les réponses de l'étudiant et du référent
-        const docResp = doc.responses?.find(
-          (r: any) => r.questionId === q._id.toString(),
-        );
-        const referentResp = doc.referentResponses?.find(
-          (r: any) => r.questionId === q._id.toString(),
-        );
-
-        // Logic Corrigée selon demande utilisateur :
-        // d_B... = Doctorant (Auto-évaluation - responses)
-        // d_B..._c = Commentaire Doctorant
-        // B...   = Référent (Évaluation - referentResponses)
-        // B..._c  = Commentaire Référent
-
-        // 1. Mapper les valeurs du DOCTORANT (avec préfixe 'd_')
-        let docVal = docResp?.value ?? '';
-        if (Array.isArray(docVal)) {
-          docVal = docVal.join(', ');
-        }
-        flattenedDoc[`d_${key}`] = docVal;
-        flattenedDoc[`d_${key}_comment`] = docResp?.comment ?? '';
-        // 2. Mapper les valeurs du RÉFÉRENT (SANS préfixe d, suffixe _c)
-        let referentVal = referentResp?.value ?? '';
-        if (Array.isArray(referentVal)) {
-          referentVal = referentVal.join(', ');
-        }
-        flattenedDoc[key] = referentVal;
-        flattenedDoc[`${key}_comment`] = referentResp?.comment ?? '';
-      });
-
-      flattenedDoc.ID_DOCTORANT = doc.ID_DOCTORANT; // ✅ Demandé pour Claris Connect
-
-      return flattenedDoc;
+      // 3. Objet final hybride retourné à Claris
+      return {
+        ID_UNIQUE_IMPORT: computedUniqueId,
+        pdfDownloadUrl: doc.finalSend
+          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
+          : null,
+        payload_json: JSON.stringify(payloadObj), // ✅ TOUTE LA DONNÉE EST ICI
+        ID_DOCTORANT: doc.ID_DOCTORANT,
+      };
     });
 
     return res.status(200).json({ data: result });
@@ -386,22 +344,7 @@ export class DoctorantController {
       },
     ];
 
-    const questionMappings = allQuestions
-      .filter((q) => questionToCode.has(q._id.toString()))
-      .map((q) => {
-        const identifier = questionToCode.get(q._id.toString());
-        const content = (q.content || '').trim();
-        return {
-          code_json: identifier,
-          systemId: q.systemId || 'N/A',
-          question_complete: q.content,
-          snippet: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-          section: q.section,
-          target: q.target,
-        };
-      });
-
-    return res.status(200).json({ data: [...systemMappings, ...questionMappings] });
+    return res.status(200).json({ data: systemMappings });
   }
 
   @Get('/export/zip')
