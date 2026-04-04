@@ -117,17 +117,13 @@ export class DoctorantController {
       const payloadObj: any = {
         ...cleanDoc,
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend
-          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
-          : null,
+        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`,
       };
 
       // 3. Objet final hybride retourné à Claris
       return {
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend
-          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
-          : null,
+        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`,
         payload_json: JSON.stringify(payloadObj), // ✅ TOUTE LA DONNÉE EST ICI
         ID_DOCTORANT: doc.ID_DOCTORANT,
       };
@@ -188,9 +184,8 @@ export class DoctorantController {
          questionToCode.set(q._id.toString(), contentToCode.get(normalizedContent));
       } else {
          // Question isolée (propre au référent ou doctorant) sans préfixe
-         // On lui donne un code neutre pour ne pas polluer la séquence Q1-Q15
-         const tag = q.target === 'referent' ? 'REF' : 'DOC';
-         questionToCode.set(q._id.toString(), q.systemId && q.systemId !== 'N/A' ? q.systemId : `${tag}_${q.order}`);
+         linkedCount++;
+         questionToCode.set(q._id.toString(), q.systemId && q.systemId !== 'N/A' ? q.systemId : `Q${linkedCount}`);
       }
     });
 
@@ -214,9 +209,7 @@ export class DoctorantController {
       const payloadObj: any = {
         ...cleanDoc,
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend
-          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
-          : null,
+        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`,
       };
       allQuestions.forEach((q) => {
         const key = questionToCode.get(q._id.toString());
@@ -252,9 +245,7 @@ export class DoctorantController {
       // 3. Objet final hybride retourné à Claris
       return {
         ID_UNIQUE_IMPORT: computedUniqueId,
-        pdfDownloadUrl: doc.finalSend
-          ? `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`
-          : null,
+        pdfDownloadUrl: `${baseUrl}/api/doctorant/export/pdf/${doc._id}?apiKey=${config.CLARIS_API_KEY}`,
         payload_json: JSON.stringify(payloadObj), // 🔥 TOUTE LA DONNÉE EST ICI
         ID_DOCTORANT: doc.ID_DOCTORANT, // ✅ Demandé pour Claris Connect
       };
