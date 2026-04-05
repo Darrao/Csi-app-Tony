@@ -109,7 +109,15 @@ export class DoctorantController {
       const cleanDoc: any = {};
       Object.keys(docWithoutArrays).forEach((k) => {
         if (!slugKeyRegex.test(k)) {
-          cleanDoc[k] = docWithoutArrays[k];
+          let val = docWithoutArrays[k];
+          // Annuler la date d'entretien générée par défaut (1er janvier minuit) issue de l'import CSV
+          if (k === 'dateEntretien' && val) {
+            const d = new Date(val);
+            if (!isNaN(d.getTime()) && d.getMonth() === 0 && d.getDate() === 1) {
+              val = null;
+            }
+          }
+          cleanDoc[k] = val;
         }
       });
 
@@ -201,7 +209,15 @@ export class DoctorantController {
       const cleanDoc: any = {};
       Object.keys(docWithoutArrays).forEach((k) => {
         if (!slugKeyRegex.test(k)) {
-          cleanDoc[k] = docWithoutArrays[k];
+          let val = docWithoutArrays[k];
+          // Annuler la date d'entretien générée par défaut (1er janvier minuit) issue de l'import CSV
+          if (k === 'dateEntretien' && val) {
+            const d = new Date(val);
+            if (!isNaN(d.getTime()) && d.getMonth() === 0 && d.getDate() === 1) {
+              val = null;
+            }
+          }
+          cleanDoc[k] = val;
         }
       });
 
