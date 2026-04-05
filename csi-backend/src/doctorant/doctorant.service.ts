@@ -821,12 +821,10 @@ export class DoctorantService implements OnModuleInit {
             )
               doctorantData.directeurEquipe = val;
 
-            // Date du dernier CSI
+            // Date du dernier CSI - Ignorée si c'est seulement une année pour éviter les fausses dates (1er janvier)
             if (ck.includes('cr csi dernier::annéedatecsi')) {
-              const year = parseInt(val, 10);
-              if (!isNaN(year)) {
-                doctorantData.dateEntretien = new Date(year, 0, 1);
-              }
+              // const year = parseInt(val, 10);
+              // L'utilisateur a demandé de ne pas forcer une date par défaut
             }
 
             // Membres du CSI (parse prénom et nom)
