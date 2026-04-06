@@ -468,7 +468,7 @@ const AdminQuestionConfig: React.FC = () => {
                     />
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
                     {/* Description button removed - use Section Header Edit instead */}
-                    {target === 'doctorant' && !questions.some(q => q.systemId) && (
+                    {!questions.some(q => q.systemId) && (
                         <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
                     )}
                     <button className="btn btn-primary" onClick={() => setShowPreview(true)}>
