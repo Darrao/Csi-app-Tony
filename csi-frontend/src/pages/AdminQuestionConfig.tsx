@@ -477,9 +477,13 @@ const AdminQuestionConfig: React.FC = () => {
                     />
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
                     {/* Description button removed - use Section Header Edit instead */}
-                    {DEFAULT_SYSTEM_BLOCKS.some(b => b.target === target && !questions.map(q => q.systemId).includes(b.systemId)) && (
-                        <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
-                    )}
+                    {(() => {
+                        const existingSystemIds = new Set(questions.map(q => q.systemId).filter(Boolean));
+                        const isMissingAny = DEFAULT_SYSTEM_BLOCKS.some(b => b.target === target && !existingSystemIds.has(b.systemId));
+                        return isMissingAny && (
+                            <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
+                        );
+                    })()}
                     <button className="btn btn-primary" onClick={() => setShowPreview(true)}>
                         👁️ Preview Form
                     </button>
@@ -564,17 +568,18 @@ const AdminQuestionConfig: React.FC = () => {
                                             </div>
                                         </div>
                                         {/* Questions List */}
-                                        <div className="questions-grid">
+                                         <div className="questions-grid" style={{ backgroundColor: '#fdfdfd' }}>
                                             {group.questions.map((q: any) => (
                                                 <div 
-                                                    key={q._id} 
+                                                    key={q._id || q.originalIndex} 
                                                     className="question-list-item" 
                                                     style={{ 
                                                         display: 'flex', 
                                                         justifyContent: 'space-between', 
                                                         alignItems: 'center', 
-                                                        padding: '12px 20px', 
+                                                        padding: '15px 20px', 
                                                         borderBottom: '1px solid #edf2f7',
+                                                        backgroundColor: q.systemId ? '#f8f9ff' : 'white',
                                                         opacity: draggedItemIndex === q.originalIndex ? 0.5 : 1
                                                     }}
                                                     draggable
@@ -583,16 +588,18 @@ const AdminQuestionConfig: React.FC = () => {
                                                     onDragEnd={handleDragEnd}
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-                                                        <span style={{ color: '#cbd5e0', cursor: 'grab' }}>⠿</span>
+                                                        <span style={{ color: '#cbd5e0', cursor: 'grab', fontSize: '1.2em' }}>⠿</span>
                                                         <div style={{ flex: 1 }}>
-                                                            <div style={{ fontWeight: '500', color: '#2d3748' }}>
-                                                                {q.content}
+                                                            <div style={{ fontWeight: '600', color: '#2d3748', fontSize: '1em' }}>
+                                                                {q.content || <em style={{ color: '#a0aec0' }}>(Empty Block Content)</em>}
+                                                                {q.systemId && <span style={{ marginLeft: '8px', padding: '2px 6px', backgroundColor: '#e2e8f0', borderRadius: '4px', fontSize: '0.7em', color: '#4a5568' }}>SYSTEM</span>}
                                                                 {q.required && <span style={{ color: '#dc3545', marginLeft: '5px' }}>*</span>}
                                                             </div>
-                                                            <div style={{ fontSize: '0.8em', color: '#718096', marginTop: '3px' }}>
+                                                            <div style={{ fontSize: '0.8em', color: '#718096', marginTop: '4px' }}>
                                                                 Type: {q.type} | {q.active ? 'Active' : 'Inactive'}
                                                                 {q.visibleToReferent && " | 👥 Referent"}
                                                                 {!q.visibleInPdf ? " | 🔒 Confidential" : " | 📄 In PDF"}
+                                                                {q.systemId && ` | ID: ${q.systemId}`}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -606,6 +613,7 @@ const AdminQuestionConfig: React.FC = () => {
                                                     </div>
                                                 </div>
                                             ))}
+                                            {group.questions.length === 0 && <div style={{ padding: '15px', color: '#a0aec0', textAlign: 'center' }}>No questions in this section</div>}
                                         </div>
                                     </div>
                                 ))}
