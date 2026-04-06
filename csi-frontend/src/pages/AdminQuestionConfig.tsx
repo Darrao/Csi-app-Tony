@@ -138,13 +138,22 @@ const AdminQuestionConfig: React.FC = () => {
 
     // Auto-init System Blocks
     const initializeSystemBlocks = async () => {
-        if (!window.confirm("Initialize default system blocks? This will add them to the list.")) return;
+        const existingSystemIds = questions.map(q => q.systemId).filter(Boolean);
+        const missingBlocks = DEFAULT_SYSTEM_BLOCKS.filter(b => b.target === target && !existingSystemIds.includes(b.systemId));
+
+        if (missingBlocks.length === 0) {
+            alert("All default system blocks for this target are already present.");
+            return;
+        }
+
+        if (!window.confirm(`Initialize ${missingBlocks.length} missing system blocks?`)) return;
+        
         try {
-            for (const block of DEFAULT_SYSTEM_BLOCKS.filter(b => b.target === target)) {
-                // Check if exists locally or remotely? Remotely for init.
+            for (const block of missingBlocks) {
                 await api.post('/questions', { ...block, target });
             }
-            fetchQuestions();
+            await fetchQuestions();
+            alert(`${missingBlocks.length} blocks initialized successfully.`);
         } catch (e) {
             console.error(e);
             alert("Error initializing blocks");
@@ -468,7 +477,7 @@ const AdminQuestionConfig: React.FC = () => {
                     />
                     <button className="btn" onClick={handleAddChapterTitle} style={{ backgroundColor: '#28a745', color: 'white' }}>➕ Chapter Title</button>
                     {/* Description button removed - use Section Header Edit instead */}
-                    {!questions.some(q => q.systemId) && (
+                    {DEFAULT_SYSTEM_BLOCKS.some(b => b.target === target && !questions.map(q => q.systemId).includes(b.systemId)) && (
                         <button className="btn" onClick={initializeSystemBlocks} style={{ backgroundColor: '#6f42c1', color: 'white' }}>⚡ Init System Blocks</button>
                     )}
                     <button className="btn btn-primary" onClick={() => setShowPreview(true)}>
