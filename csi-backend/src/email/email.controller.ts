@@ -1,10 +1,8 @@
 import { Body, Controller, Post, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import {
   sendMail,
-  generateToken,
   sendMailWithCC,
   sendMailDynamic,
-  verifyTokenAndFindDoctorant,
   generateReferentToken,
   generateDoctorantToken,
   verifyTokenAndFindDoctorantById,
@@ -75,21 +73,12 @@ export class EmailController {
       const contactLink = emailConfig.contactLink;
 
       for (const email of emails) {
-        console.log(`Traitement de l'email : ${email}`);
+        console.log(`[EMAIL_DISPATCH] Starting process for CSI member: ${email}`);
 
-        // 🏷 Génération du token
-        // const token = await generateToken(
-        //   email,
-        //   this.doctorantService,
-        //   doctorantEmail,
-        // );
         const token = generateReferentToken(doctorant._id.toString(), email);
-
-        await this.tokenService.saveToken(token, email, 'referent'); // ✅ rôle correct
+        await this.tokenService.saveToken(token, email, 'referent');
 
         const link = `${config.FRONTEND_URL}/formulaire?token=${token}`;
-
-        // 🔄 Remplacement des variables dans le template `formCsiMember`
         const emailTemplate = emailConfig.formCsiMember;
         const emailContent = this.emailConfigService.replaceEmailVariables(
           emailTemplate,
@@ -113,19 +102,25 @@ export class EmailController {
           },
         ];
 
-        console.log(`📧 Envoi de l'email à : ${email}`);
-        await sendMail(email, subject, emailContent, attachments);
-        console.log(`✅ Email envoyé à : ${email}`);
+        try {
+          console.log(`[EMAIL_DISPATCH] Sending email to CSI member: ${email}`);
+          await sendMail(email, subject, emailContent, attachments);
+          console.log(`[EMAIL_DISPATCH] ✅ Success: Email sent to CSI member: ${email}`);
+        } catch (mailError) {
+          console.error(`[EMAIL_DISPATCH] ❌ Error sending email to CSI member ${email}:`, mailError.message);
+          // We continue to other members even if one fails
+        }
       }
 
       // 🔥 Mise à jour du statut dans la base
       if (doctorant && doctorant._id instanceof Object) {
+        console.log(`[EMAIL_DISPATCH] Updating database status for doctorant: ${doctorant.email}`);
         await this.doctorantService.updateDoctorant(doctorant._id.toString(), {
           sendToRepresentants: true,
           NbSendToRepresentants: (doctorant.NbSendToRepresentants || 0) + 1,
         });
       } else {
-        console.error('❌ Erreur: `doctorant._id` est invalide :', doctorant);
+        console.error('[EMAIL_DISPATCH] ❌ Error: `doctorant._id` is invalid', doctorant);
       }
 
       // 🏷 Génération du token pour le doctorant

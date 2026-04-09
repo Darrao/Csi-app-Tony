@@ -18,6 +18,7 @@ const ModifierDoctorant: React.FC = () => {
     // const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [scientificReport, setScientificReport] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'uploading' | 'saving' | 'emailing' | 'success' | 'error'>('idle');
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const scientificReportInputRef = useRef<HTMLInputElement>(null);
 
@@ -281,6 +282,7 @@ const ModifierDoctorant: React.FC = () => {
         if (!confirmation) return;
 
         setSubmitting(true);
+        setSubmissionStatus('uploading');
 
         const { _id: _unusedId, __v: _unusedV, fichiersExternes: _unusedFiles, dateValidation: _unusedDate, ...sanitizedDoctorant } = doctorant;
         sanitizedDoctorant.responses = currentResponses; // Force l'utilisation du tableau injecté
@@ -326,13 +328,16 @@ const ModifierDoctorant: React.FC = () => {
             }
 
             // Étape 2 : Mise à jour du doctorant avec les fichiers stockés dans fichiersExternes
+            setSubmissionStatus('saving');
             sanitizedDoctorant.fichiersExternes = uploadedFiles;
 
             console.log("📩 Envoi des données mises à jour :", sanitizedDoctorant);
             console.log("🚀 [DIAGNOSTIC] Payload Admin avant envoi :", JSON.stringify(sanitizedDoctorant, null, 2));
             const response = await api.put(`/doctorant/${doctorant._id}`, sanitizedDoctorant);
             console.log("✅ [DIAGNOSTIC] Réponse Serveur :", response.data);
-            setMessage("Modifications enregistrées avec succès !");
+            
+            setSubmissionStatus('emailing');
+            setMessage("Data saved. Sending CSI invitations...");
 
             // 📩 Envoi d'un email aux référents s'ils existent
             const referentsEmails = [
@@ -350,10 +355,13 @@ const ModifierDoctorant: React.FC = () => {
             }
 
             console.log("✅ Mise à jour réussie !");
+            setSubmissionStatus('success');
+            setMessage("Form submitted and validated! Redirecting...");
             setTimeout(() => navigate("/merci"), 2000); // ⏳ Attend 2 sec avant la redirection
         } catch (err) {
             console.error("❌ Erreur lors de la mise à jour :", err);
-            setError("Échec de la mise à jour.");
+            setSubmissionStatus('error');
+            setError("Error during submission. Please check your connection or contact the administrator.");
         } finally {
             setSubmitting(false); // Désactive l'animation de chargement
         }
@@ -725,14 +733,23 @@ const ModifierDoctorant: React.FC = () => {
 
                         <button
                             type="submit"
-                            className="submit-btn"
+                            className={`submit-btn ${submitting ? 'submitting' : ''}`}
                             disabled={submitting}
-                            style={{ width: '100%', maxWidth: '400px' }}
+                            style={{ 
+                                width: '100%', 
+                                maxWidth: '400px',
+                                cursor: submitting ? 'not-allowed' : 'pointer',
+                                opacity: submitting ? 0.7 : 1,
+                                filter: submitting ? 'grayscale(0.5)' : 'none'
+                            }}
                         >
                             {submitting ? (
                                 <>
-                                    <span className="spinner"></span>
-                                    Saving...
+                                    <span className="spinner" style={{ marginRight: '10px' }}></span>
+                                    {submissionStatus === 'uploading' && "Uploading report..."}
+                                    {submissionStatus === 'saving' && "Saving data..."}
+                                    {submissionStatus === 'emailing' && "Inviting CSI members..."}
+                                    {!['uploading', 'saving', 'emailing'].includes(submissionStatus) && "Processing..."}
                                 </>
                             ) : (
                                 "Submit Report"
