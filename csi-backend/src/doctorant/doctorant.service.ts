@@ -1496,7 +1496,6 @@ export class DoctorantService implements OnModuleInit {
 
         if (doctorant.conclusion || doctorant.recommendation) {
           if (y - 100 <= marginBottom) newPage();
-          addSectionTitle('Conclusion and recommendations');
           if (doctorant.conclusion)
             addWrappedText('Conclusion :', doctorant.conclusion);
 
