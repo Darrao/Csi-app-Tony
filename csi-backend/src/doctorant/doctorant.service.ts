@@ -2031,10 +2031,6 @@ export class DoctorantService implements OnModuleInit {
       }
 
       pendingSectionTitle = ''; // Clean up before final conclusion
-      // Force render Conclusion & Recommendations at the end
-      if (renderers['conclusion_recommendations']) {
-        renderers['conclusion_recommendations']();
-      }
     }
 
     // 📌 Génération des bytes du PDF
